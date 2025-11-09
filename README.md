@@ -1,6 +1,6 @@
 # restexec
 
-`restexec` は、REST API経由でTypeScriptコードを安全に実行するサービスです。共有ディレクトリに配置されたTypeScriptファイルを動的に実行し、その結果をJSON形式で返却します。
+`restexec` は、REST API経由でTypeScriptコードを安全に実行するサービスです。共有ディレクトリに配置されたTypeScriptファイルをDeno runtimeで動的に実行し、その結果をJSON形式で返却します。Denoの厳格なパーミッションシステムにより、ファイルシステム、ネットワーク、プロセス実行を細かく制御できます。
 
 ## システムアーキテクチャ
 
@@ -20,8 +20,8 @@ graph TB
         end
         
         subgraph "Child Processes"
-            TSX1["tsx Process 1<br/>/workspace/exec-123.ts"]
-            TSX2["tsx Process 2<br/>/workspace/exec-124.ts"]
+            Deno1["Deno Process 1<br/>/workspace/exec-123.ts"]
+            Deno2["Deno Process 2<br/>/workspace/exec-124.ts"]
         end
         
         subgraph "File System"
@@ -35,25 +35,25 @@ graph TB
     Router --> Validator
     Validator --> Executor
     
-    Executor -->|spawn tsx| ProcessMgr
-    ProcessMgr -->|Create| TSX1
-    ProcessMgr -->|Create| TSX2
-    
-    TSX1 -->|Read| Workspace
-    TSX1 -->|Import| Tools
-    TSX2 -->|Read| Workspace
-    TSX2 -->|Import| Tools
-    
-    TSX1 -->|stdout/stderr| ProcessMgr
-    TSX2 -->|stdout/stderr| ProcessMgr
+    Executor -->|spawn deno| ProcessMgr
+    ProcessMgr -->|Create| Deno1
+    ProcessMgr -->|Create| Deno2
+
+    Deno1 -->|Read| Workspace
+    Deno1 -->|Import| Tools
+    Deno2 -->|Read| Workspace
+    Deno2 -->|Import| Tools
+
+    Deno1 -->|stdout/stderr| ProcessMgr
+    Deno2 -->|stdout/stderr| ProcessMgr
     ProcessMgr --> ResultParser
     ResultParser --> HTTPServer
     HTTPServer -->|JSON Response| Client
     
     style HTTPServer fill:#2196F3,color:#fff
     style Executor fill:#FF9800,color:#fff
-    style TSX1 fill:#4CAF50,color:#fff
-    style TSX2 fill:#4CAF50,color:#fff
+    style Deno1 fill:#4CAF50,color:#fff
+    style Deno2 fill:#4CAF50,color:#fff
     style Workspace fill:#f0f0f0
     style Tools fill:#f0f0f0
 ```
