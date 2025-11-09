@@ -4,18 +4,28 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './utils/logger.js';
 import { FileNotFoundError, TimeoutError, ExecutionError } from './utils/errors.js';
-import type { ExecutionResult } from './types/index.js';
 
 // Get the directory of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
+// 10MB buffer limit
+const MAX_BUFFER = 10 * 1024 * 1024;
+
 export interface ExecuteOptions {
   codeId: string;
   timeout: number;
   workspaceDir: string;
   toolsDir: string;
+}
+
+export interface ExecutionResult {
+  success: true;
+  output: object;
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  executionTime: number;
 }
 
 /**
@@ -45,25 +55,37 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     let isTimedOut = false;
     let isKilled = false;
 
+    // Whitelist environment variables
+    const allowedEnv = {
+      NODE_PATH: toolsDir,
+      PATH: process.env.PATH,
+    };
+
     // Spawn tsx process
-    // Use tsx from node_modules/.bin or environment variable
     const tsxPath = process.env.TSX_PATH || join(projectRoot, 'node_modules', '.bin', 'tsx');
     const child: ChildProcess = spawn(tsxPath, [filePath], {
       cwd: workspaceDir,
-      env: {
-        ...process.env,
-        NODE_PATH: toolsDir,
-      },
+      env: allowedEnv,
       timeout: 0, // We'll handle timeout manually
     });
 
     // Collect stdout
     child.stdout?.on('data', (data: Buffer) => {
+      if (stdout.length > MAX_BUFFER) {
+        child.kill('SIGKILL');
+        reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        return;
+      }
       stdout += data.toString();
     });
 
     // Collect stderr
     child.stderr?.on('data', (data: Buffer) => {
+      if (stderr.length > MAX_BUFFER) {
+        child.kill('SIGKILL');
+        reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        return;
+      }
       stderr += data.toString();
     });
 
@@ -71,8 +93,6 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     const timeoutId = setTimeout(() => {
       isTimedOut = true;
       logger.warn(`Process timeout for ${codeId}, sending SIGTERM`);
-
-      // Send SIGTERM
       child.kill('SIGTERM');
 
       // Wait 1 second, then send SIGKILL
@@ -144,25 +164,16 @@ function parseOutput(
     });
   }
 
-  // Try to parse JSON output from stdout
-  let output: string;
+  let output: object;
   try {
-    // Try to parse as JSON
     const trimmedOutput = stdout.trim();
-    if (trimmedOutput) {
-      // Validate that it's valid JSON
-      JSON.parse(trimmedOutput);
-      output = trimmedOutput;
-    } else {
-      output = JSON.stringify({ success: true, result: null });
-    }
+    output = trimmedOutput ? JSON.parse(trimmedOutput) : { success: true, result: null };
   } catch (error) {
-    // If not valid JSON, return stdout as-is wrapped in a JSON object
     logger.warn(`Output is not valid JSON, wrapping in object`);
-    output = JSON.stringify({
+    output = {
       success: true,
       result: stdout.trim() || null,
-    });
+    };
   }
 
   return {

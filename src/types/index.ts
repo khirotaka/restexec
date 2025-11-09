@@ -48,7 +48,7 @@ export interface HealthResponse {
 // Process execution types
 export interface ExecutionResult {
   success: boolean;
-  output: string;
+  output: object;
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   executionTime: number;
