@@ -53,14 +53,17 @@ export interface ExecuteOptions {
   codeId: string;
   timeout: number;
   workspaceDir: string;
-  toolsDir: string;
 }
 
 /**
- * Execute TypeScript code in a child process using Deno
+ * Execute TypeScript code in a child process using Deno.
+ *
+ * The executed script is expected to print a JSON object to standard output
+ * for the result to be parsed correctly. If the output is not valid JSON,
+ * it will be wrapped in a fallback object.
  */
 export async function executeCode(options: ExecuteOptions): Promise<ExecutionResult> {
-  const { codeId, timeout, workspaceDir, toolsDir } = options;
+  const { codeId, timeout, workspaceDir } = options;
   const startTime = Date.now();
 
   // Construct file path
@@ -97,7 +100,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     const child: ChildProcess = spawn(config.deno.path, denoArgs, {
       cwd: workspaceDir,
       env: allowedEnv,
-      timeout: 0, // We'll handle timeout manually
+      timeout: 0, // We handle timeout manually to allow for graceful shutdown
     });
 
     // Collect stdout
@@ -105,7 +108,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       if (stdout.length > MAX_BUFFER) {
         if (!isSettled) {
           isSettled = true;
-          child.kill('SIGKILL');
+          logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            if (child.exitCode === null) {
+              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
+              child.kill('SIGKILL');
+            }
+          }, 1000);
           reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
         }
         return;
@@ -118,7 +128,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       if (stderr.length > MAX_BUFFER) {
         if (!isSettled) {
           isSettled = true;
-          child.kill('SIGKILL');
+          logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            if (child.exitCode === null) {
+              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
+              child.kill('SIGKILL');
+            }
+          }, 1000);
           reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
         }
         return;
