@@ -50,7 +50,7 @@ export interface ExecutionResult {
   success: true;
   output: object;
   exitCode: number | null;
-  signal: NodeJS.Signals | null;
+  signal: Deno.Signal | null;
   executionTime: number;
 }
 

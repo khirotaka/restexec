@@ -27,60 +27,53 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          node-version: '20'
-          cache: 'npm'
+          deno-version: v2.x
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Cache Deno dependencies
+        run: deno cache src/index.ts
+
+      - name: Lint
+        run: deno lint
+
+      - name: Format check
+        run: deno fmt --check
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: deno check src/index.ts
 
   test:
-    name: Test (Node ${{ matrix.node-version }})
+    name: Test
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: ['18', '20', '22']
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
       - name: Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v1.x
+          deno-version: v2.x
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Cache Deno dependencies
+        run: deno cache src/index.ts
 
-      - name: Build
-        run: npm run build
+      - name: Create test directories
+        run: |
+          mkdir -p /tmp/restexec-test-workspace
+          mkdir -p /tmp/restexec-test-tools
 
       - name: Run tests
-        run: npm test
+        run: deno task test
         env:
           DENO_PATH: deno
 
       - name: Generate coverage report
-        if: matrix.node-version == '20'
-        run: npm run test:coverage
-        env:
-          DENO_PATH: deno
+        run: deno test --coverage=coverage --allow-read --allow-write --allow-net --allow-env --allow-run
 
       - name: Upload coverage
-        if: matrix.node-version == '20'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report

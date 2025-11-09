@@ -1,4 +1,4 @@
-import type { ErrorType } from '../types/index.js';
+import type { ErrorType } from '../types/index.ts';
 
 /**
  * Base error class for restexec
@@ -14,7 +14,6 @@ export class RestExecError extends Error {
     this.statusCode = statusCode;
     this.details = details;
     this.name = this.constructor.name;
-    Error.captureStackTrace(this, this.constructor);
   }
 }
 
