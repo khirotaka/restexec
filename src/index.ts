@@ -11,11 +11,21 @@ const { signal } = abortController;
 Deno.addSignalListener('SIGINT', () => {
   logger.info('SIGINT signal received: closing HTTP server');
   abortController.abort();
+  // Give the server a brief moment to clean up, then force exit
+  setTimeout(() => {
+    logger.info('Exiting process');
+    Deno.exit(0);
+  }, 100);
 });
 
 Deno.addSignalListener('SIGTERM', () => {
   logger.info('SIGTERM signal received: closing HTTP server');
   abortController.abort();
+  // Give the server a brief moment to clean up, then force exit
+  setTimeout(() => {
+    logger.info('Exiting process');
+    Deno.exit(0);
+  }, 100);
 });
 
 logger.info(`Server starting on port ${config.port}`);
