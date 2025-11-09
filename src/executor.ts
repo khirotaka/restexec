@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './utils/logger.js';
 import { FileNotFoundError, TimeoutError, ExecutionError } from './utils/errors.js';
+import type { ExecutionResult } from './types/index.js';
 
 // Get the directory of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -18,14 +19,6 @@ export interface ExecuteOptions {
   timeout: number;
   workspaceDir: string;
   toolsDir: string;
-}
-
-export interface ExecutionResult {
-  success: true;
-  output: object;
-  exitCode: number | null;
-  signal: NodeJS.Signals | null;
-  executionTime: number;
 }
 
 /**
