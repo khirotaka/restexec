@@ -70,7 +70,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
   // Check if file exists
   try {
     await Deno.stat(filePath);
-  } catch (error) {
+  } catch (_error) {
     logger.error(`File not found: ${filePath}`);
     throw new FileNotFoundError(codeId);
   }
@@ -279,7 +279,7 @@ function parseOutput(
   try {
     const trimmedOutput = stdout.trim();
     output = trimmedOutput ? JSON.parse(trimmedOutput) : { success: true, result: null };
-  } catch (error) {
+  } catch (_error) {
     logger.warn(`Output is not valid JSON, wrapping in object`);
     output = {
       success: true,

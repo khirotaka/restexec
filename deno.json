@@ -28,6 +28,7 @@
     "proseWrap": "preserve"
   },
   "lint": {
+    "exclude": ["tests/fixtures/"],
     "rules": {
       "tags": ["recommended"]
     }

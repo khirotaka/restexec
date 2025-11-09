@@ -7,7 +7,7 @@ export interface ExecuteRequest {
 // Response types
 export interface SuccessResponse {
   success: true;
-  result: any;
+  result: unknown;
   executionTime: number;
 }
 
@@ -16,7 +16,7 @@ export interface ErrorResponse {
   error: {
     type: ErrorType;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   executionTime?: number;
 }

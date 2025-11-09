@@ -9,6 +9,7 @@ Deno.test('Executor - should execute simple code and return JSON output', async 
   await env.setup();
   try {
     // Override config for testing
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('hello', `
@@ -41,6 +42,7 @@ Deno.test('Executor - should execute code with complex JSON output', async () =>
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('complex', `
@@ -63,9 +65,13 @@ Deno.test('Executor - should execute code with complex JSON output', async () =>
     });
 
     assertEquals(result.success, true);
+    // deno-lint-ignore no-explicit-any
     assertEquals((result.output as any).success, true);
+    // deno-lint-ignore no-explicit-any
     assertExists((result.output as any).data);
+    // deno-lint-ignore no-explicit-any
     assertEquals((result.output as any).data.number, 42);
+    // deno-lint-ignore no-explicit-any
     assertEquals((result.output as any).data.array, [1, 2, 3]);
   } finally {
     await env.cleanup();
@@ -76,6 +82,7 @@ Deno.test('Executor - should execute async code', async () => {
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('async', `
@@ -111,6 +118,7 @@ Deno.test('Executor - should handle non-JSON output by wrapping it', async () =>
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('text', `
@@ -137,6 +145,7 @@ Deno.test('Executor - should handle empty output', async () => {
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('empty', `
@@ -163,6 +172,7 @@ Deno.test('Executor - should throw FileNotFoundError when file does not exist', 
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await assertRejects(
@@ -184,6 +194,7 @@ Deno.test('Executor - should throw ExecutionError on syntax error', async () => 
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('syntax-error', `
@@ -211,6 +222,7 @@ Deno.test('Executor - should throw ExecutionError on runtime error', async () =>
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('runtime-error', `
@@ -239,6 +251,7 @@ Deno.test('Executor - should throw TimeoutError when execution exceeds timeout',
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     await env.writeCode('timeout', `
@@ -266,6 +279,7 @@ Deno.test('Executor - should use import map for module resolution', async () => 
   const env = new TestEnvironment();
   await env.setup();
   try {
+    // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     // Create a tool module
