@@ -29,12 +29,14 @@ export function createApp(): Express {
 
   // 404 handler
   app.use((_req: Request, res: Response<ApiResponse>) => {
+    const executionTime = Date.now() - res.locals.startTime;
     res.status(404).json({
       success: false,
       error: {
-        type: 'InternalError',
+        type: 'ValidationError',
         message: 'Not found',
       },
+      executionTime,
     });
   });
 
