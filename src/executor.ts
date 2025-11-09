@@ -84,6 +84,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     let isTimedOut = false;
     let isKilled = false;
     let isSettled = false; // Prevent multiple resolve/reject calls
+    let killTimeoutId: number | undefined; // Track SIGKILL timer for cleanup
 
     // Build Deno command arguments
     const denoArgs = buildDenoArgs(filePath);
@@ -118,7 +119,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
             logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
             try {
               child.kill('SIGTERM');
-              setTimeout(() => {
+              killTimeoutId = setTimeout(() => {
                 try {
                   child.kill('SIGKILL');
                 } catch {
@@ -146,7 +147,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
             logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
             try {
               child.kill('SIGTERM');
-              setTimeout(() => {
+              killTimeoutId = setTimeout(() => {
                 try {
                   child.kill('SIGKILL');
                 } catch {
@@ -175,7 +176,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       }
 
       // Wait 1 second, then send SIGKILL
-      setTimeout(() => {
+      killTimeoutId = setTimeout(() => {
         if (!isKilled) {
           logger.warn(`Process did not terminate, sending SIGKILL`);
           try {
@@ -193,6 +194,9 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
         const status = await child.status;
         isKilled = true;
         clearTimeout(timeoutId);
+        if (killTimeoutId !== undefined) {
+          clearTimeout(killTimeoutId);
+        }
 
         // Skip if promise is already settled
         if (isSettled) {
@@ -223,6 +227,9 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
         }
       } catch (error) {
         clearTimeout(timeoutId);
+        if (killTimeoutId !== undefined) {
+          clearTimeout(killTimeoutId);
+        }
 
         // Skip if promise is already settled
         if (isSettled) {
