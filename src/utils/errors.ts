@@ -58,3 +58,17 @@ export class ExecutionError extends RestExecError {
     );
   }
 }
+
+/**
+ * Thrown when request validation fails
+ */
+export class ValidationError extends RestExecError {
+  constructor(message: string, details?: unknown) {
+    super(
+      'ValidationError',
+      message,
+      400,
+      details,
+    );
+  }
+}

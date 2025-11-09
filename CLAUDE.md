@@ -158,17 +158,27 @@ restexec/
 
 ### Code Execution Contract
 
-Code files in `/workspace` must:
+Code files in `/workspace`:
 
-1. Export a default function (sync or async)
-2. Return JSON-serializable values
-3. Follow TypeScript strict mode
+1. Are executed directly as TypeScript files by Deno
+2. Output is captured from stdout (typically via `console.log`)
+3. Should follow TypeScript strict mode
+4. Can use async operations with top-level await
 
 Example:
 ```typescript
-export default async function() {
-  return { message: "Hello World", timestamp: Date.now() };
+async function main() {
+  const result = { message: "Hello World", timestamp: Date.now() };
+  console.log(JSON.stringify(result));
 }
+
+main().catch(console.error);
+```
+
+Or using top-level await:
+```typescript
+const result = { message: "Hello World", timestamp: Date.now() };
+console.log(JSON.stringify(result));
 ```
 
 ### Error Handling Pattern
@@ -278,11 +288,13 @@ Key configuration environment variables (see [src/config.ts](src/config.ts)):
 - `PORT`: HTTP server port (default: 8080)
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `DEFAULT_TIMEOUT_MS`: Default execution timeout (default: 5000)
-- `DENO_PERMISSIONS_READ`: Read permissions (default: /workspace,/tools)
-- `DENO_PERMISSIONS_WRITE`: Write permissions (default: empty)
-- `DENO_PERMISSIONS_NET`: Network permissions (default: empty)
-- `DENO_PERMISSIONS_RUN`: Subprocess permissions (default: empty)
-- `DENO_PERMISSIONS_ENV`: Environment variable access (default: empty)
+- `MAX_TIMEOUT_MS`: Maximum allowed timeout (default: 300000)
+- `DENO_PATH`: Path to Deno executable (default: deno)
+- `DENO_IMPORT_MAP`: Path to import map for module resolution (default: /workspace/import_map.json)
+- `DENO_ALLOW_READ`: Read permissions (default: /workspace,/tools)
+- `DENO_ALLOW_WRITE`: Write permissions (default: empty)
+- `DENO_ALLOW_NET`: Network permissions (default: empty)
+- `DENO_ALLOW_RUN`: Subprocess permissions (default: empty)
 
 ## Working with This Project
 

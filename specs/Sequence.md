@@ -4,11 +4,11 @@
 sequenceDiagram
     autonumber
     participant Client as REST Client
-    participant HTTP as HTTP Server<br/>(Express.js)
+    participant HTTP as HTTP Server<br/>(Oak)
     participant Validator as Request<br/>Validator
     participant Executor as Code<br/>Executor
     participant FS as File System<br/>(/workspace, /tools)
-    participant Process as tsx Process<br/>(Child)
+    participant Process as Deno Process<br/>(Child)
     
     Client->>HTTP: POST /execute<br/>{codeId: "test-001", timeout: 5000}
     
@@ -38,9 +38,9 @@ sequenceDiagram
     rect rgb(255, 250, 240)
         Note over Executor,Process: Phase 3: プロセス起動
         Executor->>Executor: Create timeout timer
-        Executor->>Process: spawn('tsx', ['/workspace/test-001.ts'])
+        Executor->>Process: spawn('deno', ['run', '--allow-read=...', '/workspace/test-001.ts'])
         activate Process
-        Executor->>Process: Set env: NODE_PATH=/tools
+        Executor->>Process: Set permissions via flags
         Executor->>Process: Set timeout: 5000ms
     end
     

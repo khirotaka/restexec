@@ -1,44 +1,37 @@
 import { Context } from '@oak/oak';
 import { config } from '../config.ts';
-import type { ApiResponse, ExecuteRequest } from '../types/index.ts';
-
-/**
- * Creates a validation error response
- */
-function createValidationError(ctx: Context, message: string, details: object): void {
-  const executionTime = Date.now() - ctx.state.startTime;
-  ctx.response.status = 400;
-  ctx.response.body = {
-    success: false,
-    error: {
-      type: 'ValidationError',
-      message,
-      details,
-    },
-    executionTime,
-  } satisfies ApiResponse;
-}
+import { ValidationError } from '../utils/errors.ts';
+import type { ExecuteRequest } from '../types/index.ts';
 
 /**
  * Validates the execute request body
  */
 export async function validateExecuteRequest(ctx: Context, next: () => Promise<unknown>): Promise<void> {
-  const body = await ctx.request.body.json() as ExecuteRequest;
+  // Parse JSON with error handling
+  let body: ExecuteRequest;
+  try {
+    body = await ctx.request.body.json() as ExecuteRequest;
+  } catch (error) {
+    throw new ValidationError(
+      'Invalid JSON in request body',
+      { error: error instanceof Error ? error.message : String(error) },
+    );
+  }
+
   const { codeId, timeout } = body;
 
   // Validate codeId
   if (!codeId) {
-    return createValidationError(ctx, 'codeId is required', { field: 'codeId' });
+    throw new ValidationError('codeId is required', { field: 'codeId' });
   }
 
   if (typeof codeId !== 'string' || codeId.trim() === '') {
-    return createValidationError(ctx, 'codeId must be a non-empty string', { field: 'codeId', value: codeId });
+    throw new ValidationError('codeId must be a non-empty string', { field: 'codeId', value: codeId });
   }
 
   // Prevent path traversal attacks
   if (codeId.includes('/') || codeId.includes('\\') || codeId.includes('..')) {
-    return createValidationError(
-      ctx,
+    throw new ValidationError(
       'codeId must not contain path separators or parent directory references',
       { field: 'codeId', value: codeId },
     );
@@ -46,8 +39,7 @@ export async function validateExecuteRequest(ctx: Context, next: () => Promise<u
 
   // Validate codeId format (alphanumeric, hyphens, underscores only)
   if (!/^[a-zA-Z0-9_-]+$/.test(codeId)) {
-    return createValidationError(
-      ctx,
+    throw new ValidationError(
       'codeId must contain only alphanumeric characters, hyphens, and underscores',
       { field: 'codeId', value: codeId },
     );
@@ -56,11 +48,11 @@ export async function validateExecuteRequest(ctx: Context, next: () => Promise<u
   // Validate timeout if provided
   if (timeout !== undefined) {
     if (typeof timeout !== 'number' || !Number.isInteger(timeout)) {
-      return createValidationError(ctx, 'timeout must be an integer', { field: 'timeout', value: timeout });
+      throw new ValidationError('timeout must be an integer', { field: 'timeout', value: timeout });
     }
 
     if (timeout < 1 || timeout > config.maxTimeout) {
-      return createValidationError(ctx, `timeout must be between 1 and ${config.maxTimeout}`, {
+      throw new ValidationError(`timeout must be between 1 and ${config.maxTimeout}`, {
         field: 'timeout',
         value: timeout,
         max: config.maxTimeout,

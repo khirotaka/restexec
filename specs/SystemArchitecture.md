@@ -4,7 +4,7 @@
 graph TB
     subgraph "restexec Container"
         subgraph "Main Process (PID 1)"
-            HTTPServer["HTTP Server<br/>Express.js<br/>Port: 3000"]
+            HTTPServer["HTTP Server<br/>Oak Framework<br/>Port: 8080"]
             Router["Request Router"]
             Validator["Request Validator"]
         end

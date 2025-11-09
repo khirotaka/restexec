@@ -69,8 +69,8 @@ export function createApp(): Application {
     ctx.response.body = {
       success: false,
       error: {
-        type: 'ValidationError',
-        message: 'Not found',
+        type: 'FileNotFoundError',
+        message: 'Route not found',
       },
       executionTime,
     } satisfies ApiResponse;
