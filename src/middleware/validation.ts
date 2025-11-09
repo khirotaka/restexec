@@ -8,9 +8,9 @@ import type { ExecuteRequest, ApiResponse } from '../types/index.js';
 function createValidationError(
   res: Response<ApiResponse>,
   message: string,
-  details: object,
-  startTime: number
+  details: object
 ): void {
+  const executionTime = Date.now() - res.locals.startTime;
   res.status(400).json({
     success: false,
     error: {
@@ -18,7 +18,7 @@ function createValidationError(
       message,
       details,
     },
-    executionTime: Date.now() - startTime,
+    executionTime,
   });
 }
 
@@ -30,20 +30,18 @@ export function validateExecuteRequest(
   res: Response<ApiResponse>,
   next: NextFunction
 ): void {
-  const startTime = Date.now();
   const { codeId, timeout } = req.body;
 
   // Validate codeId
   if (!codeId) {
-    return createValidationError(res, 'codeId is required', { field: 'codeId' }, startTime);
+    return createValidationError(res, 'codeId is required', { field: 'codeId' });
   }
 
   if (typeof codeId !== 'string' || codeId.trim() === '') {
     return createValidationError(
       res,
       'codeId must be a non-empty string',
-      { field: 'codeId', value: codeId },
-      startTime
+      { field: 'codeId', value: codeId }
     );
   }
 
@@ -52,8 +50,7 @@ export function validateExecuteRequest(
     return createValidationError(
       res,
       'codeId must not contain path separators or parent directory references',
-      { field: 'codeId', value: codeId },
-      startTime
+      { field: 'codeId', value: codeId }
     );
   }
 
@@ -62,8 +59,7 @@ export function validateExecuteRequest(
     return createValidationError(
       res,
       'codeId must contain only alphanumeric characters, hyphens, and underscores',
-      { field: 'codeId', value: codeId },
-      startTime
+      { field: 'codeId', value: codeId }
     );
   }
 
@@ -73,8 +69,7 @@ export function validateExecuteRequest(
       return createValidationError(
         res,
         'timeout must be an integer',
-        { field: 'timeout', value: timeout },
-        startTime
+        { field: 'timeout', value: timeout }
       );
     }
 
@@ -82,8 +77,7 @@ export function validateExecuteRequest(
       return createValidationError(
         res,
         `timeout must be between 1 and ${config.maxTimeout}`,
-        { field: 'timeout', value: timeout, max: config.maxTimeout },
-        startTime
+        { field: 'timeout', value: timeout, max: config.maxTimeout }
       );
     }
   }
