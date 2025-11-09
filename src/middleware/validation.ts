@@ -3,6 +3,26 @@ import { config } from '../config.js';
 import type { ExecuteRequest, ApiResponse } from '../types/index.js';
 
 /**
+ * Creates a validation error response
+ */
+function createValidationError(
+  res: Response<ApiResponse>,
+  message: string,
+  details: object,
+  startTime: number
+): void {
+  res.status(400).json({
+    success: false,
+    error: {
+      type: 'ValidationError',
+      message,
+      details,
+    },
+    executionTime: Date.now() - startTime,
+  });
+}
+
+/**
  * Validates the execute request body
  */
 export function validateExecuteRequest(
@@ -15,85 +35,56 @@ export function validateExecuteRequest(
 
   // Validate codeId
   if (!codeId) {
-    res.status(400).json({
-      success: false,
-      error: {
-        type: 'ValidationError',
-        message: 'codeId is required',
-        details: { field: 'codeId' },
-      },
-      executionTime: Date.now() - startTime,
-    });
-    return;
+    return createValidationError(res, 'codeId is required', { field: 'codeId' }, startTime);
   }
 
   if (typeof codeId !== 'string' || codeId.trim() === '') {
-    res.status(400).json({
-      success: false,
-      error: {
-        type: 'ValidationError',
-        message: 'codeId must be a non-empty string',
-        details: { field: 'codeId', value: codeId },
-      },
-      executionTime: Date.now() - startTime,
-    });
-    return;
+    return createValidationError(
+      res,
+      'codeId must be a non-empty string',
+      { field: 'codeId', value: codeId },
+      startTime
+    );
   }
 
   // Prevent path traversal attacks
   if (codeId.includes('/') || codeId.includes('\\') || codeId.includes('..')) {
-    res.status(400).json({
-      success: false,
-      error: {
-        type: 'ValidationError',
-        message: 'codeId must not contain path separators or parent directory references',
-        details: { field: 'codeId', value: codeId },
-      },
-      executionTime: Date.now() - startTime,
-    });
-    return;
+    return createValidationError(
+      res,
+      'codeId must not contain path separators or parent directory references',
+      { field: 'codeId', value: codeId },
+      startTime
+    );
   }
 
   // Validate codeId format (alphanumeric, hyphens, underscores only)
   if (!/^[a-zA-Z0-9_-]+$/.test(codeId)) {
-    res.status(400).json({
-      success: false,
-      error: {
-        type: 'ValidationError',
-        message: 'codeId must contain only alphanumeric characters, hyphens, and underscores',
-        details: { field: 'codeId', value: codeId },
-      },
-      executionTime: Date.now() - startTime,
-    });
-    return;
+    return createValidationError(
+      res,
+      'codeId must contain only alphanumeric characters, hyphens, and underscores',
+      { field: 'codeId', value: codeId },
+      startTime
+    );
   }
 
   // Validate timeout if provided
   if (timeout !== undefined) {
     if (typeof timeout !== 'number' || !Number.isInteger(timeout)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          type: 'ValidationError',
-          message: 'timeout must be an integer',
-          details: { field: 'timeout', value: timeout },
-        },
-        executionTime: Date.now() - startTime,
-      });
-      return;
+      return createValidationError(
+        res,
+        'timeout must be an integer',
+        { field: 'timeout', value: timeout },
+        startTime
+      );
     }
 
     if (timeout < 1 || timeout > config.maxTimeout) {
-      res.status(400).json({
-        success: false,
-        error: {
-          type: 'ValidationError',
-          message: `timeout must be between 1 and ${config.maxTimeout}`,
-          details: { field: 'timeout', value: timeout, max: config.maxTimeout },
-        },
-        executionTime: Date.now() - startTime,
-      });
-      return;
+      return createValidationError(
+        res,
+        `timeout must be between 1 and ${config.maxTimeout}`,
+        { field: 'timeout', value: timeout, max: config.maxTimeout },
+        startTime
+      );
     }
   }
 
