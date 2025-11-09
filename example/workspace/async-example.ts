@@ -16,7 +16,7 @@ async function fetchData(id: number): Promise<{ id: number; data: string }> {
   };
 }
 
-export default async function main() {
+async function main() {
   const startTime = Date.now();
 
   // Parallel execution
@@ -29,9 +29,19 @@ export default async function main() {
   const endTime = Date.now();
   const duration = endTime - startTime;
 
-  return {
+  const result = {
     results,
     executionTime: `${duration}ms`,
     status: 'success',
   };
+
+  console.log(JSON.stringify(result));
 }
+
+main().catch((error) => {
+  console.error(JSON.stringify({
+    success: false,
+    error: error.message,
+  }));
+  Deno.exit(1);
+});
