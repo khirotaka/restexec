@@ -1,0 +1,54 @@
+# Git
+.git
+.github
+.gitignore
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node modules (if any)
+node_modules
+npm-debug.log
+
+# Docker
+compose.yaml
+compose.yml
+docker-compose.yaml
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+.cache
+
+# Local directories
+workspace/
+tools/
+
+# Specs
+specs/

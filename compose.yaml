@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  restexec:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restexec
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=${PORT:-3000}
+      - WORKSPACE_DIR=${WORKSPACE_DIR:-/workspace}
+      - TOOLS_DIR=${TOOLS_DIR:-/tools}
+      - DEFAULT_TIMEOUT=${DEFAULT_TIMEOUT:-5000}
+      - MAX_TIMEOUT=${MAX_TIMEOUT:-300000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DENO_PATH=${DENO_PATH:-deno}
+      - DENO_ALLOW_READ=${DENO_ALLOW_READ:-/workspace,/tools}
+      - DENO_ALLOW_WRITE=${DENO_ALLOW_WRITE:-}
+      - DENO_ALLOW_NET=${DENO_ALLOW_NET:-}
+      - DENO_ALLOW_RUN=${DENO_ALLOW_RUN:-false}
+      - DENO_IMPORT_MAP=${DENO_IMPORT_MAP:-/workspace/import_map.json}
+    env_file:
+      - .env
+    volumes:
+      # Mount workspace and tools directories
+      - ./workspace:/workspace
+      - ./tools:/tools
+      # For development: mount source code to enable changes without rebuilding
+      # Uncomment the following lines for development mode
+      # - ./src:/app/src:ro
+      # - ./deno.json:/app/deno.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - restexec-network
+
+networks:
+  restexec-network:
+    driver: bridge
+
+volumes:
+  workspace:
+  tools:
