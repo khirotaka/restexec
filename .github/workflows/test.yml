@@ -19,22 +19,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
       - name: Setup Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: v1.x
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+          deno-version: v2.x
 
       - name: Create test directories
         run: |
@@ -42,7 +30,7 @@ jobs:
           mkdir -p /tmp/restexec-test-tools
 
       - name: Run tests
-        run: npm test
+        run: deno task test
         env:
           DENO_PATH: deno
 

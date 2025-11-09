@@ -1,15 +1,15 @@
-import { Router, Request, Response } from 'express';
-import { config } from '../config.js';
-import type { HealthResponse } from '../types/index.js';
+import { Hono } from 'hono';
+import { config } from '../config.ts';
+import type { HealthResponse } from '../types/index.ts';
 
-const router = Router();
+const app = new Hono();
 
-router.get('/health', (_req: Request, res: Response<HealthResponse>) => {
-  const memUsage = process.memoryUsage();
+app.get('/health', (c) => {
+  const memUsage = Deno.memoryUsage();
 
   const response: HealthResponse = {
     status: 'ok',
-    uptime: process.uptime(),
+    uptime: performance.now() / 1000, // Convert ms to seconds
     activeProcesses: 0, // Will be updated later with actual process tracking
     memoryUsage: {
       rss: memUsage.rss,
@@ -20,7 +20,7 @@ router.get('/health', (_req: Request, res: Response<HealthResponse>) => {
     version: config.version,
   };
 
-  res.json(response);
+  return c.json(response);
 });
 
-export default router;
+export default app;

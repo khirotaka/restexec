@@ -27,60 +27,52 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
         with:
-          node-version: '20'
-          cache: 'npm'
+          deno-version: v2.x
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Lint
+        run: deno lint
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: deno check src/index.ts
 
   test:
-    name: Test (Node ${{ matrix.node-version }})
+    name: Test (Deno ${{ matrix.deno-version }})
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: ['18', '20', '22']
+        deno-version: ['v2.x']
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: Setup Deno
+      - name: Setup Deno ${{ matrix.deno-version }}
         uses: denoland/setup-deno@v1
         with:
-          deno-version: v1.x
+          deno-version: ${{ matrix.deno-version }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+      - name: Create test directories
+        run: |
+          mkdir -p /tmp/restexec-test-workspace
+          mkdir -p /tmp/restexec-test-tools
 
       - name: Run tests
-        run: npm test
+        run: deno task test
         env:
           DENO_PATH: deno
 
       - name: Generate coverage report
-        if: matrix.node-version == '20'
-        run: npm run test:coverage
+        if: matrix.deno-version == 'v2.x'
+        run: deno task test:coverage
         env:
           DENO_PATH: deno
 
       - name: Upload coverage
-        if: matrix.node-version == '20'
+        if: matrix.deno-version == 'v2.x'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report

@@ -1,30 +1,42 @@
-import 'dotenv/config';
-import { createApp } from './app.js';
-import { config } from './config.js';
-import { logger } from './utils/logger.js';
+import { load } from '@std/dotenv';
+import { serve } from 'hono/deno';
+import { createApp } from './app.ts';
+import { config } from './config.ts';
+import { logger } from './utils/logger.ts';
+
+// Load environment variables from .env file
+await load({ export: true });
 
 const app = createApp();
 
-const server = app.listen(config.port, () => {
-  logger.info(`Server started on port ${config.port}`);
-  logger.info(`Workspace directory: ${config.workspaceDir}`);
-  logger.info(`Tools directory: ${config.toolsDir}`);
-  logger.info(`Default timeout: ${config.defaultTimeout}ms`);
+logger.info(`Server starting on port ${config.port}`);
+logger.info(`Workspace directory: ${config.workspaceDir}`);
+logger.info(`Tools directory: ${config.toolsDir}`);
+logger.info(`Default timeout: ${config.defaultTimeout}ms`);
+
+// Graceful shutdown handling
+const abortController = new AbortController();
+
+Deno.addSignalListener('SIGTERM', () => {
+  logger.info('SIGTERM signal received: shutting down gracefully');
+  abortController.abort();
+  Deno.exit(0);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
+Deno.addSignalListener('SIGINT', () => {
+  logger.info('SIGINT signal received: shutting down gracefully');
+  abortController.abort();
+  Deno.exit(0);
 });
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    process.exit(0);
-  });
-});
+// Start the server
+serve(
+  {
+    fetch: app.fetch,
+    port: config.port,
+    signal: abortController.signal,
+    onListen: ({ port }) => {
+      logger.info(`Server started successfully on port ${port}`);
+    },
+  },
+);

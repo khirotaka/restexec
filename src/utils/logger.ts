@@ -1,4 +1,4 @@
-import type { LogLevel, LoggerOptions } from '../types/index.js';
+import type { LogLevel, LoggerOptions } from '../types/index.ts';
 
 class Logger {
   private level: LogLevel;
@@ -51,5 +51,5 @@ class Logger {
 }
 
 export const logger = new Logger({
-  level: (process.env.LOG_LEVEL as LogLevel) || 'info',
+  level: (Deno.env.get('LOG_LEVEL') as LogLevel) || 'info',
 });

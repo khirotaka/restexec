@@ -1,6 +1,4 @@
-import { mkdtemp, rm, mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { join, dirname } from '@std/path';
 
 /**
  * Test environment helper for automatic setup and cleanup
@@ -15,12 +13,12 @@ export class TestEnvironment {
    */
   async setup(): Promise<void> {
     // Create temporary root directory
-    this.tempRoot = await mkdtemp(join(tmpdir(), 'restexec-test-'));
+    this.tempRoot = await Deno.makeTempDir({ prefix: 'restexec-test-' });
     this.workspaceDir = join(this.tempRoot, 'workspace');
     this.toolsDir = join(this.tempRoot, 'tools');
 
-    await mkdir(this.workspaceDir);
-    await mkdir(this.toolsDir);
+    await Deno.mkdir(this.workspaceDir);
+    await Deno.mkdir(this.toolsDir);
 
     // Create default import_map.json with file:// URL for absolute path
     await this.writeImportMap({
@@ -35,7 +33,11 @@ export class TestEnvironment {
    */
   async cleanup(): Promise<void> {
     if (this.tempRoot) {
-      await rm(this.tempRoot, { recursive: true, force: true });
+      try {
+        await Deno.remove(this.tempRoot, { recursive: true });
+      } catch {
+        // Ignore errors during cleanup
+      }
     }
   }
 
@@ -44,7 +46,7 @@ export class TestEnvironment {
    */
   async writeCode(codeId: string, content: string): Promise<string> {
     const filePath = join(this.workspaceDir, `${codeId}.ts`);
-    await writeFile(filePath, content, 'utf-8');
+    await Deno.writeTextFile(filePath, content);
     return filePath;
   }
 
@@ -53,9 +55,9 @@ export class TestEnvironment {
    */
   async writeTool(relativePath: string, content: string): Promise<string> {
     const filePath = join(this.toolsDir, relativePath);
-    const dirPath = join(filePath, '..');
-    await mkdir(dirPath, { recursive: true });
-    await writeFile(filePath, content, 'utf-8');
+    const dirPath = dirname(filePath);
+    await Deno.mkdir(dirPath, { recursive: true });
+    await Deno.writeTextFile(filePath, content);
     return filePath;
   }
 
@@ -64,7 +66,7 @@ export class TestEnvironment {
    */
   async writeImportMap(importMap: Record<string, unknown>): Promise<void> {
     const filePath = join(this.workspaceDir, 'import_map.json');
-    await writeFile(filePath, JSON.stringify(importMap, null, 2), 'utf-8');
+    await Deno.writeTextFile(filePath, JSON.stringify(importMap, null, 2));
   }
 
   /**

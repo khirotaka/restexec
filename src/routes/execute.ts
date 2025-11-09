@@ -1,16 +1,17 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import type { ExecuteRequest, ApiResponse } from '../types/index.js';
-import { validateExecuteRequest } from '../middleware/validation.js';
-import { executeCode } from '../executor.js';
-import { config } from '../config.js';
+import { Hono } from 'hono';
+import type { ExecuteRequest, ApiResponse } from '../types/index.ts';
+import { validateExecuteRequest } from '../middleware/validation.ts';
+import { executeCode } from '../executor.ts';
+import { config } from '../config.ts';
 
-const router = Router();
+const app = new Hono();
 
-router.post(
+app.post(
   '/execute',
   validateExecuteRequest,
-  async (req: Request<{}, ApiResponse, ExecuteRequest>, res: Response<ApiResponse>, next: NextFunction) => {
-    const { codeId, timeout = config.defaultTimeout } = req.body;
+  async (c) => {
+    const body: ExecuteRequest = c.get('body');
+    const { codeId, timeout = config.defaultTimeout } = body;
 
     try {
       // Execute code
@@ -26,11 +27,11 @@ router.post(
         executionTime: result.executionTime,
       };
 
-      res.json(response);
+      return c.json(response);
     } catch (error) {
-      next(error);
+      throw error; // Will be handled by error handler
     }
-  }
+  },
 );
 
-export default router;
+export default app;
