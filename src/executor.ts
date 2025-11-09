@@ -251,7 +251,10 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
         }
 
         isSettled = true;
-        logger.error(`Process error for ${codeId}:`, error);
+        logger.error(
+          `Process error for ${codeId}:`,
+          error instanceof Error ? error : undefined,
+        );
         reject(
           new ExecutionError(
             `Failed to spawn process: ${error instanceof Error ? error.message : String(error)}`,
