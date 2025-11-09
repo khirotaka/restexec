@@ -12,18 +12,20 @@
 ```
 restexec/
 ├── compose.yaml           # Docker Compose設定ファイル
+├── example/               # サンプルコード
+│   ├── workspace/            # 実行するTypeScriptコードを配置
+│   │   ├── import_map.json  # Denoのimport map設定
+│   │   ├── hello-world.ts   # サンプル: シンプルな実行例
+│   │   ├── with-import.ts   # サンプル: toolsからのインポート例
+│   │   └── async-example.ts # サンプル: 非同期処理の例
+│   └── tools/                # 共有ユーティリティライブラリ
+│       ├── types.ts         # 共通型定義
+│       └── utils/
+│           ├── math.ts      # 数学関数
+│           └── string.ts    # 文字列操作関数
 ├── Dockerfile            # Dockerイメージのビルド定義
 ├── .env                  # 環境変数設定
-├── workspace/            # 実行するTypeScriptコードを配置
-│   ├── import_map.json  # Denoのimport map設定
-│   ├── hello-world.ts   # サンプル: シンプルな実行例
-│   ├── with-import.ts   # サンプル: toolsからのインポート例
-│   └── async-example.ts # サンプル: 非同期処理の例
-└── tools/                # 共有ユーティリティライブラリ
-    ├── types.ts         # 共通型定義
-    └── utils/
-        ├── math.ts      # 数学関数
-        └── string.ts    # 文字列操作関数
+
 ```
 
 ## クイックスタート

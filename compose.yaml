@@ -23,8 +23,8 @@ services:
       - .env
     volumes:
       # Mount workspace and tools directories
-      - ./workspace:/workspace
-      - ./tools:/tools
+      - ./example/workspace:/workspace
+      - ./example/tools:/tools
       # For development: mount source code to enable changes without rebuilding
       # Uncomment the following lines for development mode
       # - ./src:/app/src:ro
