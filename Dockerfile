@@ -15,6 +15,10 @@ RUN deno cache src/index.ts
 # Create workspace and tools directories
 RUN mkdir -p /workspace /tools
 
+# Switch to deno user
+RUN chown -R deno:deno /workspace /tools
+USER deno
+
 # Environment variables
 ENV PORT=3000
 ENV WORKSPACE_DIR=/workspace
