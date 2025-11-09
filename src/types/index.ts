@@ -7,7 +7,7 @@ export interface ExecuteRequest {
 // Response types
 export interface SuccessResponse {
   success: true;
-  result: any;
+  result: unknown;
   executionTime: number;
 }
 
@@ -16,7 +16,7 @@ export interface ErrorResponse {
   error: {
     type: ErrorType;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   executionTime?: number;
 }
@@ -50,7 +50,7 @@ export interface ExecutionResult {
   success: true;
   output: object;
   exitCode: number | null;
-  signal: NodeJS.Signals | null;
+  signal: Deno.Signal | null;
   executionTime: number;
 }
 

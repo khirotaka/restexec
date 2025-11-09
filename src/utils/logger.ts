@@ -1,4 +1,4 @@
-import type { LogLevel, LoggerOptions } from '../types/index.js';
+import type { LoggerOptions, LogLevel } from '../types/index.ts';
 
 class Logger {
   private level: LogLevel;
@@ -42,14 +42,12 @@ class Logger {
 
   error(message: string, error?: Error): void {
     if (this.shouldLog('error')) {
-      const errorMessage = error
-        ? `${message} - ${error.message}\n${error.stack}`
-        : message;
+      const errorMessage = error ? `${message} - ${error.message}\n${error.stack}` : message;
       console.error(this.formatMessage('error', errorMessage));
     }
   }
 }
 
 export const logger = new Logger({
-  level: (process.env.LOG_LEVEL as LogLevel) || 'info',
+  level: (Deno.env.get('LOG_LEVEL') as LogLevel) || 'info',
 });

@@ -1,10 +1,8 @@
-import { spawn, ChildProcess } from 'child_process';
-import { access, constants } from 'fs/promises';
-import { join } from 'path';
-import { logger } from './utils/logger.js';
-import { FileNotFoundError, TimeoutError, ExecutionError } from './utils/errors.js';
-import { config } from './config.js';
-import type { ExecutionResult } from './types/index.js';
+import { join } from 'jsr:@std/path@^1.0.10';
+import { logger } from './utils/logger.ts';
+import { ExecutionError, FileNotFoundError, TimeoutError } from './utils/errors.ts';
+import { config } from './config.ts';
+import type { ExecutionResult } from './types/index.ts';
 
 // 10MB buffer limit
 const MAX_BUFFER = 10 * 1024 * 1024;
@@ -71,138 +69,182 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
 
   // Check if file exists
   try {
-    await access(filePath, constants.R_OK);
-  } catch (error) {
+    await Deno.stat(filePath);
+  } catch (_error) {
     logger.error(`File not found: ${filePath}`);
     throw new FileNotFoundError(codeId);
   }
 
   logger.info(`Executing code: ${codeId} (timeout: ${timeout}ms)`);
 
-  // Execute code with tsx
+  // Execute code with Deno
   return new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
     let isTimedOut = false;
     let isKilled = false;
     let isSettled = false; // Prevent multiple resolve/reject calls
+    let killTimeoutId: number | undefined; // Track SIGKILL timer for cleanup
 
     // Build Deno command arguments
     const denoArgs = buildDenoArgs(filePath);
 
     // Whitelist environment variables (minimal for Deno)
-    const allowedEnv = {
-      PATH: process.env.PATH,
-      DENO_DIR: process.env.DENO_DIR, // Allow Deno cache dir if specified
-    };
+    const allowedEnv: Record<string, string> = {};
+    const path = Deno.env.get('PATH');
+    const denoDir = Deno.env.get('DENO_DIR');
+    if (path) allowedEnv.PATH = path;
+    if (denoDir) allowedEnv.DENO_DIR = denoDir;
 
-    // Spawn Deno process
-    const child: ChildProcess = spawn(config.deno.path, denoArgs, {
+    // Create Deno command
+    const command = new Deno.Command(config.deno.path, {
+      args: denoArgs,
       cwd: workspaceDir,
       env: allowedEnv,
-      timeout: 0, // We handle timeout manually to allow for graceful shutdown
+      stdout: 'piped',
+      stderr: 'piped',
+      stdin: 'null',
     });
 
-    // Collect stdout
-    child.stdout?.on('data', (data: Buffer) => {
-      if (stdout.length > MAX_BUFFER) {
-        if (!isSettled) {
-          isSettled = true;
-          logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
-          child.kill('SIGTERM');
-          setTimeout(() => {
-            if (child.exitCode === null) {
-              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
-              child.kill('SIGKILL');
-            }
-          }, 1000);
-          reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
-        }
-        return;
-      }
-      stdout += data.toString();
-    });
+    // Spawn process
+    const child = command.spawn();
 
-    // Collect stderr
-    child.stderr?.on('data', (data: Buffer) => {
-      if (stderr.length > MAX_BUFFER) {
-        if (!isSettled) {
-          isSettled = true;
-          logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
-          child.kill('SIGTERM');
-          setTimeout(() => {
-            if (child.exitCode === null) {
-              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
-              child.kill('SIGKILL');
+    // Read stdout
+    (async () => {
+      const decoder = new TextDecoder();
+      for await (const chunk of child.stdout) {
+        if (stdout.length > MAX_BUFFER) {
+          if (!isSettled) {
+            isSettled = true;
+            logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
+            try {
+              child.kill('SIGTERM');
+              killTimeoutId = setTimeout(() => {
+                try {
+                  child.kill('SIGKILL');
+                } catch {
+                  // Process might already be terminated
+                }
+              }, 1000);
+            } catch {
+              // Ignore if process is already dead
             }
-          }, 1000);
-          reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+            reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+          }
+          return;
         }
-        return;
+        stdout += decoder.decode(chunk);
       }
-      stderr += data.toString();
-    });
+    })();
+
+    // Read stderr
+    (async () => {
+      const decoder = new TextDecoder();
+      for await (const chunk of child.stderr) {
+        if (stderr.length > MAX_BUFFER) {
+          if (!isSettled) {
+            isSettled = true;
+            logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
+            try {
+              child.kill('SIGTERM');
+              killTimeoutId = setTimeout(() => {
+                try {
+                  child.kill('SIGKILL');
+                } catch {
+                  // Process might already be terminated
+                }
+              }, 1000);
+            } catch {
+              // Ignore if process is already dead
+            }
+            reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+          }
+          return;
+        }
+        stderr += decoder.decode(chunk);
+      }
+    })();
 
     // Set up timeout
     const timeoutId = setTimeout(() => {
       isTimedOut = true;
       logger.warn(`Process timeout for ${codeId}, sending SIGTERM`);
-      child.kill('SIGTERM');
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        // Ignore if process is already dead
+      }
 
       // Wait 1 second, then send SIGKILL
-      setTimeout(() => {
-        if (!isKilled && child.exitCode === null) {
+      killTimeoutId = setTimeout(() => {
+        if (!isKilled) {
           logger.warn(`Process did not terminate, sending SIGKILL`);
-          child.kill('SIGKILL');
+          try {
+            child.kill('SIGKILL');
+          } catch {
+            // Ignore if process is already dead
+          }
         }
       }, 1000);
     }, timeout);
 
-    // Handle process exit
-    child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
-      isKilled = true;
-      clearTimeout(timeoutId);
-
-      // Skip if promise is already settled
-      if (isSettled) {
-        return;
-      }
-
-      const executionTime = Date.now() - startTime;
-
-      logger.info(`Process exited: ${codeId} (code: ${code}, signal: ${signal}, time: ${executionTime}ms)`);
-
-      // Mark as settled before resolving/rejecting
-      isSettled = true;
-
-      // Check if timed out
-      if (isTimedOut) {
-        reject(new TimeoutError(timeout));
-        return;
-      }
-
-      // Parse result
+    // Wait for process to complete
+    (async () => {
       try {
-        const result = parseOutput(stdout, stderr, code, signal, executionTime);
-        resolve(result);
+        const status = await child.status;
+        isKilled = true;
+        clearTimeout(timeoutId);
+        if (killTimeoutId !== undefined) {
+          clearTimeout(killTimeoutId);
+        }
+
+        // Skip if promise is already settled
+        if (isSettled) {
+          return;
+        }
+
+        const executionTime = Date.now() - startTime;
+        const code = status.code;
+        const signal = status.signal;
+
+        logger.info(`Process exited: ${codeId} (code: ${code}, signal: ${signal}, time: ${executionTime}ms)`);
+
+        // Mark as settled before resolving/rejecting
+        isSettled = true;
+
+        // Check if timed out
+        if (isTimedOut) {
+          reject(new TimeoutError(timeout));
+          return;
+        }
+
+        // Parse result
+        try {
+          const result = parseOutput(stdout, stderr, code, signal, executionTime);
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
       } catch (error) {
-        reject(error);
+        clearTimeout(timeoutId);
+        if (killTimeoutId !== undefined) {
+          clearTimeout(killTimeoutId);
+        }
+
+        // Skip if promise is already settled
+        if (isSettled) {
+          return;
+        }
+
+        isSettled = true;
+        logger.error(`Process error for ${codeId}:`, error as Error);
+        reject(
+          new ExecutionError(`Failed to execute process: ${(error as Error).message}`, {
+            error: (error as Error).message,
+          }),
+        );
       }
-    });
-
-    // Handle process errors
-    child.on('error', (error: Error) => {
-      clearTimeout(timeoutId);
-
-      // Skip if promise is already settled
-      if (isSettled) {
-        return;
-      }
-
-      isSettled = true;
-      logger.error(`Process error for ${codeId}:`, error);
-      reject(new ExecutionError(`Failed to spawn process: ${error.message}`, { error: error.message }));
-    });
+    })();
   });
 }
 
@@ -212,9 +254,9 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
 function parseOutput(
   stdout: string,
   stderr: string,
-  exitCode: number | null,
-  signal: NodeJS.Signals | null,
-  executionTime: number
+  exitCode: number,
+  signal: Deno.Signal | null,
+  executionTime: number,
 ): ExecutionResult {
   // If process was killed by signal, treat as error
   if (signal !== null) {
@@ -237,7 +279,7 @@ function parseOutput(
   try {
     const trimmedOutput = stdout.trim();
     output = trimmedOutput ? JSON.parse(trimmedOutput) : { success: true, result: null };
-  } catch (error) {
+  } catch (_error) {
     logger.warn(`Output is not valid JSON, wrapping in object`);
     output = {
       success: true,

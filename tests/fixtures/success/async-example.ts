@@ -6,7 +6,7 @@ async function main() {
   await delay(100);
   console.log(JSON.stringify({
     success: true,
-    message: "Async execution completed",
+    message: 'Async execution completed',
   }));
 }
 

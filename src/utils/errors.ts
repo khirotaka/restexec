@@ -1,4 +1,4 @@
-import type { ErrorType } from '../types/index.js';
+import type { ErrorType } from '../types/index.ts';
 
 /**
  * Base error class for restexec
@@ -6,15 +6,14 @@ import type { ErrorType } from '../types/index.js';
 export class RestExecError extends Error {
   public readonly type: ErrorType;
   public readonly statusCode: number;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(type: ErrorType, message: string, statusCode: number, details?: any) {
+  constructor(type: ErrorType, message: string, statusCode: number, details?: unknown) {
     super(message);
     this.type = type;
     this.statusCode = statusCode;
     this.details = details;
     this.name = this.constructor.name;
-    Error.captureStackTrace(this, this.constructor);
   }
 }
 
@@ -27,7 +26,7 @@ export class FileNotFoundError extends RestExecError {
       'FileNotFoundError',
       `Code file not found: ${codeId}`,
       404,
-      { codeId }
+      { codeId },
     );
   }
 }
@@ -41,7 +40,7 @@ export class TimeoutError extends RestExecError {
       'TimeoutError',
       `Code execution timed out after ${timeout}ms`,
       408,
-      { timeout }
+      { timeout },
     );
   }
 }
@@ -50,12 +49,12 @@ export class TimeoutError extends RestExecError {
  * Thrown when code execution fails
  */
 export class ExecutionError extends RestExecError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(
       'ExecutionError',
       message,
       500,
-      details
+      details,
     );
   }
 }
