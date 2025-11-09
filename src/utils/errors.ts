@@ -26,7 +26,7 @@ export class FileNotFoundError extends RestExecError {
       'FileNotFoundError',
       `Code file not found: ${codeId}`,
       404,
-      { codeId }
+      { codeId },
     );
   }
 }
@@ -40,7 +40,7 @@ export class TimeoutError extends RestExecError {
       'TimeoutError',
       `Code execution timed out after ${timeout}ms`,
       408,
-      { timeout }
+      { timeout },
     );
   }
 }
@@ -54,7 +54,7 @@ export class ExecutionError extends RestExecError {
       'ExecutionError',
       message,
       500,
-      details
+      details,
     );
   }
 }

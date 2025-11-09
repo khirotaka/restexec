@@ -20,6 +20,7 @@
     "cache": "deno cache src/index.ts"
   },
   "fmt": {
+    "exclude": ["tests/fixtures/"],
     "useTabs": false,
     "lineWidth": 120,
     "indentWidth": 2,

@@ -1,4 +1,4 @@
-import type { LogLevel, LoggerOptions } from '../types/index.ts';
+import type { LoggerOptions, LogLevel } from '../types/index.ts';
 
 class Logger {
   private level: LogLevel;
@@ -42,9 +42,7 @@ class Logger {
 
   error(message: string, error?: Error): void {
     if (this.shouldLog('error')) {
-      const errorMessage = error
-        ? `${message} - ${error.message}\n${error.stack}`
-        : message;
+      const errorMessage = error ? `${message} - ${error.message}\n${error.stack}` : message;
       console.error(this.formatMessage('error', errorMessage));
     }
   }

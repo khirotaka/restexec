@@ -1,6 +1,6 @@
 import { join } from 'jsr:@std/path@^1.0.10';
 import { logger } from './utils/logger.ts';
-import { FileNotFoundError, TimeoutError, ExecutionError } from './utils/errors.ts';
+import { ExecutionError, FileNotFoundError, TimeoutError } from './utils/errors.ts';
 import { config } from './config.ts';
 import type { ExecutionResult } from './types/index.ts';
 
@@ -241,7 +241,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
         reject(
           new ExecutionError(`Failed to execute process: ${(error as Error).message}`, {
             error: (error as Error).message,
-          })
+          }),
         );
       }
     })();

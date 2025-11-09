@@ -1,6 +1,6 @@
 import { Context } from '@oak/oak';
 import { config } from '../config.ts';
-import type { ExecuteRequest, ApiResponse } from '../types/index.ts';
+import type { ApiResponse, ExecuteRequest } from '../types/index.ts';
 
 /**
  * Creates a validation error response

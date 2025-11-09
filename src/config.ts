@@ -5,7 +5,7 @@ function parseArrayEnv(envVar: string | undefined, defaultValue: string[]): stri
   if (!envVar || envVar.trim() === '') {
     return defaultValue;
   }
-  return envVar.split(',').map(s => s.trim()).filter(s => s !== '');
+  return envVar.split(',').map((s) => s.trim()).filter((s) => s !== '');
 }
 
 /**

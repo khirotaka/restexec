@@ -36,10 +36,10 @@ jobs:
         run: deno cache src/index.ts
 
       - name: Lint
-        run: deno lint
+        run: deno lint src/ tests/
 
       - name: Format check
-        run: deno fmt --check
+        run: deno fmt --check src/ tests/
 
       - name: Type check
         run: deno check src/index.ts

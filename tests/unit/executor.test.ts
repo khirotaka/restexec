@@ -1,7 +1,7 @@
 import { assertEquals, assertExists, assertRejects } from '@std/assert';
 import { executeCode } from '../../src/executor.ts';
 import { TestEnvironment } from '../helpers/setup.ts';
-import { FileNotFoundError, TimeoutError, ExecutionError } from '../../src/utils/errors.ts';
+import { ExecutionError, FileNotFoundError, TimeoutError } from '../../src/utils/errors.ts';
 import { config } from '../../src/config.ts';
 
 Deno.test('Executor - should execute simple code and return JSON output', async () => {
@@ -12,12 +12,15 @@ Deno.test('Executor - should execute simple code and return JSON output', async 
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('hello', `
+    await env.writeCode(
+      'hello',
+      `
       console.log(JSON.stringify({
         success: true,
         message: "Hello, World!",
       }));
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'hello',
@@ -45,7 +48,9 @@ Deno.test('Executor - should execute code with complex JSON output', async () =>
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('complex', `
+    await env.writeCode(
+      'complex',
+      `
       const data = {
         success: true,
         data: {
@@ -56,7 +61,8 @@ Deno.test('Executor - should execute code with complex JSON output', async () =>
         },
       };
       console.log(JSON.stringify(data));
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'complex',
@@ -85,7 +91,9 @@ Deno.test('Executor - should execute async code', async () => {
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('async', `
+    await env.writeCode(
+      'async',
+      `
       async function delay(ms: number): Promise<void> {
         return new Promise((resolve) => setTimeout(resolve, ms));
       }
@@ -99,7 +107,8 @@ Deno.test('Executor - should execute async code', async () => {
       }
 
       main();
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'async',
@@ -121,9 +130,12 @@ Deno.test('Executor - should handle non-JSON output by wrapping it', async () =>
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('text', `
+    await env.writeCode(
+      'text',
+      `
       console.log("Plain text output");
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'text',
@@ -148,9 +160,12 @@ Deno.test('Executor - should handle empty output', async () => {
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('empty', `
+    await env.writeCode(
+      'empty',
+      `
       // No output
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'empty',
@@ -197,11 +212,14 @@ Deno.test('Executor - should throw ExecutionError on syntax error', async () => 
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('syntax-error', `
+    await env.writeCode(
+      'syntax-error',
+      `
       const result = {
         message: "This will fail"
       // Missing closing brace
-    `);
+    `,
+    );
 
     await assertRejects(
       async () => {
@@ -225,12 +243,15 @@ Deno.test('Executor - should throw ExecutionError on runtime error', async () =>
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('runtime-error', `
+    await env.writeCode(
+      'runtime-error',
+      `
       function throwError() {
         throw new Error("Intentional runtime error");
       }
       throwError();
-    `);
+    `,
+    );
 
     await assertRejects(
       async () => {
@@ -254,11 +275,14 @@ Deno.test('Executor - should throw TimeoutError when execution exceeds timeout',
     // deno-lint-ignore no-explicit-any
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
-    await env.writeCode('timeout', `
+    await env.writeCode(
+      'timeout',
+      `
       while (true) {
         // Infinite loop
       }
-    `);
+    `,
+    );
 
     await assertRejects(
       async () => {
@@ -283,14 +307,19 @@ Deno.test('Executor - should use import map for module resolution', async () => 
     (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
 
     // Create a tool module
-    await env.writeTool('utils/math.ts', `
+    await env.writeTool(
+      'utils/math.ts',
+      `
       export function add(a: number, b: number): number {
         return a + b;
       }
-    `);
+    `,
+    );
 
     // Create code that imports the tool
-    await env.writeCode('with-import', `
+    await env.writeCode(
+      'with-import',
+      `
       import { add } from '@/utils/math.ts';
 
       const result = add(2, 3);
@@ -298,7 +327,8 @@ Deno.test('Executor - should use import map for module resolution', async () => 
         success: true,
         result: result,
       }));
-    `);
+    `,
+    );
 
     const result = await executeCode({
       codeId: 'with-import',
