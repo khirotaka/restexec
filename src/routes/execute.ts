@@ -18,7 +18,6 @@ router.post(
         codeId,
         timeout,
         workspaceDir: config.workspaceDir,
-        toolsDir: config.toolsDir,
       });
 
       const response: ApiResponse = {

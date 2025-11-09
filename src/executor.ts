@@ -1,31 +1,69 @@
 import { spawn, ChildProcess } from 'child_process';
 import { access, constants } from 'fs/promises';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { logger } from './utils/logger.js';
 import { FileNotFoundError, TimeoutError, ExecutionError } from './utils/errors.js';
+import { config } from './config.js';
 import type { ExecutionResult } from './types/index.js';
-
-// Get the directory of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..');
 
 // 10MB buffer limit
 const MAX_BUFFER = 10 * 1024 * 1024;
+
+/**
+ * Build Deno command arguments with permissions
+ */
+function buildDenoArgs(filePath: string): string[] {
+  const args = ['run', '--no-prompt'];
+
+  // Add import map
+  if (config.deno.importMap) {
+    args.push('--import-map', config.deno.importMap);
+  }
+
+  // Add read permissions
+  if (config.deno.permissions.allowRead.length > 0) {
+    const readPaths = config.deno.permissions.allowRead.join(',');
+    args.push(`--allow-read=${readPaths}`);
+  }
+
+  // Add write permissions
+  if (config.deno.permissions.allowWrite.length > 0) {
+    const writePaths = config.deno.permissions.allowWrite.join(',');
+    args.push(`--allow-write=${writePaths}`);
+  }
+
+  // Add network permissions
+  if (config.deno.permissions.allowNet.length > 0) {
+    const netHosts = config.deno.permissions.allowNet.join(',');
+    args.push(`--allow-net=${netHosts}`);
+  }
+
+  // Add run permission (subprocess execution)
+  if (config.deno.permissions.allowRun) {
+    args.push('--allow-run');
+  }
+
+  // Add the file to execute
+  args.push(filePath);
+
+  return args;
+}
 
 export interface ExecuteOptions {
   codeId: string;
   timeout: number;
   workspaceDir: string;
-  toolsDir: string;
 }
 
 /**
- * Execute TypeScript code in a child process using tsx
+ * Execute TypeScript code in a child process using Deno.
+ *
+ * The executed script is expected to print a JSON object to standard output
+ * for the result to be parsed correctly. If the output is not valid JSON,
+ * it will be wrapped in a fallback object.
  */
 export async function executeCode(options: ExecuteOptions): Promise<ExecutionResult> {
-  const { codeId, timeout, workspaceDir, toolsDir } = options;
+  const { codeId, timeout, workspaceDir } = options;
   const startTime = Date.now();
 
   // Construct file path
@@ -49,18 +87,20 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     let isKilled = false;
     let isSettled = false; // Prevent multiple resolve/reject calls
 
-    // Whitelist environment variables
+    // Build Deno command arguments
+    const denoArgs = buildDenoArgs(filePath);
+
+    // Whitelist environment variables (minimal for Deno)
     const allowedEnv = {
-      NODE_PATH: toolsDir,
       PATH: process.env.PATH,
+      DENO_DIR: process.env.DENO_DIR, // Allow Deno cache dir if specified
     };
 
-    // Spawn tsx process
-    const tsxPath = process.env.TSX_PATH || join(projectRoot, 'node_modules', '.bin', 'tsx');
-    const child: ChildProcess = spawn(tsxPath, [filePath], {
+    // Spawn Deno process
+    const child: ChildProcess = spawn(config.deno.path, denoArgs, {
       cwd: workspaceDir,
       env: allowedEnv,
-      timeout: 0, // We'll handle timeout manually
+      timeout: 0, // We handle timeout manually to allow for graceful shutdown
     });
 
     // Collect stdout
@@ -68,7 +108,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       if (stdout.length > MAX_BUFFER) {
         if (!isSettled) {
           isSettled = true;
-          child.kill('SIGKILL');
+          logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            if (child.exitCode === null) {
+              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
+              child.kill('SIGKILL');
+            }
+          }, 1000);
           reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
         }
         return;
@@ -81,7 +128,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       if (stderr.length > MAX_BUFFER) {
         if (!isSettled) {
           isSettled = true;
-          child.kill('SIGKILL');
+          logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            if (child.exitCode === null) {
+              logger.warn(`Process did not terminate after buffer limit, sending SIGKILL`);
+              child.kill('SIGKILL');
+            }
+          }, 1000);
           reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
         }
         return;

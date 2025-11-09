@@ -38,24 +38,25 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Spawned: tsx spawn
+    [*] --> Spawned: deno run spawn
     Spawned --> Running: Process started
-    
+
     Running --> Completed: Exit code 0
     Running --> Failed: Exit code != 0
     Running --> Timeout: Timeout exceeded
-    
+
     Completed --> Cleanup: Parse output
     Failed --> Cleanup: Log error
     Timeout --> Kill: Send SIGTERM
-    
+
     Kill --> Cleanup: Process killed
     Cleanup --> [*]
-    
+
     note right of Running
         - stdout/stderr監視
         - タイムアウト監視
         - メモリ監視
+        - パーミッション制御
     end note
 ```
 

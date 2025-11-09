@@ -30,7 +30,6 @@ describe('Executor', () => {
         codeId: 'hello',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
@@ -61,7 +60,6 @@ describe('Executor', () => {
         codeId: 'complex',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
@@ -92,7 +90,6 @@ describe('Executor', () => {
         codeId: 'async',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
@@ -108,7 +105,6 @@ describe('Executor', () => {
         codeId: 'text',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
@@ -127,7 +123,6 @@ describe('Executor', () => {
         codeId: 'empty',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
@@ -145,7 +140,6 @@ describe('Executor', () => {
           codeId: 'non-existent',
           timeout: 5000,
           workspaceDir: env.workspaceDir,
-          toolsDir: env.toolsDir,
         })
       ).rejects.toThrow(FileNotFoundError);
     });
@@ -162,7 +156,6 @@ describe('Executor', () => {
           codeId: 'syntax-error',
           timeout: 5000,
           workspaceDir: env.workspaceDir,
-          toolsDir: env.toolsDir,
         })
       ).rejects.toThrow(ExecutionError);
     });
@@ -180,7 +173,6 @@ describe('Executor', () => {
           codeId: 'runtime-error',
           timeout: 5000,
           workspaceDir: env.workspaceDir,
-          toolsDir: env.toolsDir,
         })
       ).rejects.toThrow(ExecutionError);
     });
@@ -197,7 +189,6 @@ describe('Executor', () => {
           codeId: 'timeout',
           timeout: 1000,
           workspaceDir: env.workspaceDir,
-          toolsDir: env.toolsDir,
         })
       ).rejects.toThrow(TimeoutError);
     }, 15000); // Increase test timeout for this specific test
@@ -227,7 +218,6 @@ describe('Executor', () => {
         codeId: 'with-import',
         timeout: 5000,
         workspaceDir: env.workspaceDir,
-        toolsDir: env.toolsDir,
       });
 
       expect(result.success).toBe(true);
