@@ -7,12 +7,12 @@
 import { add, multiply } from 'utils/math.ts';
 import { capitalize, reverse } from 'utils/string.ts';
 
-export default function main() {
+async function main() {
   const num1 = 10;
   const num2 = 5;
   const text = 'hello world';
 
-  return {
+  const result = {
     math: {
       addition: `${num1} + ${num2} = ${add(num1, num2)}`,
       multiplication: `${num1} × ${num2} = ${multiply(num1, num2)}`,
@@ -24,4 +24,14 @@ export default function main() {
     },
     status: 'success',
   };
+
+  console.log(JSON.stringify(result));
 }
+
+main().catch((error) => {
+  console.error(JSON.stringify({
+    success: false,
+    error: error.message,
+  }));
+  Deno.exit(1);
+});
