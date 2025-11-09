@@ -1,7 +1,7 @@
 import { Context } from '@oak/oak';
 import { config } from '../config.ts';
 import { ValidationError } from '../utils/errors.ts';
-import type { ApiResponse, ExecuteRequest } from '../types/index.ts';
+import type { ExecuteRequest } from '../types/index.ts';
 
 /**
  * Validates the execute request body
