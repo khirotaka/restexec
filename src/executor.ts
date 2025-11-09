@@ -47,6 +47,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     let stderr = '';
     let isTimedOut = false;
     let isKilled = false;
+    let isSettled = false; // Prevent multiple resolve/reject calls
 
     // Whitelist environment variables
     const allowedEnv = {
@@ -65,8 +66,11 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     // Collect stdout
     child.stdout?.on('data', (data: Buffer) => {
       if (stdout.length > MAX_BUFFER) {
-        child.kill('SIGKILL');
-        reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        if (!isSettled) {
+          isSettled = true;
+          child.kill('SIGKILL');
+          reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        }
         return;
       }
       stdout += data.toString();
@@ -75,8 +79,11 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     // Collect stderr
     child.stderr?.on('data', (data: Buffer) => {
       if (stderr.length > MAX_BUFFER) {
-        child.kill('SIGKILL');
-        reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        if (!isSettled) {
+          isSettled = true;
+          child.kill('SIGKILL');
+          reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
+        }
         return;
       }
       stderr += data.toString();
@@ -102,9 +109,17 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       isKilled = true;
       clearTimeout(timeoutId);
 
+      // Skip if promise is already settled
+      if (isSettled) {
+        return;
+      }
+
       const executionTime = Date.now() - startTime;
 
       logger.info(`Process exited: ${codeId} (code: ${code}, signal: ${signal}, time: ${executionTime}ms)`);
+
+      // Mark as settled before resolving/rejecting
+      isSettled = true;
 
       // Check if timed out
       if (isTimedOut) {
@@ -124,6 +139,13 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     // Handle process errors
     child.on('error', (error: Error) => {
       clearTimeout(timeoutId);
+
+      // Skip if promise is already settled
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
       logger.error(`Process error for ${codeId}:`, error);
       reject(new ExecutionError(`Failed to spawn process: ${error.message}`, { error: error.message }));
     });
