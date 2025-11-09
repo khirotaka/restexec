@@ -51,7 +51,7 @@ main().catch((error) => {
     success: false,
     error: error.message
   }));
-  process.exit(1);
+  Deno.exit(1);
 });
 ```
 

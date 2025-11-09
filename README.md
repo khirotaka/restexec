@@ -8,7 +8,7 @@
 graph TB
     subgraph "restexec Container"
         subgraph "Main Process (PID 1)"
-            HTTPServer["HTTP Server<br/>Express.js<br/>Port: 3000"]
+            HTTPServer["HTTP Server<br/>Oak Framework<br/>Port: 8080"]
             Router["Request Router"]
             Validator["Request Validator"]
         end
@@ -62,42 +62,45 @@ graph TB
 
 ```
 restexec/
-├── src/
-│   ├── server.ts              # HTTPサーバーのエントリーポイント
+├── src/                       # ソースコード
+│   ├── app.ts                 # Oak アプリケーション設定
+│   ├── index.ts               # エントリーポイント
+│   ├── config.ts              # 設定管理
 │   ├── executor.ts            # コード実行エンジン
-│   ├── validator.ts           # リクエストバリデーション
-│   ├── types.ts               # 型定義
+│   ├── middleware/
+│   │   └── validation.ts      # リクエストバリデーション
+│   ├── routes/
+│   │   ├── execute.ts         # 実行エンドポイント
+│   │   └── health.ts          # ヘルスチェックエンドポイント
+│   ├── types/
+│   │   └── index.ts           # 型定義
 │   └── utils/
 │       ├── logger.ts          # ロガー
 │       └── errors.ts          # カスタムエラークラス
-├── tests/
-│   ├── server.test.ts         # サーバーのテスト
-│   ├── executor.test.ts       # Executorのテスト
+├── tests/                     # テストスイート
+│   ├── unit/
+│   │   └── executor.test.ts   # Executor ユニットテスト
 │   └── fixtures/
-│       ├── test-success.ts    # テスト用の成功コード
-│       ├── test-error.ts      # テスト用のエラーコード
-│       └── test-timeout.ts    # テスト用のタイムアウトコード
-├── examples/
-│   ├── workspace/             # サンプルコード
+│       ├── success.ts         # テスト用の成功コード
+│       ├── error.ts           # テスト用のエラーコード
+│       └── timeout.ts         # テスト用のタイムアウトコード
+├── example/                   # サンプルコードとユーティリティ
+│   ├── workspace/             # 実行可能スクリプト
 │   │   ├── hello-world.ts
 │   │   ├── with-import.ts
 │   │   └── async-example.ts
-│   └── tools/                 # サンプル依存ライブラリ
-│       ├── utils/
-│       │   ├── math.ts
-│       │   └── string.ts
-│       └── types.ts
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── k8s/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── configmap.yaml
-├── package.json
-├── tsconfig.json
-├── .gitignore
-├── .dockerignore
-├── README.md
-└── specs/           # 仕様書
+│   └── tools/                 # 共有ユーティリティライブラリ
+│       ├── math.ts
+│       └── string.ts
+├── specs/                     # 仕様書
+│   ├── API.md
+│   ├── SystemArchitecture.md
+│   ├── Security.md
+│   └── ...
+├── Dockerfile                 # Docker イメージ定義
+├── compose.yaml               # Docker Compose 設定
+├── deno.json                  # Deno 設定
+├── CLAUDE.md                  # AI アシスタント向けガイド
+├── DOCKER.md                  # Docker ドキュメント
+└── README.md
 ```
