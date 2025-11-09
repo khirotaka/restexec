@@ -1,36 +1,37 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import type { ExecuteRequest, ApiResponse } from '../types/index.js';
 import { validateExecuteRequest } from '../middleware/validation.js';
+import { executeCode } from '../executor.js';
+import { config } from '../config.js';
 
 const router = Router();
 
-router.post('/execute', validateExecuteRequest, async (req: Request<{}, ApiResponse, ExecuteRequest>, res: Response<ApiResponse>) => {
-  const startTime = Date.now();
+router.post(
+  '/execute',
+  validateExecuteRequest,
+  async (req: Request<{}, ApiResponse, ExecuteRequest>, res: Response<ApiResponse>, next: NextFunction) => {
+    const { codeId, timeout = config.defaultTimeout } = req.body;
 
-  try {
-    // This will be implemented in the next phase
-    const result = {
-      success: true as const,
-      result: {
-        message: 'Execution engine not yet implemented',
-        codeId: req.body.codeId,
-      },
-      executionTime: Date.now() - startTime,
-    };
+    try {
+      // Execute code
+      const result = await executeCode({
+        codeId,
+        timeout,
+        workspaceDir: config.workspaceDir,
+        toolsDir: config.toolsDir,
+      });
 
-    res.json(result);
-  } catch (error) {
-    const errorResponse: ApiResponse = {
-      success: false,
-      error: {
-        type: 'InternalError',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      },
-      executionTime: Date.now() - startTime,
-    };
+      const response: ApiResponse = {
+        success: true,
+        result: result.output,
+        executionTime: result.executionTime,
+      };
 
-    res.status(500).json(errorResponse);
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export default router;
