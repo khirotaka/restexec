@@ -13,7 +13,9 @@ import type { ApiResponse, ErrorResponse, HealthResponse } from '../../src/types
  */
 
 // Global server state
+const serverController = new AbortController();
 let serverUrl: string;
+let listenPromise: Promise<void>;
 let serverStarted = false;
 
 // Helper to ensure server is started before each test
@@ -27,14 +29,28 @@ async function ensureServerStarted() {
   const port = (tmpListener.addr as Deno.NetAddr).port;
   tmpListener.close(); // Close it so Oak can bind to it
 
-  // Start server (don't await - it runs in background until process exits)
-  app.listen({ port });
-
-  // Wait for server to start
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Start server with abort controller for proper cleanup
+  listenPromise = app.listen({ port, signal: serverController.signal });
 
   serverUrl = `http://localhost:${port}`;
-  serverStarted = true;
+
+  // Wait for server to be ready by polling /health endpoint
+  const maxRetries = 10;
+  const retryDelay = 100; // ms
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(`${serverUrl}/health`, { method: 'GET' });
+      if (response.ok) {
+        serverStarted = true;
+        return;
+      }
+    } catch (_error) {
+      // Connection refused - server not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryDelay));
+  }
+
+  throw new Error(`Server failed to start after ${maxRetries * retryDelay}ms`);
 }
 
 Deno.test({
@@ -234,7 +250,21 @@ Deno.test({
   },
 });
 
-// Note: Server cleanup is intentionally omitted
-// The server will be automatically terminated when the test process exits
-// Attempting to explicitly stop Oak's server causes "Promise resolution is still pending" errors
-// due to Oak's internal async operations that don't fully resolve on abort
+// Cleanup: Stop the server after all tests
+Deno.test({
+  name: 'HTTP - Server cleanup',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    if (!serverStarted) return; // Server was never started
+
+    // Abort the server
+    serverController.abort();
+
+    // Wait for the server to stop and give Oak time to cleanup
+    await Promise.race([
+      listenPromise.catch(() => {}), // Ignore all errors including AbortError
+      new Promise((resolve) => setTimeout(resolve, 200)), // Timeout after 200ms
+    ]);
+  },
+});
