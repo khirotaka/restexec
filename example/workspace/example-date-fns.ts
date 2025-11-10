@@ -2,7 +2,7 @@
  * Example: Using date-fns for date manipulation
  *
  * This example demonstrates how to use date-fns library for date operations.
- * Since the executor uses --no-remote flag, all dependencies must be
+ * Since the executor uses --cached-only flag, all dependencies must be
  * pre-cached during container build.
  *
  * Setup Requirements:

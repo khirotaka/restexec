@@ -2,7 +2,7 @@
  * Example: Using es-toolkit with Import Map
  *
  * This example demonstrates how to use external libraries via Import Map.
- * Since the executor uses --no-remote flag, all dependencies must be
+ * Since the executor uses --cached-only flag, all dependencies must be
  * pre-cached during container build.
  *
  * Setup Requirements:
