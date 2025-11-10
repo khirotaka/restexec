@@ -1,6 +1,7 @@
 import { Router } from '@oak/oak';
 import { config } from '../config.ts';
 import type { HealthResponse } from '../types/index.ts';
+import { processManager } from '../utils/processManager.ts';
 
 const router = new Router();
 
@@ -10,7 +11,7 @@ router.get('/health', (ctx) => {
   const response: HealthResponse = {
     status: 'ok',
     uptime: performance.now() / 1000, // Convert to seconds
-    activeProcesses: 0, // Will be updated later with actual process tracking
+    activeProcesses: processManager.getActiveCount(),
     memoryUsage: {
       rss: memUsage.rss,
       heapTotal: memUsage.heapTotal,

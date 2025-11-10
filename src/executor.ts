@@ -3,6 +3,7 @@ import { logger } from './utils/logger.ts';
 import { ExecutionError, FileNotFoundError, TimeoutError } from './utils/errors.ts';
 import { config } from './config.ts';
 import type { ExecutionResult } from './types/index.ts';
+import { processManager } from './utils/processManager.ts';
 
 // 10MB buffer limit
 const MAX_BUFFER = 10 * 1024 * 1024;
@@ -75,10 +76,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
     throw new FileNotFoundError(codeId);
   }
 
-  logger.info(`Executing code: ${codeId} (timeout: ${timeout}ms)`);
+  // Increment active process count
+  processManager.increment();
+  const activeCount = processManager.getActiveCount();
+  logger.info(`Executing code: ${codeId} (timeout: ${timeout}ms, active processes: ${activeCount})`);
 
-  // Execute code with Deno
-  return new Promise((resolve, reject) => {
+  // Execute code with Deno - decrement counter when done
+  try {
+    return await new Promise((resolve, reject) => {
     let stdout = '';
     let stderr = '';
     let isTimedOut = false;
@@ -245,7 +250,11 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
         );
       }
     })();
-  });
+    });
+  } finally {
+    // Always decrement counter when execution completes (success or failure)
+    processManager.decrement();
+  }
 }
 
 /**
