@@ -20,13 +20,7 @@ export function createApp(): Application {
     await next();
   });
 
-  // Routes
-  app.use(healthRouter.routes());
-  app.use(healthRouter.allowedMethods());
-  app.use(executeRouter.routes());
-  app.use(executeRouter.allowedMethods());
-
-  // Error handler
+  // Error handler (must be before routes to catch route errors)
   app.use(async (ctx: Context, next) => {
     try {
       await next();
@@ -61,6 +55,12 @@ export function createApp(): Application {
       } satisfies ApiResponse;
     }
   });
+
+  // Routes
+  app.use(healthRouter.routes());
+  app.use(healthRouter.allowedMethods());
+  app.use(executeRouter.routes());
+  app.use(executeRouter.allowedMethods());
 
   // 404 handler (must be last)
   app.use((ctx) => {
