@@ -96,7 +96,9 @@ restexec/
 │   ├── API.md
 │   ├── SystemArchitecture.md
 │   ├── Security.md
+│   ├── Libraries.md           # ライブラリ追加ガイド
 │   └── ...
+├── deps.ts                    # 外部ライブラリ依存関係
 ├── Dockerfile                 # Docker イメージ定義
 ├── compose.yaml               # Docker Compose 設定
 ├── deno.json                  # Deno 設定
@@ -104,3 +106,18 @@ restexec/
 ├── DOCKER.md                  # Docker ドキュメント
 └── README.md
 ```
+
+## 外部ライブラリの使用
+
+restexecは`--cached-only`フラグを使用してセキュリティを強化しています。これにより、実行時に外部モジュールをダウンロードすることはできません。
+
+外部ライブラリを使用する場合は、**ビルド時に事前にキャッシュする**必要があります。詳細な手順については、[ライブラリの追加方法](specs/Libraries.md)を参照してください。
+
+### クイックスタート
+
+1. `deps.ts`にライブラリを追加
+2. `import_map.json`を更新（オプション）
+3. コンテナを再ビルド: `docker compose build`
+4. コンテナを起動: `docker compose up -d`
+
+詳細は [specs/Libraries.md](specs/Libraries.md) を参照してください。

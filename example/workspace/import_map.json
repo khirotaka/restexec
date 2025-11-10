@@ -2,6 +2,14 @@
   "imports": {
     "@/": "/tools/",
     "utils/": "/tools/utils/",
-    "types": "/tools/types.ts"
+    "types": "/tools/types.ts",
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
+    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/",
+    "date-fns": "https://esm.sh/date-fns@3.0.0",
+    "date-fns/": "https://esm.sh/date-fns@3.0.0/",
+    "zod": "https://esm.sh/zod@3.22.4",
+    "papaparse": "https://esm.sh/papaparse@5.4.1",
+    "nanoid": "https://esm.sh/nanoid@5.0.4",
+    "decimal.js": "https://esm.sh/decimal.js@10.4.3"
   }
 }
