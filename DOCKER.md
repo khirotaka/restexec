@@ -63,17 +63,17 @@ curl http://localhost:3000/health
 # サンプルコードの実行（hello-world.ts）
 curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
-  -d '{"filename": "hello-world.ts"}'
+  -d '{"codeId": "hello-world"}'
 
 # import付きのサンプル実行（with-import.ts）
 curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
-  -d '{"filename": "with-import.ts"}'
+  -d '{"codeId": "with-import"}'
 
 # 非同期処理のサンプル実行（async-example.ts）
 curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
-  -d '{"filename": "async-example.ts"}'
+  -d '{"codeId": "async-example"}'
 ```
 
 ## 開発モード
