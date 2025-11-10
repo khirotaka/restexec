@@ -11,7 +11,7 @@ const MAX_BUFFER = 10 * 1024 * 1024;
  * Build Deno command arguments with permissions
  */
 function buildDenoArgs(filePath: string): string[] {
-  const args = ['run', '--no-prompt'];
+  const args = ['run', '--no-prompt', '--no-remote'];
 
   // Add import map
   if (config.deno.importMap) {
