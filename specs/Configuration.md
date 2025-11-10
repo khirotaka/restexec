@@ -4,15 +4,15 @@
 
 | 変数名 | デフォルト値 | 説明 |
 |-------|-----------|------|
-| `PORT` | 8080 | HTTPサーバーのリスニングポート |
-| `LOG_LEVEL` | INFO | ログレベル (DEBUG, INFO, WARN, ERROR) |
+| `PORT` | 3000 | HTTPサーバーのリスニングポート |
+| `LOG_LEVEL` | info | ログレベル (DEBUG, INFO, WARN, ERROR) |
 
 ## 実行設定
 
 | 変数名 | デフォルト値 | 説明 |
 |-------|-----------|------|
-| `DEFAULT_TIMEOUT_MS` | 5000 | デフォルトタイムアウト（ミリ秒） |
-| `MAX_TIMEOUT_MS` | 300000 | 最大タイムアウト（ミリ秒） |
+| `DEFAULT_TIMEOUT` | 5000 | デフォルトタイムアウト（ミリ秒） |
+| `MAX_TIMEOUT` | 300000 | 最大タイムアウト（ミリ秒） |
 | `WORKSPACE_DIR` | /workspace | コード実行ディレクトリ |
 | `TOOLS_DIR` | /tools | 共有ツールディレクトリ |
 

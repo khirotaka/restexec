@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Copy application files
 COPY deno.json ./
-COPY import_map.json ./workspace/
 COPY src ./src
 
 # Cache dependencies
@@ -14,6 +13,9 @@ RUN deno cache src/index.ts
 
 # Create workspace and tools directories
 RUN mkdir -p /workspace /tools
+
+# Copy import map to workspace (used by child Deno processes)
+COPY import_map.json /workspace/
 
 # Switch to deno user
 RUN chown -R deno:deno /workspace /tools
