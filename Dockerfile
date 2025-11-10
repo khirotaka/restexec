@@ -8,8 +8,12 @@ WORKDIR /app
 COPY deno.json ./
 COPY src ./src
 
-# Cache dependencies
+# Copy external library dependencies file
+COPY deps.ts ./
+
+# Cache dependencies (both application and external libraries)
 RUN deno cache src/index.ts
+RUN deno cache deps.ts
 
 # Create workspace and tools directories
 RUN mkdir -p /workspace /tools
