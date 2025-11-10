@@ -96,6 +96,7 @@ restexec/
 │   ├── API.md
 │   ├── SystemArchitecture.md
 │   ├── Security.md
+│   ├── Libraries.md           # ライブラリ追加方法
 │   └── ...
 ├── Dockerfile                 # Docker イメージ定義
 ├── compose.yaml               # Docker Compose 設定
@@ -104,3 +105,63 @@ restexec/
 ├── DOCKER.md                  # Docker ドキュメント
 └── README.md
 ```
+
+## 外部ライブラリの追加
+
+サンドボックス環境では、外部ライブラリをCDN（esm.sh、deno.land/xなど）から直接インポートして使用できます。
+
+### 方法1: 直接URLインポート
+
+```typescript
+import { range, chunk } from "https://esm.sh/es-toolkit@1.27.0";
+
+async function main() {
+    const numbers = range(1, 5); // [1, 2, 3, 4]
+    const chunkedArray = chunk(numbers, 2);
+    console.log(JSON.stringify({ result: chunkedArray }));
+}
+
+main().catch(console.error);
+```
+
+### 方法2: Import Mapを使用
+
+`/workspace/import_map.json`を編集：
+
+```json
+{
+  "imports": {
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0"
+  }
+}
+```
+
+TypeScriptコード：
+
+```typescript
+import { range, chunk } from "es-toolkit";
+
+async function main() {
+    const numbers = range(1, 5);
+    const chunkedArray = chunk(numbers, 2);
+    console.log(JSON.stringify({ result: chunkedArray }));
+}
+
+main().catch(console.error);
+```
+
+### ネットワーク権限の設定
+
+外部ライブラリを使用する場合は、環境変数で必要なドメインを許可してください：
+
+```bash
+DENO_ALLOW_NET=esm.sh,deno.land
+```
+
+詳細は [specs/Libraries.md](specs/Libraries.md) を参照してください。
+
+### サンプルコード
+
+- `example/workspace/example-es-toolkit-with-import-map.ts` - Import Mapを使った例
+- `example/workspace/example-es-toolkit-direct-import.ts` - 直接インポートの例
+- `example/workspace/example-date-fns.ts` - date-fnsライブラリの使用例

@@ -2,6 +2,8 @@
   "imports": {
     "@/": "/tools/",
     "utils/": "/tools/utils/",
-    "types": "/tools/types.ts"
+    "types": "/tools/types.ts",
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
+    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/"
   }
 }
