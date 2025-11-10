@@ -96,6 +96,7 @@ restexec/
 │   ├── API.md
 │   ├── SystemArchitecture.md
 │   ├── Security.md
+│   ├── Libraries.md           # ライブラリ追加方法
 │   └── ...
 ├── Dockerfile                 # Docker イメージ定義
 ├── compose.yaml               # Docker Compose 設定
@@ -104,3 +105,56 @@ restexec/
 ├── DOCKER.md                  # Docker ドキュメント
 └── README.md
 ```
+
+## 外部ライブラリの追加
+
+restexecでは、セキュリティのため実行時に新しいモジュールのダウンロードが禁止されています（`--cached-only`フラグ）。外部ライブラリを使用する場合は、**コンテナビルド時に事前にキャッシュ**する必要があります。
+
+### 手順
+
+1. **deps.tsに依存関係を追加**
+
+```typescript
+// deps.ts
+export * from "https://esm.sh/es-toolkit@1.27.0";
+export * from "https://esm.sh/date-fns@3.0.0";
+```
+
+2. **import_map.jsonを更新（オプション）**
+
+```json
+{
+  "imports": {
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
+    "date-fns": "https://esm.sh/date-fns@3.0.0"
+  }
+}
+```
+
+3. **コンテナを再ビルド**
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+4. **コードで使用**
+
+```typescript
+import { range, chunk } from "es-toolkit";
+
+async function main() {
+    const numbers = range(1, 5);
+    const chunkedArray = chunk(numbers, 2);
+    console.log(JSON.stringify({ result: chunkedArray }));
+}
+
+main().catch(console.error);
+```
+
+詳細は [specs/Libraries.md](specs/Libraries.md) を参照してください。
+
+### サンプルコード
+
+- `example/workspace/example-es-toolkit-with-import-map.ts` - Import Mapを使った例
+- `example/workspace/example-date-fns.ts` - date-fnsライブラリの使用例
