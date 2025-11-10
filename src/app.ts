@@ -4,6 +4,7 @@ import executeRouter from './routes/execute.ts';
 import { logger } from './utils/logger.ts';
 import type { ApiResponse } from './types/index.ts';
 import { RestExecError } from './utils/errors.ts';
+import { processManager } from './utils/processManager.ts';
 
 export function createApp(): Application {
   const app = new Application();
@@ -14,10 +15,16 @@ export function createApp(): Application {
     await next();
   });
 
-  // Request logging middleware
+  // Request logging middleware with active process count
   app.use(async (ctx, next) => {
-    logger.info(`${ctx.request.method} ${ctx.request.url.pathname}`);
+    const activeProcesses = processManager.getActiveCount();
+    logger.info(`${ctx.request.method} ${ctx.request.url.pathname} (active processes: ${activeProcesses})`);
     await next();
+    const finalActiveProcesses = processManager.getActiveCount();
+    const duration = Date.now() - ctx.state.startTime;
+    logger.info(
+      `${ctx.request.method} ${ctx.request.url.pathname} completed in ${duration}ms (active processes: ${finalActiveProcesses})`,
+    );
   });
 
   // Error handler (must be before routes to catch route errors)
