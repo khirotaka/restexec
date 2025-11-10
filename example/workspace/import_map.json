@@ -4,6 +4,7 @@
     "utils/": "/tools/utils/",
     "types": "/tools/types.ts",
     "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
-    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/"
+    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/",
+    "date-fns": "https://esm.sh/date-fns@3.0.0"
   }
 }

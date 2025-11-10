@@ -2,11 +2,19 @@
  * Example: Using es-toolkit with Import Map
  *
  * This example demonstrates how to use external libraries via Import Map.
- * The library alias is defined in /workspace/import_map.json
+ * Since the executor uses --no-remote flag, all dependencies must be
+ * pre-cached during container build.
  *
- * Requirements:
- * - DENO_ALLOW_NET=esm.sh must be set in environment variables
- * - import_map.json must include "es-toolkit": "https://esm.sh/es-toolkit@1.27.0"
+ * Setup Requirements:
+ * 1. Add to deps.ts:
+ *    export * from "https://esm.sh/es-toolkit@1.27.0";
+ *
+ * 2. Add to import_map.json:
+ *    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0"
+ *
+ * 3. Rebuild container:
+ *    docker compose build
+ *    docker compose up -d
  */
 
 import { range, chunk } from "es-toolkit";

@@ -2,56 +2,49 @@
 
 ## 概要
 
-restexecサンドボックス環境では、コンテナ起動時に利用可能なライブラリが固定されます。しかし、利用者は新しいライブラリを追加してコード実行時に利用することができます。
+restexecサンドボックス環境では、セキュリティ上の理由から実行時に外部ネットワークへのアクセスが制限されています（`--no-remote`フラグ）。そのため、外部ライブラリを使用する場合は、**コンテナビルド時に事前にキャッシュする**必要があります。
 
-このドキュメントでは、サンドボックス環境に新しいライブラリを追加する方法を説明します。
+このドキュメントでは、新しいライブラリをrestexec環境に追加する方法を説明します。
 
-## ライブラリ追加の2つの方法
+## 重要な前提
 
-### 方法1: 直接URLインポート
-
-最もシンプルな方法は、TypeScriptコード内でCDN（esm.sh、deno.land/xなど）から直接インポートする方法です。
-
-#### 例：es-toolkitを使用する場合
+restexecの実行エンジン（`src/executor.ts`）は、Denoを`--no-remote`フラグ付きで起動します：
 
 ```typescript
-import { range, chunk } from "https://esm.sh/es-toolkit@1.27.0";
-
-async function main() {
-    const numbers = range(1, 5); // [1, 2, 3, 4]
-    const chunkedArray = chunk(numbers, 2);
-    console.log(JSON.stringify({
-        success: true,
-        result: chunkedArray
-    }));
-}
-
-main().catch((error) => {
-    console.error(JSON.stringify({
-        success: false,
-        error: error.message,
-    }));
-    Deno.exit(1);
-});
+const args = ['run', '--no-prompt', '--no-remote'];
 ```
 
-#### メリット
-- **シンプル**: `import_map.json`の編集が不要
-- **明示的**: どのバージョンを使用しているかが一目瞭然
-- **即座に利用可能**: 追加設定なしで任意のライブラリを使用できる
+これにより：
+- **実行時に外部URLから直接インポートできません**
+- すべての依存関係は**ビルド時に事前にキャッシュ**する必要があります
+- キャッシュされた依存関係のみが実行時に利用可能です
 
-#### デメリット
-- **冗長**: 同じライブラリを複数のファイルで使う場合、URLを毎回記述する必要がある
-- **保守性**: バージョンアップ時に全ファイルを修正する必要がある
-- **可読性**: URLが長くなりがち
+## ライブラリ追加の手順
 
-### 方法2: Import Mapを使用
+### ステップ1: deps.tsに依存関係を追加
 
-`import_map.json`を編集して、ライブラリのエイリアスを設定する方法です。
+プロジェクトルートの`deps.ts`ファイルを編集し、使用したいライブラリをインポートします。
 
-#### 手順
+```typescript
+// deps.ts
 
-1. `/workspace/import_map.json`を編集します：
+// es-toolkit: Modern utility library
+export * from "https://esm.sh/es-toolkit@1.27.0";
+
+// date-fns: Date manipulation library
+export * from "https://esm.sh/date-fns@3.0.0";
+
+// zod: TypeScript-first validation library
+export * from "https://esm.sh/zod@3.22.4";
+```
+
+**重要な注意点:**
+- 必ず**完全なURL**と**正確なバージョン**を指定してください
+- バージョン範囲（`@^1.0.0`など）ではなく、固定バージョン（`@1.27.0`）を使用してください
+
+### ステップ2: import_map.jsonを更新（オプション）
+
+利用者が簡潔なインポートを使えるように、`import_map.json`にエイリアスを追加します。
 
 ```json
 {
@@ -60,147 +53,77 @@ main().catch((error) => {
     "utils/": "/tools/utils/",
     "types": "/tools/types.ts",
     "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
-    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/"
+    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/",
+    "date-fns": "https://esm.sh/date-fns@3.0.0",
+    "zod": "https://esm.sh/zod@3.22.4"
   }
 }
 ```
 
-2. TypeScriptコードで短いエイリアスを使ってインポートします：
+この設定により、ユーザーコードで以下のように簡潔にインポートできます：
 
 ```typescript
 import { range, chunk } from "es-toolkit";
-
-async function main() {
-    const numbers = range(1, 5); // [1, 2, 3, 4]
-    const chunkedArray = chunk(numbers, 2);
-    console.log(JSON.stringify({
-        success: true,
-        result: chunkedArray
-    }));
-}
-
-main().catch((error) => {
-    console.error(JSON.stringify({
-        success: false,
-        error: error.message,
-    }));
-    Deno.exit(1);
-});
+import { format, addDays } from "date-fns";
+import { z } from "zod";
 ```
 
-#### メリット
-- **保守性**: バージョン変更時は`import_map.json`を1箇所修正するだけ
-- **可読性**: インポート文がシンプルで読みやすい
-- **一元管理**: 使用しているライブラリとバージョンを一元管理できる
+### ステップ3: Dockerコンテナを再ビルド
 
-#### デメリット
-- **初期設定が必要**: `import_map.json`の編集が必要
-- **設定ミス**: JSON構文エラーがあると全体が動かなくなる可能性
-
-## ネットワーク権限の設定
-
-外部ライブラリをURLからインポートする場合、Denoにネットワークアクセスを許可する必要があります。
-
-### 環境変数の設定
-
-`DENO_ALLOW_NET`環境変数を設定して、アクセスを許可するドメインを指定します。
-
-#### Docker Composeの場合
-
-`compose.yaml`を編集：
-
-```yaml
-services:
-  restexec:
-    image: restexec:latest
-    environment:
-      - DENO_ALLOW_NET=esm.sh,deno.land,cdn.jsdelivr.net
-    # ...
-```
-
-#### Dockerfileの場合
-
-```dockerfile
-ENV DENO_ALLOW_NET=esm.sh,deno.land,cdn.jsdelivr.net
-```
-
-#### 直接実行の場合
+依存関係を追加したら、コンテナを再ビルドしてキャッシュします。
 
 ```bash
-export DENO_ALLOW_NET=esm.sh,deno.land,cdn.jsdelivr.net
-deno run --allow-read=/workspace,/tools --allow-net=esm.sh,deno.land,cdn.jsdelivr.net src/index.ts
+docker compose build
 ```
 
-### セキュリティ上の注意
+または、Dockerを直接使用する場合：
 
-- **最小権限の原則**: 必要なドメインのみを許可リストに追加してください
-- **信頼できるCDNのみ**: 以下のような信頼できるCDNを使用してください
-  - `esm.sh` - NPMパッケージのESモジュール版を提供
-  - `deno.land/x` - Deno公式のサードパーティモジュールレジストリ
-  - `cdn.jsdelivr.net` - CDNサービス
-  - `unpkg.com` - NPMのCDN
-
-## 主要なCDNとライブラリソース
-
-### esm.sh
-
-NPMパッケージをESモジュールとして配信するCDNです。
-
-```typescript
-// 基本的な使い方
-import { functionName } from "https://esm.sh/package-name@version";
-
-// es-toolkit の例
-import { range, chunk } from "https://esm.sh/es-toolkit@1.27.0";
-
-// lodash-es の例
-import { debounce, throttle } from "https://esm.sh/lodash-es@4.17.21";
-
-// date-fns の例
-import { format, addDays } from "https://esm.sh/date-fns@3.0.0";
+```bash
+docker build -t restexec:latest .
 ```
 
-### deno.land/x
+ビルド時に、Dockerfileが自動的に`deps.ts`をキャッシュします：
 
-Deno専用のサードパーティモジュールレジストリです。
+```dockerfile
+# Copy external library dependencies file
+COPY deps.ts ./
 
-```typescript
-// 基本的な使い方
-import { functionName } from "https://deno.land/x/module_name@version/mod.ts";
-
-// deno_stdライブラリの例
-import { assertEquals } from "https://deno.land/std@0.210.0/assert/mod.ts";
+# Cache dependencies (both application and external libraries)
+RUN deno cache src/index.ts
+RUN deno cache deps.ts
 ```
 
-### CDNの選択基準
+### ステップ4: コンテナを起動
 
-| CDN | 対象 | 特徴 |
-|-----|------|------|
-| esm.sh | NPMパッケージ | NPMの豊富なエコシステムを活用できる |
-| deno.land/x | Denoモジュール | Deno専用に最適化されたモジュール |
-| cdn.jsdelivr.net | NPM/GitHub | グローバルCDN、高速 |
-| unpkg.com | NPMパッケージ | シンプルなNPM CDN |
+再ビルドしたコンテナを起動します：
 
-## 実践例
+```bash
+docker compose up -d
+```
+
+これで、キャッシュされたライブラリが実行時に利用可能になります。
+
+## 使用例
 
 ### 例1: es-toolkitを使った配列処理
 
-`/workspace/import_map.json`:
+**deps.ts:**
+```typescript
+export * from "https://esm.sh/es-toolkit@1.27.0";
+```
+
+**import_map.json:**
 ```json
 {
   "imports": {
-    "@/": "/tools/",
-    "utils/": "/tools/utils/",
-    "types": "/tools/types.ts",
-    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
-    "es-toolkit/": "https://esm.sh/es-toolkit@1.27.0/"
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0"
   }
 }
 ```
 
-`/workspace/array-processing.ts`:
+**workspace/array-processing.ts:**
 ```typescript
-import { range, chunk, shuffle } from "es-toolkit";
+import { range, chunk } from "es-toolkit";
 
 async function main() {
     // 1から100までの数値配列を作成
@@ -209,15 +132,11 @@ async function main() {
     // 10個ずつのチャンクに分割
     const chunked = chunk(numbers, 10);
 
-    // ランダムにシャッフル
-    const shuffled = shuffle(numbers);
-
     const result = {
         success: true,
         totalNumbers: numbers.length,
         chunksCount: chunked.length,
         firstChunk: chunked[0],
-        firstFiveShuffled: shuffled.slice(0, 5)
     };
 
     console.log(JSON.stringify(result));
@@ -234,24 +153,39 @@ main().catch((error) => {
 
 ### 例2: date-fnsを使った日付処理
 
-直接URLインポートの例：
-
+**deps.ts:**
 ```typescript
-import { format, addDays, subDays, differenceInDays } from "https://esm.sh/date-fns@3.0.0";
+export * from "https://esm.sh/date-fns@3.0.0";
+```
+
+**import_map.json:**
+```json
+{
+  "imports": {
+    "date-fns": "https://esm.sh/date-fns@3.0.0"
+  }
+}
+```
+
+**workspace/date-operations.ts:**
+```typescript
+import { format, addDays, subDays, differenceInDays } from "date-fns";
 
 async function main() {
     const today = new Date();
     const tomorrow = addDays(today, 1);
-    const yesterday = subDays(today, 1);
     const weekAgo = subDays(today, 7);
 
     const result = {
         success: true,
-        today: format(today, 'yyyy-MM-dd'),
-        tomorrow: format(tomorrow, 'yyyy-MM-dd'),
-        yesterday: format(yesterday, 'yyyy-MM-dd'),
-        weekAgo: format(weekAgo, 'yyyy-MM-dd'),
-        daysSinceWeekAgo: differenceInDays(today, weekAgo)
+        dates: {
+            today: format(today, 'yyyy-MM-dd'),
+            tomorrow: format(tomorrow, 'yyyy-MM-dd'),
+            weekAgo: format(weekAgo, 'yyyy-MM-dd'),
+        },
+        calculations: {
+            daysSinceWeekAgo: differenceInDays(today, weekAgo),
+        }
     };
 
     console.log(JSON.stringify(result));
@@ -266,23 +200,23 @@ main().catch((error) => {
 });
 ```
 
-### 例3: zod を使ったバリデーション
+### 例3: zodを使ったバリデーション
 
-Import Mapを使った例：
+**deps.ts:**
+```typescript
+export * from "https://esm.sh/zod@3.22.4";
+```
 
-`/workspace/import_map.json`:
+**import_map.json:**
 ```json
 {
   "imports": {
-    "@/": "/tools/",
-    "utils/": "/tools/utils/",
-    "types": "/tools/types.ts",
     "zod": "https://esm.sh/zod@3.22.4"
   }
 }
 ```
 
-`/workspace/validation.ts`:
+**workspace/validation.ts:**
 ```typescript
 import { z } from "zod";
 
@@ -294,34 +228,24 @@ async function main() {
         email: z.string().email(),
     });
 
-    // バリデーション
-    const validData = {
+    const data = {
         name: "John Doe",
         age: 30,
         email: "john@example.com"
     };
 
-    const invalidData = {
-        name: "",
-        age: -5,
-        email: "invalid-email"
-    };
-
     try {
-        const validResult = UserSchema.parse(validData);
-        const invalidResult = UserSchema.parse(invalidData);
-
+        const validResult = UserSchema.parse(data);
         console.log(JSON.stringify({
             success: true,
-            validResult,
-            invalidResult
+            validatedData: validResult
         }));
     } catch (error) {
         if (error instanceof z.ZodError) {
             console.log(JSON.stringify({
-                success: true,
-                message: "Validation failed as expected",
-                errors: error.errors
+                success: false,
+                error: "Validation failed",
+                details: error.errors
             }));
         } else {
             throw error;
@@ -338,6 +262,50 @@ main().catch((error) => {
 });
 ```
 
+## 主要なCDNとライブラリソース
+
+### esm.sh (推奨)
+
+NPMパッケージをESモジュールとして配信するCDNです。型定義も自動的に提供されます。
+
+```typescript
+// 基本的な使い方
+import { functionName } from "https://esm.sh/package-name@version";
+
+// es-toolkit
+export * from "https://esm.sh/es-toolkit@1.27.0";
+
+// lodash-es
+export * from "https://esm.sh/lodash-es@4.17.21";
+
+// date-fns
+export * from "https://esm.sh/date-fns@3.0.0";
+
+// zod
+export * from "https://esm.sh/zod@3.22.4";
+```
+
+### deno.land/x
+
+Deno専用のサードパーティモジュールレジストリです。
+
+```typescript
+// 基本的な使い方
+import { functionName } from "https://deno.land/x/module_name@version/mod.ts";
+
+// deno_stdライブラリ
+export * from "https://deno.land/std@0.210.0/assert/mod.ts";
+```
+
+### CDNの選択基準
+
+| CDN | 対象 | 特徴 | 推奨用途 |
+|-----|------|------|---------|
+| esm.sh | NPMパッケージ | NPMエコシステム、型定義自動提供 | NPMパッケージを使いたい場合 |
+| deno.land/x | Denoモジュール | Deno専用に最適化 | Deno専用モジュール |
+| cdn.jsdelivr.net | NPM/GitHub | グローバルCDN、高速 | 高速配信が必要な場合 |
+| unpkg.com | NPMパッケージ | シンプルなNPM CDN | シンプルなNPMアクセス |
+
 ## ベストプラクティス
 
 ### 1. バージョンの固定
@@ -346,121 +314,122 @@ main().catch((error) => {
 
 ```typescript
 // 良い例
-import { range } from "https://esm.sh/es-toolkit@1.27.0";
+export * from "https://esm.sh/es-toolkit@1.27.0";
 
-// 悪い例（最新版が自動的に使われるため、動作が不安定になる可能性）
-import { range } from "https://esm.sh/es-toolkit";
+// 悪い例（最新版が自動的に使われるため、ビルドが不安定になる）
+export * from "https://esm.sh/es-toolkit";
 ```
 
-### 2. Import Mapの使用を推奨
+### 2. deps.tsの整理
 
-複数のファイルで同じライブラリを使う場合は、Import Mapを使用してください：
+使用するライブラリをグループ化してコメントを付けることで、保守性を向上させます：
+
+```typescript
+// ===== Utility Libraries =====
+export * from "https://esm.sh/es-toolkit@1.27.0";
+export * from "https://esm.sh/lodash-es@4.17.21";
+
+// ===== Date/Time Libraries =====
+export * from "https://esm.sh/date-fns@3.0.0";
+export * from "https://esm.sh/dayjs@1.11.10";
+
+// ===== Validation Libraries =====
+export * from "https://esm.sh/zod@3.22.4";
+
+// ===== Data Processing =====
+export * from "https://esm.sh/papaparse@5.4.1";
+```
+
+### 3. Import Mapとdeps.tsの同期
+
+`import_map.json`のURLと`deps.ts`のURLは必ず一致させてください：
+
+```typescript
+// deps.ts
+export * from "https://esm.sh/es-toolkit@1.27.0";
+```
 
 ```json
+// import_map.json
 {
   "imports": {
-    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
-    "date-fns": "https://esm.sh/date-fns@3.0.0",
-    "zod": "https://esm.sh/zod@3.22.4"
+    "es-toolkit": "https://esm.sh/es-toolkit@1.27.0"
   }
 }
 ```
 
-### 3. ネットワーク権限の最小化
+### 4. 段階的な依存関係の追加
 
-必要なドメインのみを許可してください：
+多くのライブラリを一度に追加するのではなく、必要なものから段階的に追加してください：
 
-```bash
-# 良い例
-DENO_ALLOW_NET=esm.sh
+1. 最小限のライブラリで開始
+2. 必要に応じて追加
+3. 使わなくなったライブラリは削除
 
-# 悪い例（すべてのネットワークアクセスを許可）
-DENO_ALLOW_NET=
+### 5. ビルドキャッシュの活用
+
+Dockerのビルドキャッシュを活用するため、`deps.ts`を頻繁に変更しないようにしてください。
+
+## Docker Composeでの使用
+
+`compose.yaml`を使用している場合の完全なワークフロー：
+
+```yaml
+# compose.yaml
+services:
+  restexec:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./example/workspace:/workspace
+      - ./example/tools:/tools
+    environment:
+      - LOG_LEVEL=info
 ```
 
-### 4. TypeScript型定義の確認
+**ワークフロー:**
 
-多くのライブラリは型定義を含んでいますが、含まれていない場合は`@types/`パッケージを探してください：
-
-```typescript
-// esm.shは自動的に型定義を提供します
-import { range } from "https://esm.sh/es-toolkit@1.27.0";
-
-// 型定義を明示的に指定する場合
-import type { RangeOptions } from "https://esm.sh/es-toolkit@1.27.0";
-```
-
-### 5. エラーハンドリング
-
-外部ライブラリの使用時は、適切なエラーハンドリングを実装してください：
-
-```typescript
-import { z } from "https://esm.sh/zod@3.22.4";
-
-async function main() {
-    try {
-        // ライブラリを使用
-        const schema = z.string();
-        const result = schema.parse("valid string");
-
-        console.log(JSON.stringify({
-            success: true,
-            result
-        }));
-    } catch (error) {
-        // ライブラリ固有のエラーをハンドリング
-        if (error instanceof z.ZodError) {
-            console.error(JSON.stringify({
-                success: false,
-                error: "Validation error",
-                details: error.errors
-            }));
-        } else {
-            console.error(JSON.stringify({
-                success: false,
-                error: error.message
-            }));
-        }
-        Deno.exit(1);
-    }
-}
-
-main().catch((error) => {
-    console.error(JSON.stringify({
-        success: false,
-        error: error.message,
-    }));
-    Deno.exit(1);
-});
-```
+1. `deps.ts`を編集してライブラリを追加
+2. `import_map.json`を更新（オプション）
+3. コンテナを再ビルド: `docker compose build`
+4. コンテナを再起動: `docker compose up -d`
+5. ライブラリを使用するコードを`/workspace`に配置
+6. API経由でコードを実行
 
 ## よくある問題とトラブルシューティング
 
-### 問題1: ネットワークアクセスが拒否される
+### 問題1: ライブラリが見つからない
 
 **エラー例:**
 ```
-error: Uncaught PermissionDenied: Requires net access to "esm.sh"
+error: Module not found "https://esm.sh/es-toolkit@1.27.0"
 ```
+
+**原因:**
+- `deps.ts`にライブラリを追加していない
+- コンテナを再ビルドしていない
 
 **解決方法:**
-`DENO_ALLOW_NET`環境変数にドメインを追加してください。
+1. `deps.ts`にライブラリを追加
+2. `docker compose build`で再ビルド
+3. `docker compose up -d`で再起動
 
-```bash
-DENO_ALLOW_NET=esm.sh,deno.land
-```
-
-### 問題2: Import Mapが読み込まれない
+### 問題2: Import Mapが機能しない
 
 **エラー例:**
 ```
 error: Module not found "es-toolkit"
 ```
 
+**原因:**
+- `import_map.json`の設定が間違っている
+- `import_map.json`と`deps.ts`のURLが一致していない
+
 **解決方法:**
-1. `/workspace/import_map.json`が存在することを確認
-2. JSON構文が正しいことを確認
-3. `DENO_IMPORT_MAP`環境変数が正しく設定されていることを確認
+1. `import_map.json`のJSON構文を確認
+2. `deps.ts`のURLと一致することを確認
+3. コンテナを再ビルド
 
 ### 問題3: 型定義が見つからない
 
@@ -470,25 +439,36 @@ error: Could not find type definition for module
 ```
 
 **解決方法:**
-esm.shは自動的に型定義を提供しますが、問題がある場合は`@deno-types`ディレクティブを使用してください：
+
+esm.shは自動的に型定義を提供しますが、問題がある場合は`@deno-types`ディレクティブを使用：
 
 ```typescript
-// @deno-types="https://esm.sh/v135/@types/lodash-es@4.17.12/index.d.ts"
-import { debounce } from "https://esm.sh/lodash-es@4.17.21";
+// @deno-types="https://esm.sh/v135/@types/package-name@version/index.d.ts"
+import { functionName } from "https://esm.sh/package-name@version";
 ```
 
-### 問題4: バージョンの不一致
+### 問題4: ビルドが遅い
 
-**エラー例:**
-```
-error: Import "https://esm.sh/es-toolkit@1.27.0" has different version than cached
-```
+**原因:**
+多数のライブラリをキャッシュしている
 
 **解決方法:**
-Denoのキャッシュをクリアしてください：
+1. 使用していないライブラリを`deps.ts`から削除
+2. Dockerのビルドキャッシュを活用
+3. 必要最小限のライブラリのみを追加
 
+### 問題5: キャッシュが更新されない
+
+**原因:**
+Dockerのビルドキャッシュが古い
+
+**解決方法:**
 ```bash
-deno cache --reload https://esm.sh/es-toolkit@1.27.0
+# キャッシュを無効化して再ビルド
+docker compose build --no-cache
+
+# または
+docker build --no-cache -t restexec:latest .
 ```
 
 ## 推奨ライブラリ
@@ -496,42 +476,77 @@ deno cache --reload https://esm.sh/es-toolkit@1.27.0
 以下は、restexecサンドボックス環境で使用できる推奨ライブラリです：
 
 ### ユーティリティ
-- **es-toolkit**: モダンなユーティリティライブラリ（lodashの代替）
-- **ramda**: 関数型プログラミングライブラリ
-- **just**: 軽量なユーティリティ関数集
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| es-toolkit | 1.27.0 | `https://esm.sh/es-toolkit@1.27.0` | モダンなユーティリティライブラリ |
+| lodash-es | 4.17.21 | `https://esm.sh/lodash-es@4.17.21` | 関数型ユーティリティライブラリ |
+| ramda | 0.29.1 | `https://esm.sh/ramda@0.29.1` | 関数型プログラミング |
 
 ### 日付・時刻
-- **date-fns**: 日付操作ライブラリ
-- **dayjs**: 軽量な日付ライブラリ
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| date-fns | 3.0.0 | `https://esm.sh/date-fns@3.0.0` | 日付操作ライブラリ |
+| dayjs | 1.11.10 | `https://esm.sh/dayjs@1.11.10` | 軽量な日付ライブラリ |
 
 ### バリデーション
-- **zod**: TypeScript-first なバリデーションライブラリ
-- **valibot**: 軽量なバリデーションライブラリ
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| zod | 3.22.4 | `https://esm.sh/zod@3.22.4` | TypeScript-first バリデーション |
+| valibot | 0.25.0 | `https://esm.sh/valibot@0.25.0` | 軽量なバリデーション |
 
 ### データ処理
-- **papaparse**: CSV パーサー
-- **xlsx**: Excelファイル処理（制限あり）
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| papaparse | 5.4.1 | `https://esm.sh/papaparse@5.4.1` | CSV パーサー |
 
 ### 数学・計算
-- **mathjs**: 数学ライブラリ
-- **decimal.js**: 高精度な小数計算
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| mathjs | 12.4.0 | `https://esm.sh/mathjs@12.4.0` | 数学ライブラリ |
+| decimal.js | 10.4.3 | `https://esm.sh/decimal.js@10.4.3` | 高精度な小数計算 |
 
 ### 文字列処理
-- **nanoid**: ユニークID生成
-- **slugify**: URL-friendlyな文字列生成
+| ライブラリ | バージョン | URL | 説明 |
+|-----------|----------|-----|------|
+| nanoid | 5.0.4 | `https://esm.sh/nanoid@5.0.4` | ユニークID生成 |
+
+## セキュリティ上の注意
+
+### 1. 信頼できるCDNのみを使用
+
+以下のような信頼できるCDNからのみライブラリをインポートしてください：
+
+- ✅ esm.sh
+- ✅ deno.land/x
+- ✅ cdn.jsdelivr.net
+- ✅ unpkg.com
+
+### 2. バージョンの固定
+
+セキュリティパッチが適用されたバージョンを使用し、定期的に更新してください。
+
+### 3. 依存関係の監査
+
+追加するライブラリが信頼できるか、公式ドキュメントやGitHubリポジトリを確認してください。
+
+### 4. 最小権限の原則
+
+必要なライブラリのみを追加し、使用していないライブラリは削除してください。
 
 ## まとめ
 
-restexecサンドボックス環境では、以下の方法で新しいライブラリを追加できます：
+restexecサンドボックス環境で新しいライブラリを追加する手順：
 
-1. **直接URLインポート**: シンプルで即座に使える
-2. **Import Map**: 保守性と可読性が高い
+1. **deps.tsに追加**: 使用したいライブラリを`deps.ts`にインポート
+2. **Import Mapを更新**: `import_map.json`にエイリアスを追加（オプション）
+3. **コンテナを再ビルド**: `docker compose build`で依存関係をキャッシュ
+4. **コンテナを起動**: `docker compose up -d`で新しいコンテナを起動
+5. **コードで使用**: ワークスペースのコードでライブラリを使用
 
-どちらの方法を選択する場合でも：
-- ネットワーク権限（`DENO_ALLOW_NET`）の設定が必要
-- バージョンを固定することを推奨
-- 信頼できるCDNを使用すること
-
-複数のファイルで同じライブラリを使用する場合は、Import Mapの使用を推奨します。
+**重要なポイント:**
+- `--no-remote`フラグにより、実行時に外部ネットワークへのアクセスは制限されています
+- すべての依存関係は**ビルド時に事前にキャッシュ**する必要があります
+- 必ずバージョンを固定してください
+- `deps.ts`と`import_map.json`のURLは一致させてください
 
 詳細な設定方法については、[Configuration.md](./Configuration.md)と[Security.md](./Security.md)を参照してください。

@@ -2,13 +2,22 @@
  * Example: Using date-fns for date manipulation
  *
  * This example demonstrates how to use date-fns library for date operations.
- * Direct URL import is used in this example.
+ * Since the executor uses --no-remote flag, all dependencies must be
+ * pre-cached during container build.
  *
- * Requirements:
- * - DENO_ALLOW_NET=esm.sh must be set in environment variables
+ * Setup Requirements:
+ * 1. Add to deps.ts:
+ *    export * from "https://esm.sh/date-fns@3.0.0";
+ *
+ * 2. Add to import_map.json (optional):
+ *    "date-fns": "https://esm.sh/date-fns@3.0.0"
+ *
+ * 3. Rebuild container:
+ *    docker compose build
+ *    docker compose up -d
  */
 
-import { format, addDays, subDays, differenceInDays, startOfMonth, endOfMonth } from "https://esm.sh/date-fns@3.0.0";
+import { format, addDays, subDays, differenceInDays, startOfMonth, endOfMonth } from "date-fns";
 
 async function main() {
     const today = new Date();
