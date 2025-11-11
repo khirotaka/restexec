@@ -11,6 +11,7 @@
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/media-types@1": "1.1.0",
     "jsr:@std/path@1": "1.1.2",
+    "jsr:@std/path@1.0.8": "1.0.8",
     "jsr:@std/path@^1.0.10": "1.1.2",
     "npm:@types/node@*": "24.2.0",
     "npm:path-to-regexp@^6.3.0": "6.3.0"
@@ -50,6 +51,9 @@
     },
     "@std/media-types@1.1.0": {
       "integrity": "c9d093f0c05c3512932b330e3cc1fe1d627b301db33a4c2c2185c02471d6eaa4"
+    },
+    "@std/path@1.0.8": {
+      "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
     },
     "@std/path@1.1.2": {
       "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038",

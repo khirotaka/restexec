@@ -2,6 +2,7 @@ import { Application, Context } from '@oak/oak';
 import healthRouter from './routes/health.ts';
 import executeRouter from './routes/execute.ts';
 import lintRouter from './routes/lint.ts';
+import workspaceRouter from './routes/workspace.ts';
 import { logger } from './utils/logger.ts';
 import type { ApiResponse } from './types/index.ts';
 import { RestExecError } from './utils/errors.ts';
@@ -71,6 +72,8 @@ export function createApp(): Application {
   app.use(executeRouter.allowedMethods());
   app.use(lintRouter.routes());
   app.use(lintRouter.allowedMethods());
+  app.use(workspaceRouter.routes());
+  app.use(workspaceRouter.allowedMethods());
 
   // 404 handler (must be last)
   app.use((ctx) => {

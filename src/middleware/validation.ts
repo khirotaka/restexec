@@ -1,7 +1,7 @@
 import { Context } from '@oak/oak';
 import { config } from '../config.ts';
 import { ValidationError } from '../utils/errors.ts';
-import type { ExecuteRequest, LintRequest } from '../types/index.ts';
+import type { ExecuteRequest, LintRequest, WorkspaceSaveRequest } from '../types/index.ts';
 
 /**
  * Validates the execute request body
@@ -121,6 +121,85 @@ export async function validateLintRequest(ctx: Context, next: () => Promise<unkn
         max: config.maxTimeout,
       });
     }
+  }
+
+  // Store validated body in state for the next middleware
+  ctx.state.body = body;
+  await next();
+}
+
+/**
+ * Validates the workspace save request body
+ */
+export async function validateWorkspaceSaveRequest(ctx: Context, next: () => Promise<unknown>): Promise<void> {
+  // Parse JSON with error handling
+  let body: WorkspaceSaveRequest;
+  try {
+    body = await ctx.request.body.json() as WorkspaceSaveRequest;
+  } catch (error) {
+    throw new ValidationError(
+      'Invalid JSON in request body',
+      { error: error instanceof Error ? error.message : String(error) },
+    );
+  }
+
+  const { codeId, code } = body;
+
+  // Validate codeId
+  if (!codeId) {
+    throw new ValidationError('codeId is required', { field: 'codeId' });
+  }
+
+  if (typeof codeId !== 'string' || codeId.trim() === '') {
+    throw new ValidationError('codeId must be a non-empty string', { field: 'codeId', value: codeId });
+  }
+
+  // Prevent path traversal attacks
+  if (codeId.includes('/') || codeId.includes('\\') || codeId.includes('..')) {
+    throw new ValidationError(
+      'codeId must not contain path separators or parent directory references',
+      { field: 'codeId', value: codeId },
+    );
+  }
+
+  // Validate codeId format (alphanumeric, hyphens, underscores only)
+  if (!/^[a-zA-Z0-9_-]+$/.test(codeId)) {
+    throw new ValidationError(
+      'codeId must contain only alphanumeric characters, hyphens, and underscores',
+      { field: 'codeId', value: codeId },
+    );
+  }
+
+  // Validate codeId length
+  if (codeId.length > 255) {
+    throw new ValidationError(
+      'codeId must not exceed 255 characters',
+      { field: 'codeId', value: codeId, maxLength: 255 },
+    );
+  }
+
+  // Validate code
+  if (code === undefined || code === null) {
+    throw new ValidationError('code is required', { field: 'code' });
+  }
+
+  if (typeof code !== 'string') {
+    throw new ValidationError('code must be a string', { field: 'code', value: typeof code });
+  }
+
+  if (code.trim() === '') {
+    throw new ValidationError('code must not be empty', { field: 'code' });
+  }
+
+  // Validate code size (10MB limit)
+  const MAX_CODE_SIZE = 10 * 1024 * 1024; // 10MB
+  const encoder = new TextEncoder();
+  const codeBytes = encoder.encode(code);
+  if (codeBytes.length > MAX_CODE_SIZE) {
+    throw new ValidationError(
+      'Code size exceeds maximum allowed size',
+      { field: 'code', maxSize: MAX_CODE_SIZE, actualSize: codeBytes.length },
+    );
   }
 
   // Store validated body in state for the next middleware

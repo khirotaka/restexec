@@ -69,9 +69,15 @@ jobs:
         run: deno task test
         env:
           DENO_PATH: deno
+          WORKSPACE_DIR: /tmp/restexec-test-workspace
+          TOOLS_DIR: /tmp/restexec-test-tools
 
       - name: Generate coverage report
         run: deno test --coverage=coverage --allow-read --allow-write --allow-net --allow-env --allow-run
+        env:
+          DENO_PATH: deno
+          WORKSPACE_DIR: /tmp/restexec-test-workspace
+          TOOLS_DIR: /tmp/restexec-test-tools
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
