@@ -1,5 +1,5 @@
 import { Router } from '@oak/oak';
-import { join } from 'jsr:@std/path@1.0.8';
+import { join } from 'jsr:@std/path@^1.0.0';
 import type { ApiResponse, WorkspaceSaveRequest, WorkspaceSaveResult } from '../types/index.ts';
 import { validateWorkspaceSaveRequest } from '../middleware/validation.ts';
 import { config } from '../config.ts';
@@ -12,12 +12,18 @@ const router = new Router();
  * Saves TypeScript code to workspace directory
  */
 router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
+  const startTime = Date.now();
   const { codeId, code } = ctx.state.body as WorkspaceSaveRequest;
 
   try {
     // Extract TypeScript code from markdown blocks if present
     const isMarkdown = isMarkdownCodeBlock(code);
     const extractedCode = extractTypeScriptCode(code);
+
+    // Calculate byte sizes for logging
+    const encoder = new TextEncoder();
+    const codeBytes = encoder.encode(code).length;
+    const extractedBytes = encoder.encode(extractedCode).length;
 
     // Construct file path
     const fileName = `${codeId}.ts`;
@@ -27,7 +33,7 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     const tempFilePath = `${filePath}.tmp`;
 
     logger.info(
-      `Saving code to workspace: ${codeId} (size: ${code.length}, extracted: ${extractedCode.length}, markdown: ${isMarkdown}, path: ${filePath})`,
+      `Saving code to workspace: ${codeId} (size: ${codeBytes} bytes, extracted: ${extractedBytes} bytes, markdown: ${isMarkdown}, path: ${filePath})`,
     );
 
     // Write to temporary file (use extracted code)
@@ -59,10 +65,12 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
       size: fileInfo.size,
     };
 
+    const executionTime = Date.now() - startTime;
+
     const response: ApiResponse = {
       success: true,
       result,
-      executionTime: 0, // Not applicable for file save operations
+      executionTime,
     };
 
     ctx.response.status = 200;

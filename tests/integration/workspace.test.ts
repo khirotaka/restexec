@@ -217,6 +217,31 @@ Deno.test({
 });
 
 Deno.test({
+  name: 'Workspace - PUT /workspace with code exceeding size limit returns 400',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    // Create code that exceeds 10MB limit
+    const MAX_CODE_SIZE = 10 * 1024 * 1024; // 10MB
+    const largeCode = 'a'.repeat(MAX_CODE_SIZE + 1);
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId: 'test-large', code: largeCode }),
+    });
+
+    assertEquals(response.status, 400);
+    const body = await response.json() as ErrorResponse;
+    assertEquals(body.success, false);
+    assertEquals(body.error.type, 'ValidationError');
+    assertEquals(body.error.message, 'Code size exceeds maximum allowed size');
+  },
+});
+
+Deno.test({
   name: 'Workspace - PUT /workspace overwrites existing file',
   sanitizeOps: false,
   sanitizeResources: false,
