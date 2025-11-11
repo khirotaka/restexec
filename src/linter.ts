@@ -7,6 +7,7 @@ import { processManager } from './utils/processManager.ts';
 
 // 10MB buffer limit
 const MAX_BUFFER = 10 * 1024 * 1024;
+const SIGKILL_GRACE_PERIOD_MS = 1000;
 
 export interface LintOptions {
   codeId: string;
@@ -88,7 +89,7 @@ export async function lintCode(options: LintOptions): Promise<LintResult> {
                   } catch {
                     // Process might already be terminated
                   }
-                }, 1000);
+                }, SIGKILL_GRACE_PERIOD_MS);
               } catch {
                 // Ignore if process is already dead
               }
@@ -116,7 +117,7 @@ export async function lintCode(options: LintOptions): Promise<LintResult> {
                   } catch {
                     // Process might already be terminated
                   }
-                }, 1000);
+                }, SIGKILL_GRACE_PERIOD_MS);
               } catch {
                 // Ignore if process is already dead
               }
@@ -148,7 +149,7 @@ export async function lintCode(options: LintOptions): Promise<LintResult> {
               // Ignore if process is already dead
             }
           }
-        }, 1000);
+        }, SIGKILL_GRACE_PERIOD_MS);
       }, timeout);
 
       // Wait for process to complete
