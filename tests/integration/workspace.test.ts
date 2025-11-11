@@ -14,7 +14,7 @@ import { config } from '../../src/config.ts';
 // Global server state
 const serverController = new AbortController();
 let serverUrl: string;
-let listenPromise: Promise<void>;
+let _listenPromise: Promise<void>;
 let serverStarted = false;
 
 // Helper to ensure server is started before each test
@@ -29,7 +29,7 @@ async function ensureServerStarted() {
   tmpListener.close(); // Close it so Oak can bind to it
 
   // Start server with abort controller for proper cleanup
-  listenPromise = app.listen({ port, signal: serverController.signal });
+  _listenPromise = app.listen({ port, signal: serverController.signal });
 
   serverUrl = `http://localhost:${port}`;
 

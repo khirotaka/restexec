@@ -26,13 +26,9 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Write to temporary file first for atomicity
     const tempFilePath = `${filePath}.tmp`;
 
-    logger.info(`Saving code to workspace`, {
-      codeId,
-      size: code.length,
-      extractedSize: extractedCode.length,
-      isMarkdown,
-      path: filePath,
-    });
+    logger.info(
+      `Saving code to workspace: ${codeId} (size: ${code.length}, extracted: ${extractedCode.length}, markdown: ${isMarkdown}, path: ${filePath})`,
+    );
 
     // Write to temporary file (use extracted code)
     await Deno.writeTextFile(tempFilePath, extractedCode);
@@ -42,7 +38,7 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     try {
       await Deno.stat(filePath);
       isOverwrite = true;
-      logger.warn(`Overwriting existing file`, { codeId, path: filePath });
+      logger.warn(`Overwriting existing file: ${codeId} (path: ${filePath})`);
     } catch {
       // File doesn't exist, this is a new file
     }
@@ -53,12 +49,9 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Get file stats for response
     const fileInfo = await Deno.stat(filePath);
 
-    logger.info(`Code saved successfully`, {
-      codeId,
-      path: filePath,
-      size: fileInfo.size,
-      isOverwrite,
-    });
+    logger.info(
+      `Code saved successfully: ${codeId} (path: ${filePath}, size: ${fileInfo.size}, overwrite: ${isOverwrite})`,
+    );
 
     const result: WorkspaceSaveResult = {
       codeId,
@@ -76,10 +69,10 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     ctx.response.body = response;
   } catch (error) {
     // Error will be handled by error middleware
-    logger.error(`Failed to save code to workspace`, {
-      codeId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.error(
+      `Failed to save code to workspace: ${codeId}`,
+      error instanceof Error ? error : new Error(String(error)),
+    );
     throw error;
   }
 });
