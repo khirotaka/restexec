@@ -4,6 +4,11 @@ export interface ExecuteRequest {
   timeout?: number;
 }
 
+export interface LintRequest {
+  codeId: string;
+  timeout?: number;
+}
+
 // Response types
 export interface SuccessResponse {
   success: true;
@@ -49,6 +54,33 @@ export interface HealthResponse {
 export interface ExecutionResult {
   success: true;
   output: object;
+  exitCode: number | null;
+  signal: Deno.Signal | null;
+  executionTime: number;
+}
+
+// Lint types
+export interface LintDiagnostic {
+  code: string;
+  message: string;
+  range: {
+    start: { line: number; col: number };
+    end: { line: number; col: number };
+  };
+  filename: string;
+  hint?: string;
+}
+
+export interface LintOutput {
+  version: number;
+  diagnostics: LintDiagnostic[];
+  errors: unknown[];
+  checkedFiles?: string[];
+}
+
+export interface LintResult {
+  success: true;
+  output: LintOutput;
   exitCode: number | null;
   signal: Deno.Signal | null;
   executionTime: number;

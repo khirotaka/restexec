@@ -53,19 +53,26 @@ Client Request → HTTP Server (Oak) → Validator → Executor → Deno Child P
    - Timeout management with signal escalation (SIGTERM → SIGKILL)
    - JSON output parsing with fallback
 
-4. **Configuration System** ([src/config.ts](src/config.ts))
+4. **Lint Engine** ([src/linter.ts](src/linter.ts))
+   - Executes Deno's built-in linter on TypeScript files
+   - Runs `deno lint --json` in child processes
+   - Parses structured lint diagnostics
+   - Shares timeout and buffer management with executor
+
+5. **Configuration System** ([src/config.ts](src/config.ts))
    - Environment variable-based configuration
    - Deno permission configuration
    - Array and boolean parsing utilities
 
-5. **Routes**
+6. **Routes**
    - [src/routes/execute.ts](src/routes/execute.ts) - POST /execute endpoint
+   - [src/routes/lint.ts](src/routes/lint.ts) - POST /lint endpoint
    - [src/routes/health.ts](src/routes/health.ts) - GET /health endpoint
 
-6. **Type System** ([src/types/index.ts](src/types/index.ts))
+7. **Type System** ([src/types/index.ts](src/types/index.ts))
    - TypeScript interfaces for requests/responses
    - Error type definitions
-   - Execution result types
+   - Execution and lint result types
 
 ## Security Model
 
