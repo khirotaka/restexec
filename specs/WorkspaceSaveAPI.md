@@ -181,9 +181,9 @@ curl -X POST http://localhost:8080/execute \
 
 ## Implementation Notes
 
-### Phase 1: Basic TypeScript Code Support
+### Phase 1: Basic TypeScript Code Support ✅ Implemented
 
-The initial implementation supports plain TypeScript code in the `code` field. The code is saved directly to the file system without any preprocessing.
+The implementation supports plain TypeScript code in the `code` field. The code is saved directly to the file system.
 
 **Example:**
 ```json
@@ -193,9 +193,13 @@ The initial implementation supports plain TypeScript code in the `code` field. T
 }
 ```
 
-### Phase 2: Markdown Code Block Support (Future)
+### Phase 2: Markdown Code Block Support ✅ Implemented
 
-Future versions will support extracting TypeScript code from markdown code blocks. This is useful for LLM-generated responses that wrap code in markdown formatting.
+The implementation now supports extracting TypeScript code from markdown code blocks. This is useful for LLM-generated responses that wrap code in markdown formatting.
+
+**Supported formats:**
+- ` ```typescript` - Standard TypeScript code blocks
+- ` ```ts` - Short-form TypeScript code blocks
 
 **Example:**
 ```json
@@ -205,12 +209,20 @@ Future versions will support extracting TypeScript code from markdown code block
 }
 ```
 
-The implementation will:
-1. Detect markdown code blocks (` ```typescript` or ` ```ts`)
-2. Extract the code content between the fence markers
-3. Save only the extracted code to the file
+The implementation automatically:
+1. Detects markdown code blocks (` ```typescript` or ` ```ts`)
+2. Extracts the code content between the fence markers
+3. Saves only the extracted TypeScript code to the file
+4. Preserves plain code as-is when no markdown block is detected
 
-This phase will be implemented after the basic functionality is tested and committed.
+**Code Extraction Logic:**
+- Uses regex pattern to match markdown fenced code blocks
+- Handles leading/trailing whitespace
+- Preserves code indentation and empty lines
+- Falls back to plain code if no markdown block is detected
+- Logs whether markdown extraction occurred for debugging
+
+See `src/utils/codeExtractor.ts` for implementation details.
 
 ## File System Behavior
 

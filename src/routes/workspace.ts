@@ -4,6 +4,7 @@ import type { ApiResponse, WorkspaceSaveRequest, WorkspaceSaveResult } from '../
 import { validateWorkspaceSaveRequest } from '../middleware/validation.ts';
 import { config } from '../config.ts';
 import { logger } from '../utils/logger.ts';
+import { extractTypeScriptCode, isMarkdownCodeBlock } from '../utils/codeExtractor.ts';
 
 const router = new Router();
 
@@ -14,6 +15,10 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
   const { codeId, code } = ctx.state.body as WorkspaceSaveRequest;
 
   try {
+    // Extract TypeScript code from markdown blocks if present
+    const isMarkdown = isMarkdownCodeBlock(code);
+    const extractedCode = extractTypeScriptCode(code);
+
     // Construct file path
     const fileName = `${codeId}.ts`;
     const filePath = join(config.workspaceDir, fileName);
@@ -21,10 +26,16 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Write to temporary file first for atomicity
     const tempFilePath = `${filePath}.tmp`;
 
-    logger.info(`Saving code to workspace`, { codeId, size: code.length, path: filePath });
+    logger.info(`Saving code to workspace`, {
+      codeId,
+      size: code.length,
+      extractedSize: extractedCode.length,
+      isMarkdown,
+      path: filePath,
+    });
 
-    // Write to temporary file
-    await Deno.writeTextFile(tempFilePath, code);
+    // Write to temporary file (use extracted code)
+    await Deno.writeTextFile(tempFilePath, extractedCode);
 
     // Check if file exists (for logging overwrite operations)
     let isOverwrite = false;

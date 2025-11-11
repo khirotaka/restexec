@@ -278,3 +278,169 @@ Deno.test({
     assertEquals(body.error.message, 'Invalid JSON in request body');
   },
 });
+
+// Phase 2: Markdown Code Block Extraction Tests
+
+Deno.test({
+  name: 'Workspace - PUT /workspace extracts code from ```typescript block',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const codeId = 'test-markdown-typescript';
+    const plainCode = 'console.log(JSON.stringify({ message: "Hello from markdown" }));';
+    const code = `\`\`\`typescript\n${plainCode}\n\`\`\``;
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId, code }),
+    });
+
+    assertEquals(response.status, 200);
+    const body = await response.json() as ApiResponse;
+    assertEquals(body.success, true);
+
+    // Verify file contains extracted code (without markdown)
+    const filePath = join(config.workspaceDir, `${codeId}.ts`);
+    const fileContent = await Deno.readTextFile(filePath);
+    assertEquals(fileContent, plainCode);
+
+    // Cleanup
+    await Deno.remove(filePath);
+  },
+});
+
+Deno.test({
+  name: 'Workspace - PUT /workspace extracts code from ```ts block',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const codeId = 'test-markdown-ts';
+    const plainCode = 'const x = 42;\nconsole.log(JSON.stringify({ x }));';
+    const code = `\`\`\`ts\n${plainCode}\n\`\`\``;
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId, code }),
+    });
+
+    assertEquals(response.status, 200);
+    const body = await response.json() as ApiResponse;
+    assertEquals(body.success, true);
+
+    // Verify file contains extracted code (without markdown)
+    const filePath = join(config.workspaceDir, `${codeId}.ts`);
+    const fileContent = await Deno.readTextFile(filePath);
+    assertEquals(fileContent, plainCode);
+
+    // Cleanup
+    await Deno.remove(filePath);
+  },
+});
+
+Deno.test({
+  name: 'Workspace - PUT /workspace handles multiline markdown code',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const codeId = 'test-markdown-multiline';
+    const plainCode = `interface User {
+  name: string;
+  age: number;
+}
+
+const user: User = {
+  name: "Alice",
+  age: 30
+};
+
+console.log(JSON.stringify(user));`;
+    const code = `\`\`\`typescript\n${plainCode}\n\`\`\``;
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId, code }),
+    });
+
+    assertEquals(response.status, 200);
+    const body = await response.json() as ApiResponse;
+    assertEquals(body.success, true);
+
+    // Verify file contains extracted code (without markdown)
+    const filePath = join(config.workspaceDir, `${codeId}.ts`);
+    const fileContent = await Deno.readTextFile(filePath);
+    assertEquals(fileContent, plainCode);
+
+    // Cleanup
+    await Deno.remove(filePath);
+  },
+});
+
+Deno.test({
+  name: 'Workspace - PUT /workspace handles markdown with leading/trailing whitespace',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const codeId = 'test-markdown-whitespace';
+    const plainCode = 'console.log("test");';
+    const code = `  \`\`\`typescript\n${plainCode}\n\`\`\`  `;
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId, code }),
+    });
+
+    assertEquals(response.status, 200);
+    const body = await response.json() as ApiResponse;
+    assertEquals(body.success, true);
+
+    // Verify file contains extracted code (without markdown and whitespace)
+    const filePath = join(config.workspaceDir, `${codeId}.ts`);
+    const fileContent = await Deno.readTextFile(filePath);
+    assertEquals(fileContent, plainCode);
+
+    // Cleanup
+    await Deno.remove(filePath);
+  },
+});
+
+Deno.test({
+  name: 'Workspace - PUT /workspace preserves plain code when not markdown',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const codeId = 'test-plain-preserved';
+    const code = 'const message = "Not markdown";\nconsole.log(message);';
+
+    const response = await fetch(`${serverUrl}/workspace`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codeId, code }),
+    });
+
+    assertEquals(response.status, 200);
+    const body = await response.json() as ApiResponse;
+    assertEquals(body.success, true);
+
+    // Verify file contains original code as-is
+    const filePath = join(config.workspaceDir, `${codeId}.ts`);
+    const fileContent = await Deno.readTextFile(filePath);
+    assertEquals(fileContent, code);
+
+    // Cleanup
+    await Deno.remove(filePath);
+  },
+});
