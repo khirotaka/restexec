@@ -9,6 +9,17 @@ export interface LintRequest {
   timeout?: number;
 }
 
+export interface WorkspaceSaveRequest {
+  codeId: string;
+  code: string;
+}
+
+export interface WorkspaceSaveResult {
+  codeId: string;
+  filePath: string;
+  size: number;
+}
+
 // Response types
 export interface SuccessResponse {
   success: true;
