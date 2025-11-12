@@ -1,350 +1,531 @@
-# CLAUDE.md - Project Guide for AI Assistants
+# CLAUDE.md - AI Assistant Guide
 
-This document provides essential context about the **restexec** project to help AI assistants (like Claude) understand the codebase and work effectively on it.
+This document helps AI assistants (like Claude) navigate the **restexec** project efficiently.
 
-## Project Overview
+---
 
-**restexec** is a REST API service that safely executes TypeScript code via HTTP requests using the Deno runtime. It provides a secure, sandboxed environment for running user-submitted TypeScript code with fine-grained permission control.
+## 🌐 Language Preference / 言語優先設定
+
+**IMPORTANT: Language-First Response Policy**
+
+When interacting with developers:
+- **Respond in the same language as the user's request**
+- If the user asks in Japanese → Respond in Japanese (日本語で返答)
+- If the user asks in English → Respond in English
+- Maintain consistency throughout the conversation
+
+This allows developers to interact with Claude in their preferred language for better onboarding and collaboration.
+
+**重要: 言語優先のレスポンスポリシー**
+
+開発者とのやり取りでは:
+- **ユーザーのリクエストと同じ言語で返答する**
+- ユーザーが日本語で質問 → 日本語で返答
+- ユーザーが英語で質問 → 英語で返答
+- 会話全体を通じて一貫性を保つ
+
+これにより、開発者は好みの言語で Claude とやり取りでき、より良いオンボーディングとコラボレーションが可能になります。
+
+---
+
+## 📖 Purpose of This Document
+
+**This is a navigation guide and quick reference.**
+
+For complete specifications, always refer to the detailed documentation in `docs/` and `specs/`. This document provides:
+
+- **Quick summaries** of core concepts
+- **Minimal templates** for common tasks
+- **Pointers** to detailed documentation
+- **Troubleshooting** for common issues
+
+When you need detailed information, read the linked documentation files.
+
+---
+
+## 🎯 Project Overview
+
+**restexec** is a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+
+### Three Core Concepts
+
+1. **Execution Model**: Code files in `/workspace/*.ts` are executed as **scripts** (not modules)
+   - Results must be printed to stdout: `console.log(JSON.stringify(result))`
+   - Each execution runs in an isolated Deno child process
+
+2. **Three API Endpoints**:
+   - `PUT /workspace` - Save TypeScript code
+   - `POST /lint` - Check code quality with `deno lint`
+   - `POST /execute` - Execute code and return results
+
+3. **Security-First Design**: Deno's explicit permission system
+   - Read: `/workspace`, `/tools` only
+   - Write/Network/Subprocess: Disabled by default
+   - Timeout: 5 seconds (max 300 seconds)
 
 ### Key Features
 
-- **Secure Code Execution**: Uses Deno's strict permission system for security
-- **REST API Interface**: Simple HTTP endpoints for code execution and health checks
-- **Resource Management**: Timeout-based execution limits and buffer controls
-- **Shared Library System**: Workspace and tools directories for code organization
-- **Comprehensive Error Handling**: Structured error types and detailed logging
+- **Secure sandboxing** with Deno's permission system
+- **External library support** via pre-cached dependencies (`deps.ts`)
+- **Markdown code extraction** for LLM-generated responses
+- **Resource limits** (timeout, buffer size, file size)
 
 ### Target Use Cases
 
-- Code education platforms for safe student code execution
-- API automation and workflow execution
-- Data processing with isolated computation tasks
-- Testing environments for untrusted code
-- Lightweight Function-as-a-Service for TypeScript
+- Code education platforms
+- API automation and workflows
+- Data processing with isolation
+- Testing untrusted code
+- LLM-powered code generation/execution
 
-## Architecture
+**Full details**: [README.md](README.md), [specs/SystemArchitecture.md](specs/SystemArchitecture.md)
 
-### High-Level Flow
+---
 
-```
-Client Request → HTTP Server (Oak) → Validator → Executor → Deno Child Process
-                      ↓                                            ↓
-              Error Handler                          Workspace/Tools Files
-```
+## 🚀 Quick Reference by Task
 
-### Core Components
+### Task: Write Workspace Code
 
-1. **HTTP Server Layer** ([src/app.ts](src/app.ts), [src/index.ts](src/index.ts))
-   - Built with Oak framework (Deno's web framework)
-   - Request logging middleware
-   - Global error handling
-   - Signal handling for graceful shutdown (SIGINT, SIGTERM)
+**Minimal Template** (async function):
 
-2. **Validation Layer** ([src/middleware/validation.ts](src/middleware/validation.ts))
-   - Request parameter validation
-   - codeId format checking (alphanumeric, hyphens, underscores only)
-   - Path traversal prevention
-   - Timeout range validation (1ms - 300000ms)
-
-3. **Execution Engine** ([src/executor.ts](src/executor.ts))
-   - Spawns Deno child processes with controlled permissions
-   - Builds permission arguments dynamically from config
-   - Streams stdout/stderr with buffer limits (10MB)
-   - Timeout management with signal escalation (SIGTERM → SIGKILL)
-   - JSON output parsing with fallback
-
-4. **Lint Engine** ([src/linter.ts](src/linter.ts))
-   - Executes Deno's built-in linter on TypeScript files
-   - Runs `deno lint --json` in child processes
-   - Parses structured lint diagnostics
-   - Shares timeout and buffer management with executor
-
-5. **Configuration System** ([src/config.ts](src/config.ts))
-   - Environment variable-based configuration
-   - Deno permission configuration
-   - Array and boolean parsing utilities
-
-6. **Routes**
-   - [src/routes/execute.ts](src/routes/execute.ts) - POST /execute endpoint
-   - [src/routes/lint.ts](src/routes/lint.ts) - POST /lint endpoint
-   - [src/routes/health.ts](src/routes/health.ts) - GET /health endpoint
-
-7. **Type System** ([src/types/index.ts](src/types/index.ts))
-   - TypeScript interfaces for requests/responses
-   - Error type definitions
-   - Execution and lint result types
-
-## Security Model
-
-### Deno Permissions
-
-restexec uses Deno's explicit permission system. By default:
-
-- **Read**: Limited to `/workspace` and `/tools` directories
-- **Write**: Disabled by default
-- **Network**: Disabled by default (can be enabled via allowlist)
-- **Subprocess**: Disabled by default
-- **Environment**: Controlled access
-
-Permissions are configured via environment variables (see [src/config.ts](src/config.ts#L11-L35)).
-
-### Security Protections
-
-1. **Path Traversal Prevention**: Validates codeId format and resolves paths safely
-2. **Resource Limits**:
-   - Default timeout: 5 seconds (configurable, max 300s)
-   - Buffer limits: 10MB for stdout/stderr
-3. **Process Isolation**: Each execution runs in a separate Deno child process
-4. **Input Validation**: Strict validation of all request parameters
-5. **Environment Isolation**: Limited environment variables passed to child processes
-
-### Important Security Considerations
-
-When working on this project:
-
-- **Never bypass validation**: All user input must go through validation middleware
-- **Maintain permission restrictions**: Changes to permission config require security review
-- **Path handling**: Always use path resolution utilities to prevent traversal attacks
-- **Error messages**: Avoid leaking system information in error responses
-- **Timeout enforcement**: Ensure all executions are bounded by timeouts
-
-## File Structure
-
-```
-restexec/
-├── src/                      # Source code
-│   ├── app.ts               # Oak application setup
-│   ├── index.ts             # Entry point
-│   ├── config.ts            # Configuration management
-│   ├── executor.ts          # Code execution engine
-│   ├── logger.ts            # Logging utilities
-│   ├── middleware/
-│   │   ├── error-handler.ts # Global error handling
-│   │   ├── logger.ts        # Request logging
-│   │   └── validation.ts    # Request validation
-│   ├── routes/
-│   │   ├── execute.ts       # Execution endpoint
-│   │   └── health.ts        # Health check endpoint
-│   └── types/
-│       └── index.ts         # TypeScript type definitions
-├── tests/                   # Test suites
-├── example/                 # Sample code and utilities
-│   ├── tools/               # Shared utility libraries
-│   └── workspace/           # Example executable scripts
-├── specs/                   # Comprehensive documentation
-│   ├── API.md
-│   ├── CodeExecutor.md
-│   ├── Configuration.md
-│   ├── Deployment.md
-│   ├── FileSystem.md
-│   ├── Logging.md
-│   ├── Performance.md
-│   ├── Regulation.md
-│   ├── Security.md
-│   ├── Sequencer.md
-│   ├── SystemArchitecture.md
-│   └── Test.md
-├── deno.json               # Deno configuration
-├── Dockerfile              # Container image
-├── compose.yaml            # Docker Compose setup
-├── README.md               # Project overview
-└── DOCKER.md               # Docker documentation
-```
-
-### Runtime Directories
-
-- **/workspace**: User-submitted code files (*.ts)
-  - Contains executable TypeScript files
-  - Includes `import_map.json` for module resolution
-
-- **/tools**: Shared utility libraries
-  - Provides reusable utilities for workspace code
-  - Example utilities: math, string operations
-
-## Development Guidelines
-
-### Code Execution Contract
-
-Code files in `/workspace`:
-
-1. Are executed directly as TypeScript files by Deno
-2. Output is captured from stdout (typically via `console.log`)
-3. Should follow TypeScript strict mode
-4. Can use async operations with top-level await
-
-Example:
 ```typescript
 async function main() {
-  const result = { message: "Hello World", timestamp: Date.now() };
+  const result = {
+    message: "Processing complete",
+    status: "success"
+  };
+
+  // REQUIRED: Output as JSON
   console.log(JSON.stringify(result));
 }
 
-main().catch(console.error);
+// REQUIRED: Execute with error handling
+main().catch((error) => {
+  console.error(JSON.stringify({
+    success: false,
+    error: error.message,
+  }));
+  Deno.exit(1);
+});
 ```
 
-Or using top-level await:
+**Critical Requirements**:
+1. ✅ Output with `console.log(JSON.stringify(result))`
+2. ✅ Call the main function (don't just define it)
+3. ✅ Handle errors with `.catch()` and `Deno.exit(1)`
+4. ❌ Don't use `export default` or `return` values
+5. ❌ Don't use `process.exit()` (Node.js API)
+
+**Using External Utilities**:
+
 ```typescript
-const result = { message: "Hello World", timestamp: Date.now() };
-console.log(JSON.stringify(result));
+import { add } from 'utils/math.ts';
+import { capitalize } from 'utils/string.ts';
+
+async function main() {
+  const result = {
+    sum: add(10, 20),
+    text: capitalize('hello'),
+    status: 'success'
+  };
+  console.log(JSON.stringify(result));
+}
+
+main().catch((error) => {
+  console.error(JSON.stringify({ success: false, error: error.message }));
+  Deno.exit(1);
+});
 ```
 
-### Error Handling Pattern
+**Security Constraints**:
+- ✅ Read from `/workspace` and `/tools`
+- ❌ No write, network, or subprocess access (by default)
+- ⏱️ Default timeout: 5 seconds
 
-Always use the defined error types from [src/types/index.ts](src/types/index.ts#L25-L31):
+**Complete guide**: [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
 
-- `ValidationError`: Invalid request parameters
-- `FileNotFoundError`: Code file doesn't exist
-- `TimeoutError`: Execution exceeded timeout
-- `ExecutionError`: Runtime errors in user code
-- `InternalServerError`: Unexpected server errors
+---
 
-Example:
-```typescript
-throw new ValidationError("Invalid codeId format");
+### Task: Add External Libraries
+
+**4-Step Process**:
+
+1. **Add to `deps.ts`** with exact version:
+   ```typescript
+   // deps.ts
+   export * from "https://esm.sh/es-toolkit@1.27.0";
+   export * from "https://esm.sh/date-fns@3.0.0";
+   ```
+
+2. **Update `import_map.json`** (optional, for convenience):
+   ```json
+   {
+     "imports": {
+       "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
+       "date-fns": "https://esm.sh/date-fns@3.0.0"
+     }
+   }
+   ```
+
+3. **Rebuild container**:
+   ```bash
+   docker compose build
+   ```
+
+4. **Restart container**:
+   ```bash
+   docker compose up -d
+   ```
+
+**Why**: Execution uses `--cached-only` flag. All libraries must be cached at build time.
+
+**Recommended libraries**: es-toolkit, date-fns, zod, lodash-es, mathjs
+
+**Complete guide**: [specs/Libraries.md](specs/Libraries.md)
+
+---
+
+### Task: Understand the API
+
+**PUT /workspace** - Save code:
+```json
+// Request
+{"codeId": "my-script", "code": "console.log(JSON.stringify({msg: 'hi'}));"}
+
+// Response
+{"success": true, "result": {"codeId": "my-script", "filePath": "/workspace/my-script.ts", "size": 56}}
 ```
 
-### Adding New Endpoints
+**POST /lint** - Check code quality:
+```json
+// Request
+{"codeId": "my-script", "timeout": 5000}
 
-1. Create route handler in `src/routes/`
-2. Add validation middleware if needed
-3. Register route in [src/app.ts](src/app.ts)
-4. Update API documentation in [specs/API.md](specs/API.md)
-5. Add tests in `tests/`
+// Response
+{"success": true, "result": {"diagnostics": [...], "errors": [], "checkedFiles": [...]}}
+```
 
-### Modifying Permissions
+**POST /execute** - Run code:
+```json
+// Request
+{"codeId": "my-script", "timeout": 5000}
 
-When changing permission configuration:
+// Response
+{"success": true, "result": {/* your code's output */}, "executionTime": 234}
+```
 
-1. Update [src/config.ts](src/config.ts) with new environment variables
-2. Modify [src/executor.ts](src/executor.ts) to use new permissions
-3. Update [specs/Security.md](specs/Security.md) documentation
-4. Review security implications
-5. Update `.env` and Docker configuration
+**GET /health** - Server status:
+```json
+{"status": "ok", "uptime": 12345, "memoryUsage": {...}}
+```
 
-### Testing Strategy
+**Typical workflow**:
+```
+PUT /workspace → (POST /lint) → POST /execute
+```
 
-- **Unit Tests**: Test individual components in isolation
-- **Integration Tests**: Test API endpoints end-to-end
-- **Security Tests**: Verify permission restrictions and input validation
-- **Performance Tests**: Ensure execution meets performance targets
+**Complete specs**: [specs/API.md](specs/API.md), [specs/LintAPI.md](specs/LintAPI.md), [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md)
 
-See [specs/Test.md](specs/Test.md) for detailed testing strategy.
+---
 
-## Common Tasks
+### Task: Run Tests
 
-### Adding a New Validation Rule
+**Basic command**:
+```bash
+deno task test
+```
 
-1. Update [src/middleware/validation.ts](src/middleware/validation.ts)
-2. Add validation logic in `validateExecuteRequest` function
-3. Return appropriate `ValidationError` for invalid input
-4. Add test cases
+**⚠️ Important for local development**:
 
-### Extending Execution Engine
+Tests write to `/workspace` directory. If this fails:
 
-When modifying [src/executor.ts](src/executor.ts):
+**Solution 1**: Create `/workspace` with proper permissions:
+```bash
+sudo mkdir -p /workspace
+sudo chmod 777 /workspace
+deno task test
+```
 
-- Maintain timeout handling logic
-- Preserve buffer limit checks
-- Keep permission system intact
-- Update error handling as needed
-- Test signal handling (SIGTERM/SIGKILL)
+**Solution 2**: Use a temporary directory (recommended for local dev):
+```bash
+mkdir -p /tmp/restexec-workspace
+WORKSPACE_DIR=/tmp/restexec-workspace deno task test
+```
 
-### Adding New Error Types
+**Why this happens**:
+- Integration tests save files to `config.workspaceDir` (defaults to `/workspace`)
+- Local machines may not have `/workspace` or lack write permissions
+- Docker container has this directory pre-configured
 
-1. Define error class in [src/types/index.ts](src/types/index.ts)
-2. Add mapping in [src/middleware/error-handler.ts](src/middleware/error-handler.ts)
-3. Update API documentation
+**Run specific test file**:
+```bash
+deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/integration/workspace.test.ts
+```
 
-## Performance Characteristics
+**Complete guide**: [specs/Test.md](specs/Test.md)
 
-Target performance (single container):
+---
 
-- Simple calculations: <200ms
-- File I/O operations: <500ms
-- Complex processing: <2000ms
-- Throughput: 10 req/sec
+## 🔧 Troubleshooting
 
-See [specs/Performance.md](specs/Performance.md) for detailed benchmarks.
+### Problem: Code execution returns `null`
 
-## Key Documentation
+**Symptoms**: `result` field is `null` despite code running
 
-### Essential Reading
+**Common causes**:
+1. Missing `console.log(JSON.stringify(result))`
+2. Function defined but not called
+3. Using `return` instead of `console.log`
 
+**Solution**: Use the template from [Write Workspace Code](#task-write-workspace-code) above.
+
+---
+
+### Problem: "Module not found" error
+
+**Symptoms**: Error importing external library
+
+**Common causes**:
+1. Library not in `deps.ts`
+2. Container not rebuilt
+3. Wrong import path
+
+**Solution**:
+```bash
+# 1. Add to deps.ts
+# 2. Rebuild
+docker compose build
+# 3. Restart
+docker compose up -d
+```
+
+---
+
+### Problem: Timeout errors
+
+**Symptoms**: `TimeoutError: Execution timed out after Xms`
+
+**Common causes**: Infinite loops, long operations, timeout too low
+
+**Solution**:
+1. Review code for infinite loops
+2. Increase timeout: `{"timeout": 30000}`
+3. Optimize async operations
+
+---
+
+### Problem: Permission denied errors
+
+**Symptoms**: Errors about missing permissions (read/write/net)
+
+**Common causes**: Code accessing forbidden resources
+
+**Solution**:
+1. Check [Security Model](#-project-overview) above
+2. Ensure code only accesses `/workspace` and `/tools`
+3. Configure permissions via environment variables if needed
+
+**Details**: [specs/Security.md](specs/Security.md)
+
+---
+
+### Problem: File not found (404)
+
+**Symptoms**: `FileNotFoundError: Code file not found`
+
+**Common causes**: File not saved, wrong codeId
+
+**Solution**:
+```bash
+# 1. Save first
+curl -X PUT http://localhost:8080/workspace \
+  -H "Content-Type: application/json" \
+  -d '{"codeId":"my-script","code":"..."}'
+
+# 2. Then execute (use same codeId, no .ts extension)
+curl -X POST http://localhost:8080/execute \
+  -H "Content-Type: application/json" \
+  -d '{"codeId":"my-script"}'
+```
+
+---
+
+### Problem: `deno task test` fails
+
+**Symptoms**: Test errors like "Permission denied" or "No such file or directory" when running tests
+
+**Common causes**:
+- `/workspace` directory doesn't exist
+- No write permissions to `/workspace`
+- Running tests on local machine (not in Docker)
+
+**Solution** (choose one):
+
+**Option 1** - Create `/workspace` directory:
+```bash
+sudo mkdir -p /workspace
+sudo chmod 777 /workspace
+deno task test
+```
+
+**Option 2** - Use temporary directory (recommended):
+```bash
+# Set WORKSPACE_DIR to a writable location
+mkdir -p /tmp/restexec-workspace
+WORKSPACE_DIR=/tmp/restexec-workspace deno task test
+```
+
+**Option 3** - Use Docker for tests:
+```bash
+docker compose run --rm restexec deno task test
+```
+
+**Why this happens**:
+- Integration tests (e.g., `tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
+- Default is `/workspace` (configured for Docker)
+- Local machines may not have this directory or permissions
+
+**Environment variables**:
+```bash
+# Override workspace directory for tests
+export WORKSPACE_DIR=/tmp/restexec-workspace
+export TOOLS_DIR=/tmp/restexec-tools
+
+# Then run tests
+deno task test
+```
+
+**See**: Line 78-87 in [tests/integration/workspace.test.ts](tests/integration/workspace.test.ts)
+
+---
+
+### Problem: Container won't start
+
+**Symptoms**: Docker container exits or won't start
+
+**Common causes**: Port in use, build errors, config issues
+
+**Solution**:
+```bash
+# 1. Check logs
+docker compose logs
+
+# 2. Verify port 8080 available
+lsof -i :8080
+
+# 3. Rebuild from scratch
+docker compose build --no-cache
+
+# 4. Check environment variables
+cat compose.yaml
+```
+
+---
+
+## 📚 Documentation Map
+
+### Essential Documentation
+
+**For Development**:
+- [docs/workspace-code-guide.md](docs/workspace-code-guide.md) - Complete guide to writing workspace code
+- [specs/Security.md](specs/Security.md) - Security model and permissions
+- [specs/Libraries.md](specs/Libraries.md) - External library management
+
+**API Specifications**:
+- [specs/API.md](specs/API.md) - POST /execute endpoint
+- [specs/LintAPI.md](specs/LintAPI.md) - POST /lint endpoint
+- [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
+
+**Architecture**:
+- [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - System design
+- [specs/Sequence.md](specs/Sequence.md) - Execution flow diagrams
+- [specs/CodeExecution.md](specs/CodeExecution.md) - Execution details
+
+**Operations**:
 - [README.md](README.md) - Quick start guide
-- [DOCKER.md](DOCKER.md) - Docker setup and deployment
-- [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - System architecture overview
-- [specs/Security.md](specs/Security.md) - Security model and considerations
+- [DOCKER.md](DOCKER.md) - Docker setup
+- [specs/Deployment.md](specs/Deployment.md) - Deployment guide
+- [specs/Configuration.md](specs/Configuration.md) - Environment variables
+- [specs/Test.md](specs/Test.md) - Testing strategy
 
-### Examples
+**Other Specs**:
+- [specs/FileSystem.md](specs/FileSystem.md) - File system structure
+- [specs/Logging.md](specs/Logging.md) - Logging configuration
+- [specs/Performance.md](specs/Performance.md) - Performance benchmarks
+- [specs/Regulation.md](specs/Regulation.md) - Execution regulations
 
-- [example/workspace/](example/workspace/) - Sample executable scripts
-- [example/tools/](example/tools/) - Sample utility libraries
+### Working Examples
 
-## Technology Stack
+**Code Examples**:
+- [example/workspace/hello-world.ts](example/workspace/hello-world.ts) - Simple example
+- [example/workspace/with-import.ts](example/workspace/with-import.ts) - Import example
+- [example/workspace/async-example.ts](example/workspace/async-example.ts) - Async example
+
+**Utility Examples**:
+- [example/tools/utils/math.ts](example/tools/utils/math.ts) - Math utilities
+- [example/tools/utils/string.ts](example/tools/utils/string.ts) - String utilities
+
+---
+
+## 🔑 Key Points for AI Assistants
+
+### When Writing Workspace Code
+
+1. **Always use the template** from this document
+2. **Always output with** `console.log(JSON.stringify(result))`
+3. **Always call the function** (don't just define it)
+4. **Never use** `export default` or Node.js APIs
+
+### When User Asks About...
+
+- **"How do I write code?"** → Use template + link to [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
+- **"How do I add a library?"** → 4-step process + link to [specs/Libraries.md](specs/Libraries.md)
+- **"What APIs are available?"** → Quick reference + link to [specs/API.md](specs/API.md)
+- **"Why is my code not working?"** → Check [Troubleshooting](#-troubleshooting) section
+- **"How do I run tests?"** → See [Task: Run Tests](#task-run-tests) section
+
+### Architecture Questions
+
+For detailed architecture questions, read:
+1. [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - High-level design
+2. [specs/Sequence.md](specs/Sequence.md) - Execution flow
+3. [specs/Security.md](specs/Security.md) - Security model
+4. Relevant source files in `src/`
+
+---
+
+## 🛠️ Technology Stack
 
 - **Runtime**: Deno 2.5.6
 - **Language**: TypeScript (strict mode)
 - **Web Framework**: Oak v17.1.6
-- **Container**: Alpine Linux based Docker image
+- **Container**: Alpine Linux + Docker
 - **Testing**: Deno's built-in test runner
-
-## Environment Variables
-
-Key configuration environment variables (see [src/config.ts](src/config.ts)):
-
-- `PORT`: HTTP server port (default: 8080)
-- `LOG_LEVEL`: Logging level (default: INFO)
-- `DEFAULT_TIMEOUT_MS`: Default execution timeout (default: 5000)
-- `MAX_TIMEOUT_MS`: Maximum allowed timeout (default: 300000)
-- `DENO_PATH`: Path to Deno executable (default: deno)
-- `DENO_IMPORT_MAP`: Path to import map for module resolution (default: /workspace/import_map.json)
-- `DENO_ALLOW_READ`: Read permissions (default: /workspace,/tools)
-- `DENO_ALLOW_WRITE`: Write permissions (default: empty)
-- `DENO_ALLOW_NET`: Network permissions (default: empty)
-- `DENO_ALLOW_RUN`: Subprocess permissions (default: empty)
-
-## Working with This Project
-
-### Before Making Changes
-
-1. Read relevant specs in `specs/` directory
-2. Understand security implications
-3. Check existing tests for patterns
-4. Review error handling requirements
-
-### When Adding Features
-
-1. Update specifications in `specs/`
-2. Implement with appropriate error handling
-3. Add comprehensive tests
-4. Update this CLAUDE.md if architecture changes
-5. Update README.md if user-facing changes
-
-### When Fixing Bugs
-
-1. Identify root cause in architecture
-2. Add test case reproducing the bug
-3. Implement fix with minimal scope
-4. Verify all tests pass
-5. Document if it reveals a design issue
-
-## Questions to Ask
-
-If you're unsure about:
-
-- **Security implications**: Refer to [specs/Security.md](specs/Security.md) or ask the user
-- **Architecture decisions**: Check [specs/SystemArchitecture.md](specs/SystemArchitecture.md)
-- **API behavior**: Consult [specs/API.md](specs/API.md)
-- **Performance requirements**: See [specs/Performance.md](specs/Performance.md)
-
-## Project Philosophy
-
-- **Security First**: Deno's permission system is core to the design
-- **Simplicity**: Simple REST API, file-based execution model
-- **Isolation**: Each execution is isolated in its own process
-- **Explicit Over Implicit**: All permissions and configs are explicit
-- **TypeScript Strict Mode**: Type safety throughout
+- **External Libraries**: Managed via `deps.ts` + esm.sh CDN
 
 ---
 
-*This document helps Claude understand and work effectively with the restexec project. For user-facing documentation, see [README.md](README.md).*
+## 📋 Development Workflow
+
+### For New Features
+
+1. Read relevant specs in `specs/`
+2. Update specifications if needed
+3. Implement with error handling
+4. Add comprehensive tests
+5. Update this CLAUDE.md if it affects quick reference
+6. Update README.md if user-facing
+
+### For Bug Fixes
+
+1. Identify root cause
+2. Add test reproducing the bug
+3. Implement minimal fix
+4. Verify all tests pass
+5. Update troubleshooting section if broadly applicable
+
+---
+
+*This is a navigation guide. For complete information, see the linked documentation files.*
+
+*Last updated: 2025-11-12*
