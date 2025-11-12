@@ -4,6 +4,30 @@ This document helps AI assistants (like Claude) navigate the **restexec** projec
 
 ---
 
+## 🌐 Language Preference / 言語優先設定
+
+**IMPORTANT: Language-First Response Policy**
+
+When interacting with developers:
+- **Respond in the same language as the user's request**
+- If the user asks in Japanese → Respond in Japanese (日本語で返答)
+- If the user asks in English → Respond in English
+- Maintain consistency throughout the conversation
+
+This allows developers to interact with Claude in their preferred language for better onboarding and collaboration.
+
+**重要: 言語優先のレスポンスポリシー**
+
+開発者とのやり取りでは:
+- **ユーザーのリクエストと同じ言語で返答する**
+- ユーザーが日本語で質問 → 日本語で返答
+- ユーザーが英語で質問 → 英語で返答
+- 会話全体を通じて一貫性を保つ
+
+これにより、開発者は好みの言語で Claude とやり取りでき、より良いオンボーディングとコラボレーションが可能になります。
+
+---
+
 ## 📖 Purpose of This Document
 
 **This is a navigation guide and quick reference.**
