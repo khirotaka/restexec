@@ -8,6 +8,8 @@ import type { ExecuteRequest, LintRequest, WorkspaceSaveRequest } from '../types
  * @param codeId - The code identifier to validate
  * @param options - Optional validation options
  * @throws {ValidationError} If validation fails
+ * @param options - Optional validation options
+ * @throws {ValidationError} If validation fails
  */
 function validateCodeId(codeId: unknown, options?: { maxLength?: number }): void {
   // Validate codeId presence
