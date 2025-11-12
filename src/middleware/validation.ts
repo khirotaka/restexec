@@ -53,7 +53,6 @@ function validateCodeId(codeId: unknown, options?: { maxLength?: number }): void
  * @param timeout - The timeout value to validate (optional)
  * @throws {ValidationError} If validation fails
  */
- */
 function validateTimeout(timeout: unknown): void {
   // Validate timeout if provided
   if (timeout !== undefined) {
