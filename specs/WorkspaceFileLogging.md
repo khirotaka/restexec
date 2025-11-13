@@ -77,14 +77,14 @@ Denoの標準ライブラリ `crypto` を使用：
 
 ```typescript
 import { crypto } from 'jsr:@std/crypto@^1.0.0';
+import { encodeHex } from 'jsr:@std/encoding@^1.0.10';
 
 async function calculateSHA256(content: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(content);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+
+  return encodeHex(hashBuffer);
 }
 ```
 
