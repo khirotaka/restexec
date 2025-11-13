@@ -1,6 +1,92 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ]
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":enablePreCommit"
+  ],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 10am on monday"],
+  "labels": ["dependencies", "renovate"],
+  "assigneesFromCodeOwners": true,
+  "reviewersFromCodeOwners": true,
+  "packageRules": [
+    {
+      "description": "Deno runtime Docker image updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["denoland/deno"],
+      "groupName": "Deno runtime",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "docker",
+      "commitMessageTopic": "Deno runtime"
+    },
+    {
+      "description": "Deno standard library (@std/*) updates",
+      "matchDatasources": ["deno"],
+      "matchPackagePatterns": ["^@std/"],
+      "groupName": "Deno standard library",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "commitMessageTopic": "Deno standard library",
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Oak framework updates",
+      "matchDatasources": ["deno"],
+      "matchPackageNames": ["@oak/oak"],
+      "groupName": "Oak framework",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "commitMessageTopic": "Oak framework"
+    },
+    {
+      "description": "External npm libraries via esm.sh",
+      "matchDatasources": ["deno"],
+      "matchPackagePatterns": ["^https://esm\\.sh/"],
+      "groupName": "npm libraries (esm.sh)",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "commitMessageTopic": "npm libraries via esm.sh"
+    },
+    {
+      "description": "Utility libraries group",
+      "matchDatasources": ["deno"],
+      "matchPackagePatterns": [
+        "es-toolkit",
+        "date-fns",
+        "zod",
+        "papaparse",
+        "nanoid",
+        "decimal\\.js"
+      ],
+      "groupName": "utility libraries",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "commitMessageTopic": "utility libraries"
+    }
+  ],
+  "deno": {
+    "enabled": true,
+    "fileMatch": [
+      "^deno\\.jsonc?$",
+      "^import_map\\.json$",
+      "^example/workspace/import_map\\.json$",
+      "^deps\\.ts$"
+    ]
+  },
+  "docker": {
+    "enabled": true,
+    "fileMatch": ["^Dockerfile$", "^compose\\.ya?ml$"]
+  },
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "🤖 Renovate Dependency Dashboard",
+  "dependencyDashboardHeader": "このダッシュボードは、Renovateによる依存関係の更新状況を表示します。",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "osvVulnerabilityAlerts": true
 }
