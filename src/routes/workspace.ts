@@ -5,6 +5,7 @@ import { validateWorkspaceSaveRequest } from '../middleware/validation.ts';
 import { config } from '../config.ts';
 import { logger } from '../utils/logger.ts';
 import { extractTypeScriptCode, isMarkdownCodeBlock } from '../utils/codeExtractor.ts';
+import { calculateSHA256 } from '../utils/hash.ts';
 
 const router = new Router();
 
@@ -55,8 +56,11 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Get file stats for response
     const fileInfo = await Deno.stat(filePath);
 
+    // Calculate SHA-256 hash for logging
+    const sha256 = await calculateSHA256(extractedCode);
+
     logger.info(
-      `Code saved successfully: ${codeId} (path: ${filePath}, size: ${fileInfo.size}, overwrite: ${isOverwrite})`,
+      `Code saved successfully: ${codeId} (path: ${filePath}, size: ${fileInfo.size}, sha256: ${sha256}, overwrite: ${isOverwrite})`,
     );
 
     const result: WorkspaceSaveResult = {
