@@ -5,6 +5,7 @@ import { validateWorkspaceSaveRequest } from '../middleware/validation.ts';
 import { config } from '../config.ts';
 import { logger } from '../utils/logger.ts';
 import { extractTypeScriptCode, isMarkdownCodeBlock } from '../utils/codeExtractor.ts';
+import { calculateSHA256 } from '../utils/hash.ts';
 
 const router = new Router();
 
@@ -40,10 +41,8 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     await Deno.writeTextFile(tempFilePath, extractedCode);
 
     // Check if file exists (for logging overwrite operations)
-    let isOverwrite = false;
     try {
       await Deno.stat(filePath);
-      isOverwrite = true;
       logger.warn(`Overwriting existing file: ${codeId} (path: ${filePath})`);
     } catch {
       // File doesn't exist, this is a new file
@@ -55,8 +54,19 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Get file stats for response
     const fileInfo = await Deno.stat(filePath);
 
+    // Calculate SHA-256 hash for logging
+    const sha256 = await calculateSHA256(extractedCode);
+
     logger.info(
-      `Code saved successfully: ${codeId} (path: ${filePath}, size: ${fileInfo.size}, overwrite: ${isOverwrite})`,
+      'Workspace file saved',
+      {
+        event: 'workspace.file.saved',
+        codeId,
+        fileName,
+        filePath,
+        fileSize: fileInfo.size,
+        sha256,
+      },
     );
 
     const result: WorkspaceSaveResult = {
