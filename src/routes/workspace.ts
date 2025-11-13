@@ -60,7 +60,15 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     const sha256 = await calculateSHA256(extractedCode);
 
     logger.info(
-      `Code saved successfully: ${codeId} (path: ${filePath}, size: ${fileInfo.size}, sha256: ${sha256}, overwrite: ${isOverwrite})`,
+      'Workspace file saved',
+      {
+        event: 'workspace.file.saved',
+        codeId,
+        fileName,
+        filePath,
+        fileSize: fileInfo.size,
+        sha256,
+      },
     );
 
     const result: WorkspaceSaveResult = {
