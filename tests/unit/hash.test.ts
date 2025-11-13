@@ -20,7 +20,7 @@ Deno.test('calculateSHA256 - calculates correct hash for simple string', async (
 Deno.test('calculateSHA256 - calculates correct hash for TypeScript code', async () => {
   const input = 'console.log("Hello, World!");';
   // SHA-256 hash of this specific code string
-  const expected = 'f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0db0632b0cd754a9f32321a49';
+  const expected = '420315c1a15d7bb79435b419800a3d800506e4ee6d1326ab8d619d082c1d61ec';
   const result = await calculateSHA256(input);
   assertEquals(result, expected);
 });

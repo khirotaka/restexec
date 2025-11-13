@@ -5,6 +5,7 @@
   },
   "imports": {
     "@oak/oak": "https://deno.land/x/oak@v17.1.6/mod.ts",
+    "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "@std/path": "https://deno.land/std@0.224.0/path/mod.ts",
     "@std/assert": "https://deno.land/std@0.224.0/assert/mod.ts",
     "@std/testing": "https://deno.land/std@0.224.0/testing/mod.ts",
