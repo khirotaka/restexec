@@ -41,10 +41,8 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     await Deno.writeTextFile(tempFilePath, extractedCode);
 
     // Check if file exists (for logging overwrite operations)
-    let isOverwrite = false;
     try {
       await Deno.stat(filePath);
-      isOverwrite = true;
       logger.warn(`Overwriting existing file: ${codeId} (path: ${filePath})`);
     } catch {
       // File doesn't exist, this is a new file
