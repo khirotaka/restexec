@@ -1,5 +1,5 @@
 import { Router } from '@oak/oak';
-import { join } from 'jsr:@std/path@^1.0.0';
+import { join } from '@std/path';
 import type { ApiResponse, WorkspaceSaveRequest, WorkspaceSaveResult } from '../types/index.ts';
 import { validateWorkspaceSaveRequest } from '../middleware/validation.ts';
 import { config } from '../config.ts';

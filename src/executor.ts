@@ -1,4 +1,4 @@
-import { join } from 'jsr:@std/path@^1.0.10';
+import { join } from '@std/path';
 import { logger } from './utils/logger.ts';
 import { ExecutionError, FileNotFoundError, TimeoutError } from './utils/errors.ts';
 import { config } from './config.ts';

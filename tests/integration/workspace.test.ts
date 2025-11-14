@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from '@std/assert';
 import { createApp } from '../../src/app.ts';
 import type { ApiResponse, ErrorResponse, WorkspaceSaveResult } from '../../src/types/index.ts';
-import { join } from 'jsr:@std/path@1.0.8';
+import { join } from '@std/path';
 import { config } from '../../src/config.ts';
 
 /**
