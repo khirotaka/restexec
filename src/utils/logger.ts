@@ -67,16 +67,24 @@ class Logger {
     }
   }
 
-  error(message: string, errorOrContext?: Error | LogContext): void {
+  error(message: string, error?: Error, context?: LogContext): void {
     if (this.shouldLog('error')) {
-      if (errorOrContext instanceof Error) {
-        // Legacy error handling
-        const errorMessage = `${message} - ${errorOrContext.message}\n${errorOrContext.stack}`;
-        console.error(this.formatMessage('error', errorMessage));
-      } else {
-        // Structured logging
-        console.error(this.formatMessage('error', message, errorOrContext));
+      let finalMessage = message;
+      let finalContext = context ? { ...context } : {};
+
+      if (error) {
+        finalMessage = `${message} - ${error.message}`;
+        finalContext = {
+          ...finalContext,
+          error: {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          },
+        };
       }
+
+      console.error(this.formatMessage('error', finalMessage, Object.keys(finalContext).length > 0 ? finalContext : undefined));
     }
   }
 }
