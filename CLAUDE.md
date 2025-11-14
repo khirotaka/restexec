@@ -494,6 +494,106 @@ For detailed architecture questions, read:
 
 ---
 
+## 🤖 Claude Code Sub-Agents
+
+This project includes specialized sub-agents that proactively assist with specific tasks. These agents are automatically invoked when relevant changes are detected or can be manually called.
+
+### Available Sub-Agents
+
+#### 1. **doc-sync-checker** - Documentation Synchronization Checker
+
+**Purpose**: Detects specification documentation update gaps when code changes.
+
+**Automatic Triggers**:
+- API changes in `routes/`
+- Parameter additions in `middleware/validation.ts`
+- Core logic modifications in `src/utils/`
+
+**Manual Invocation**:
+```
+doc-sync-checker エージェントで最近の変更を確認して
+```
+
+**What it does**:
+- Analyzes `git diff` to identify changed files
+- Maps changes to relevant spec files (specs/API.md, specs/Security.md, etc.)
+- Detects discrepancies between code and documentation
+- Provides concrete update proposals with line numbers
+- Prioritizes updates (Critical/Medium/Low)
+
+**Example Use Cases**:
+- After adding a new API parameter
+- After modifying response formats
+- Before creating a pull request
+- When updating execution logic
+
+---
+
+#### 2. **security-auditor** - Security Audit Agent
+
+**Purpose**: Monitors Deno permission settings and detects security risks proactively.
+
+**Automatic Triggers**:
+- Dockerfile or compose.yaml changes
+- Execution logic modifications in `src/utils/executor.ts`
+- Dependency additions/updates in `deps.ts`
+- Configuration changes in `src/config.ts`
+
+**Manual Invocation**:
+```
+security-auditor エージェントでセキュリティ監査をして
+```
+
+**What it does**:
+- Monitors `--allow-*` flag changes and validates necessity
+- Scans for OWASP Top 10 vulnerabilities (injection, XSS, path traversal, etc.)
+- Checks dependency security (version pinning, trusted CDNs)
+- Validates execution limits (timeout, buffer size, file size)
+- Ensures consistency with specs/Security.md
+- Provides CVSS-based risk scores
+
+**Example Use Cases**:
+- Before adding new Deno permissions
+- After updating dependencies
+- When modifying input validation logic
+- Regular security audits before releases
+
+---
+
+### How Sub-Agents Work
+
+**Automatic Invocation**:
+- Claude Code automatically selects the appropriate agent based on your task and file changes
+- Agents with `PROACTIVELY` in their description are called without explicit request
+- No manual intervention needed for routine checks
+
+**Manual Invocation**:
+- Use the agent name in your request to Claude Code
+- Example: "security-auditor エージェントを実行して"
+- Useful for targeted checks or when automatic triggering doesn't occur
+
+**Agent Capabilities**:
+- Each agent has access to specific tools: Read, Grep, Glob, Bash
+- Agents use Sonnet model for balanced performance
+- Independent context windows prevent interference
+- Detailed reports with actionable recommendations
+
+### Best Practices
+
+1. **After Making Changes**: Wait for agents to run automatically and review their reports
+2. **Before Commits**: Manually invoke doc-sync-checker to ensure documentation is updated
+3. **Before Releases**: Run security-auditor for comprehensive security review
+
+### Agent Configuration
+
+Sub-agents are defined in `.claude/agents/` directory:
+- `.claude/agents/doc-sync-checker.md`
+- `.claude/agents/security-auditor.md`
+
+To modify agent behavior, edit these Markdown files (YAML frontmatter + system prompt).
+
+---
+
 ## 🛠️ Technology Stack
 
 - **Runtime**: Deno 2.5.6
@@ -502,10 +602,32 @@ For detailed architecture questions, read:
 - **Container**: Alpine Linux + Docker
 - **Testing**: Deno's built-in test runner
 - **External Libraries**: Managed via `deps.ts` + esm.sh CDN
+- **AI Assistance**: Claude Code Sub-Agents (2 specialized agents)
 
 ---
 
 ## 📋 Development Workflow
+
+### Before Committing
+
+Run these checks before committing any changes:
+```bash
+# Lint code
+deno lint src/ tests/
+
+# Check formatting
+deno fmt --check src/ tests/
+
+# Run all tests
+deno task test
+```
+
+All checks must pass without errors or warnings.
+
+**Auto-fix formatting issues**:
+```bash
+deno fmt src/ tests/
+```
 
 ### For New Features
 
@@ -528,4 +650,4 @@ For detailed architecture questions, read:
 
 *This is a navigation guide. For complete information, see the linked documentation files.*
 
-*Last updated: 2025-11-12*
+*Last updated: 2025-11-14*
