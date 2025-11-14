@@ -84,7 +84,9 @@ class Logger {
         };
       }
 
-      console.error(this.formatMessage('error', finalMessage, Object.keys(finalContext).length > 0 ? finalContext : undefined));
+      console.error(
+        this.formatMessage('error', finalMessage, Object.keys(finalContext).length > 0 ? finalContext : undefined),
+      );
     }
   }
 }
