@@ -3,12 +3,13 @@ import { logger } from '../../src/utils/logger.ts';
 
 /**
  * Capture console.error output for testing
+ * Handles multiple arguments like the real console.error(...data: any[])
  */
 function captureConsoleError(fn: () => void): string {
   let output = '';
   const originalConsoleError = console.error;
-  console.error = (message: string) => {
-    output = message;
+  console.error = (...data: unknown[]) => {
+    output = data.map((item) => String(item)).join(' ');
   };
 
   try {
