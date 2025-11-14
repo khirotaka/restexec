@@ -67,10 +67,21 @@ class Logger {
     }
   }
 
-  error(message: string, error?: Error, context?: LogContext): void {
+  error(message: string, errorOrContext?: Error | LogContext, context?: LogContext): void {
     if (this.shouldLog('error')) {
+      let error: Error | undefined;
+      let logContext: LogContext | undefined;
+
+      if (errorOrContext instanceof Error) {
+        error = errorOrContext;
+        logContext = context;
+      } else {
+        error = undefined;
+        logContext = errorOrContext ?? context;
+      }
+
       let finalMessage = message;
-      let finalContext = context ? { ...context } : {};
+      let finalContext = logContext ? { ...logContext } : {};
 
       if (error) {
         finalMessage = `${message} - ${error.message}`;

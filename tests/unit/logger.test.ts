@@ -129,3 +129,22 @@ Deno.test('Logger.error - should handle Error with custom properties', () => {
   assertStringIncludes(output, '"name":"CustomError"');
   assertStringIncludes(output, '"message":"Custom error occurred"');
 });
+
+Deno.test('Logger.error - backward compatibility: context as second argument', () => {
+  const output = captureConsoleError(() => {
+    // Old usage: logger.error(message, context)
+    logger.error('Legacy error call', { requestId: 'old-123', component: 'legacy' });
+  });
+
+  assertStringIncludes(output, 'Legacy error call');
+  assertStringIncludes(output, 'ERROR');
+  // Should include context
+  assertStringIncludes(output, 'requestId');
+  assertStringIncludes(output, 'old-123');
+  assertStringIncludes(output, 'component');
+  assertStringIncludes(output, 'legacy');
+  // Should NOT have error object details
+  assertStringIncludes(output, 'Legacy error call');
+  // Make sure it doesn't try to access .message on the context object
+  // (which would result in "undefined")
+});
