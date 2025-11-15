@@ -49,7 +49,7 @@ Deno.test('Logger.error - should log message with Error object', () => {
 
 Deno.test('Logger.error - should log message with context only', () => {
   const output = captureConsoleError(() => {
-    logger.error('Operation failed', undefined, { requestId: '123', userId: 'abc' });
+    logger.error('Operation failed', { requestId: '123', userId: 'abc' });
   });
 
   assertStringIncludes(output, 'Operation failed');

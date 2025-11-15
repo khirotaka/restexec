@@ -77,7 +77,7 @@ class Logger {
         logContext = context;
       } else {
         error = undefined;
-        logContext = errorOrContext ?? context;
+        logContext = errorOrContext;
       }
 
       let finalMessage = message;
