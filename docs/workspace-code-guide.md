@@ -536,7 +536,11 @@ Denoの権限システムにより、以下の制限があります。
 - ❌ ネットワークアクセス（net権限なし）
 - ❌ サブプロセスの実行（run権限なし）
 - ❌ `/workspace`と`/tools`以外のファイルへのアクセス
-- ❌ 環境変数へのアクセス（一部のみ許可）
+
+**環境変数へのアクセス:**
+- ✅ ユーザー定義の環境変数（リクエストボディの`env`パラメータで指定）
+- ✅ システム変数（PATH, DENO_DIRのみ）
+- ❌ その他のシステム環境変数
 
 **例:**
 ```typescript
@@ -544,6 +548,9 @@ Denoの権限システムにより、以下の制限があります。
 await fetch('https://api.example.com/data');  // ネットワーク権限なし
 await Deno.writeTextFile('/workspace/output.txt', 'data');  // 書き込み権限なし
 await Deno.readTextFile('/etc/passwd');  // アクセス権限なし
+
+// ✅ 環境変数の取得は可能（リクエストで指定した場合）
+const apiKey = Deno.env.get('API_KEY');  // リクエストのenvパラメータで指定
 ```
 
 ### タイムアウト制限
