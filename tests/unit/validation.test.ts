@@ -486,3 +486,101 @@ Deno.test('Validation - should reject env that is a string', async () => {
     'env must be an object',
   );
 });
+
+// Boundary value tests
+Deno.test('Validation - should pass with exactly 50 env variables', async () => {
+  const env = Object.fromEntries(
+    Array.from({ length: 50 }, (_, i) => [`KEY_${i}`, 'value'])
+  );
+  const ctx = createMockContext({
+    codeId: 'test-code',
+    env,
+  });
+
+  let nextCalled = false;
+  await validateExecuteRequest(ctx, () => {
+    nextCalled = true;
+    return Promise.resolve();
+  });
+
+  assertEquals(nextCalled, true);
+});
+
+Deno.test('Validation - should pass with env value exactly 1000 characters', async () => {
+  const ctx = createMockContext({
+    codeId: 'test-code',
+    env: { API_KEY: 'x'.repeat(1000) },
+  });
+
+  let nextCalled = false;
+  await validateExecuteRequest(ctx, () => {
+    nextCalled = true;
+    return Promise.resolve();
+  });
+
+  assertEquals(nextCalled, true);
+});
+
+Deno.test('Validation - should pass with env total size exactly 10KB', async () => {
+  // Create env that totals exactly 10KB (10240 bytes)
+  // Each entry: "KEY_XX" (6 chars) + value
+  // 50 entries: 50 * 6 = 300 bytes for keys
+  // Remaining: 10240 - 300 = 9940 bytes for values
+  // Per value: 9940 / 50 = 198.8 bytes -> use 198 bytes each (total: 300 + 9900 = 10200)
+  const env = Object.fromEntries(
+    Array.from({ length: 50 }, (_, i) => {
+      const key = `KEY_${String(i).padStart(2, '0')}`;
+      // Calculate remaining bytes
+      const keyBytes = key.length;
+      const valueBytes = 198;
+      return [key, 'x'.repeat(valueBytes)];
+    })
+  );
+
+  const ctx = createMockContext({
+    codeId: 'test-code',
+    env,
+  });
+
+  let nextCalled = false;
+  await validateExecuteRequest(ctx, () => {
+    nextCalled = true;
+    return Promise.resolve();
+  });
+
+  assertEquals(nextCalled, true);
+});
+
+Deno.test('Validation - should pass with empty string value', async () => {
+  const ctx = createMockContext({
+    codeId: 'test-code',
+    env: { API_KEY: '' },
+  });
+
+  let nextCalled = false;
+  await validateExecuteRequest(ctx, () => {
+    nextCalled = true;
+    return Promise.resolve();
+  });
+
+  assertEquals(nextCalled, true);
+});
+
+Deno.test('Validation - should pass with Unicode characters in value', async () => {
+  const ctx = createMockContext({
+    codeId: 'test-code',
+    env: {
+      MESSAGE: 'こんにちは世界',
+      EMOJI: '🚀🎉💻',
+      MIXED: 'Hello こんにちは 🌍'
+    },
+  });
+
+  let nextCalled = false;
+  await validateExecuteRequest(ctx, () => {
+    nextCalled = true;
+    return Promise.resolve();
+  });
+
+  assertEquals(nextCalled, true);
+});
