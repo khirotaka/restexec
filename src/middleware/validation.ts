@@ -92,14 +92,22 @@ function validateEnv(env: unknown): void {
   if (entries.length > MAX_ENV_COUNT) {
     throw new ValidationError(
       `env must not exceed ${MAX_ENV_COUNT} entries`,
-      { field: 'env', count: entries.length, max: MAX_ENV_COUNT }
+      { field: 'env', count: entries.length, max: MAX_ENV_COUNT },
     );
   }
 
   // Reserved/forbidden environment variable names
   const FORBIDDEN_ENV_KEYS = [
-    'PATH', 'DENO_DIR', 'HOME', 'USER', 'PWD', 'SHELL',
-    'HOSTNAME', 'TMPDIR', 'TEMP', 'TMP'
+    'PATH',
+    'DENO_DIR',
+    'HOME',
+    'USER',
+    'PWD',
+    'SHELL',
+    'HOSTNAME',
+    'TMPDIR',
+    'TEMP',
+    'TMP',
   ];
 
   let totalSize = 0;
@@ -110,7 +118,7 @@ function validateEnv(env: unknown): void {
     if (!/^[A-Z0-9_]+$/.test(key)) {
       throw new ValidationError(
         'env keys must contain only uppercase letters, numbers, and underscores',
-        { field: 'env', key, pattern: '/^[A-Z0-9_]+$/' }
+        { field: 'env', key, pattern: '/^[A-Z0-9_]+$/' },
       );
     }
 
@@ -118,7 +126,7 @@ function validateEnv(env: unknown): void {
     if (FORBIDDEN_ENV_KEYS.includes(key) || key.startsWith('DENO_')) {
       throw new ValidationError(
         `env key "${key}" is forbidden`,
-        { field: 'env', key, reason: 'reserved system variable' }
+        { field: 'env', key, reason: 'reserved system variable' },
       );
     }
 
@@ -126,7 +134,7 @@ function validateEnv(env: unknown): void {
     if (typeof value !== 'string') {
       throw new ValidationError(
         'env values must be strings',
-        { field: 'env', key, value: typeof value }
+        { field: 'env', key, value: typeof value },
       );
     }
 
@@ -135,7 +143,7 @@ function validateEnv(env: unknown): void {
     if (value.length > MAX_VALUE_LENGTH) {
       throw new ValidationError(
         `env value for "${key}" exceeds maximum length`,
-        { field: 'env', key, length: value.length, max: MAX_VALUE_LENGTH }
+        { field: 'env', key, length: value.length, max: MAX_VALUE_LENGTH },
       );
     }
 
@@ -147,7 +155,7 @@ function validateEnv(env: unknown): void {
   if (totalSize > MAX_TOTAL_SIZE) {
     throw new ValidationError(
       'env total size exceeds maximum allowed size',
-      { field: 'env', size: totalSize, max: MAX_TOTAL_SIZE }
+      { field: 'env', size: totalSize, max: MAX_TOTAL_SIZE },
     );
   }
 }
