@@ -7,7 +7,7 @@ import { config } from '../config.ts';
 const router = new Router();
 
 router.post('/execute', validateExecuteRequest, async (ctx) => {
-  const { codeId, timeout = config.defaultTimeout } = ctx.state.body as ExecuteRequest;
+  const { codeId, timeout = config.defaultTimeout, env } = ctx.state.body as ExecuteRequest;
 
   try {
     // Execute code
@@ -15,6 +15,7 @@ router.post('/execute', validateExecuteRequest, async (ctx) => {
       codeId,
       timeout,
       workspaceDir: config.workspaceDir,
+      env,
     });
 
     const response: ApiResponse = {

@@ -250,6 +250,91 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name: 'HTTP - POST /execute with env variables returns 200',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const env = new TestEnvironment();
+    await env.setup();
+
+    const originalWorkspaceDir = config.workspaceDir;
+    const originalImportMap = config.deno.importMap;
+
+    try {
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = env.workspaceDir;
+
+      await env.writeCode(
+        'env-test',
+        `
+      const apiKey = Deno.env.get('API_KEY');
+      console.log(JSON.stringify({
+        success: true,
+        apiKey: apiKey,
+      }));
+    `,
+      );
+
+      const response = await fetch(`${serverUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codeId: 'env-test',
+          timeout: 5000,
+          env: {
+            API_KEY: 'secret-123',
+          },
+        }),
+      });
+
+      assertEquals(response.status, 200);
+      const body = await response.json() as ApiResponse;
+      assertEquals(body.success, true);
+      if (body.success) {
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).apiKey, 'secret-123');
+      }
+    } finally {
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = originalWorkspaceDir;
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = originalImportMap;
+      await env.cleanup();
+    }
+  },
+});
+
+Deno.test({
+  name: 'HTTP - POST /execute with forbidden env key returns 400',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const response = await fetch(`${serverUrl}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        codeId: 'test',
+        env: {
+          PATH: '/usr/bin',
+        },
+      }),
+    });
+
+    assertEquals(response.status, 400);
+    const body = await response.json() as ErrorResponse;
+    assertEquals(body.success, false);
+    assertEquals(body.error.type, 'ValidationError');
+    assertEquals(body.error.message, 'env key "PATH" is forbidden');
+  },
+});
+
 // Cleanup: Stop the server after all tests
 Deno.test({
   name: 'HTTP - Server cleanup',
