@@ -66,19 +66,6 @@
       "commitMessageTopic": "utility libraries"
     }
   ],
-  "deno": {
-    "enabled": true,
-    "fileMatch": [
-      "^deno\\.jsonc?$",
-      "^import_map\\.json$",
-      "^example/workspace/import_map\\.json$",
-      "^deps\\.ts$"
-    ]
-  },
-  "docker": {
-    "enabled": true,
-    "fileMatch": ["^Dockerfile$", "^compose\\.ya?ml$"]
-  },
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "dependencyDashboard": true,
