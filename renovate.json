@@ -4,7 +4,8 @@
     "config:recommended",
     ":dependencyDashboard",
     ":semanticCommits",
-    ":enablePreCommit"
+    ":enablePreCommit",
+    "github>Omochice/renovate-config:deno"
   ],
   "timezone": "Asia/Tokyo",
   "schedule": ["before 10am on monday"],
