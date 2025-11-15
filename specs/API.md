@@ -86,6 +86,89 @@
 | `ExecutionError` | 500 | コード実行中のエラー |
 | `InternalError` | 500 | サーバー内部エラー |
 
+**エラーレスポンス例**:
+
+**禁止された環境変数キーを使用した場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env key \"PATH\" is forbidden",
+    "details": {
+      "field": "env",
+      "key": "PATH",
+      "reason": "reserved system variable"
+    }
+  }
+}
+```
+
+**環境変数のキー形式が不正な場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env keys must contain only uppercase letters, numbers, and underscores",
+    "details": {
+      "field": "env",
+      "key": "api-key",
+      "pattern": "/^[A-Z0-9_]+$/"
+    }
+  }
+}
+```
+
+**環境変数の値が最大長を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env value for \"API_KEY\" exceeds maximum length",
+    "details": {
+      "field": "env",
+      "key": "API_KEY",
+      "length": 1001,
+      "max": 1000
+    }
+  }
+}
+```
+
+**環境変数の個数が最大を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env must not exceed 50 entries",
+    "details": {
+      "field": "env",
+      "count": 51,
+      "max": 50
+    }
+  }
+}
+```
+
+**環境変数の全体サイズが最大を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env total size exceeds maximum allowed size",
+    "details": {
+      "field": "env",
+      "size": 10241,
+      "max": 10240
+    }
+  }
+}
+```
+
 ## エンドポイント: POST /lint
 
 ### リクエスト仕様
