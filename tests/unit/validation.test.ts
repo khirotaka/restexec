@@ -531,7 +531,6 @@ Deno.test('Validation - should pass with env total size exactly 10KB', async () 
     Array.from({ length: 50 }, (_, i) => {
       const key = `KEY_${String(i).padStart(2, '0')}`;
       // Calculate remaining bytes
-      const keyBytes = key.length;
       const valueBytes = 198;
       return [key, 'x'.repeat(valueBytes)];
     })
