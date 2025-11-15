@@ -385,3 +385,86 @@ Deno.test('Executor - should block remote module imports (security test)', async
     await env.cleanup();
   }
 });
+
+Deno.test('Executor - should execute code with environment variables', async () => {
+  const env = new TestEnvironment();
+  await env.setup();
+  try {
+    // deno-lint-ignore no-explicit-any
+    (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+
+    await env.writeCode(
+      'with-env',
+      `
+      const apiKey = Deno.env.get('API_KEY');
+      const debugMode = Deno.env.get('DEBUG_MODE');
+
+      console.log(JSON.stringify({
+        success: true,
+        apiKey: apiKey,
+        debugMode: debugMode,
+      }));
+    `,
+    );
+
+    const result = await executeCode({
+      codeId: 'with-env',
+      timeout: 5000,
+      workspaceDir: env.workspaceDir,
+      env: {
+        API_KEY: 'test-key-123',
+        DEBUG_MODE: 'true',
+      },
+    });
+
+    assertEquals(result.success, true);
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).success, true);
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).apiKey, 'test-key-123');
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).debugMode, 'true');
+  } finally {
+    await env.cleanup();
+  }
+});
+
+Deno.test('Executor - should maintain system environment variables (PATH)', async () => {
+  const env = new TestEnvironment();
+  await env.setup();
+  try {
+    // deno-lint-ignore no-explicit-any
+    (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+
+    await env.writeCode(
+      'check-path',
+      `
+      const path = Deno.env.get('PATH');
+      const customVar = Deno.env.get('CUSTOM_VAR');
+
+      console.log(JSON.stringify({
+        success: true,
+        hasPath: !!path,
+        customVar: customVar,
+      }));
+    `,
+    );
+
+    const result = await executeCode({
+      codeId: 'check-path',
+      timeout: 5000,
+      workspaceDir: env.workspaceDir,
+      env: {
+        CUSTOM_VAR: 'test',
+      },
+    });
+
+    assertEquals(result.success, true);
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).hasPath, true); // PATH should exist
+    // deno-lint-ignore no-explicit-any
+    assertEquals((result.output as any).customVar, 'test');
+  } finally {
+    await env.cleanup();
+  }
+});
