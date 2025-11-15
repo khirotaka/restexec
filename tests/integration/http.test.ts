@@ -250,6 +250,288 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name: 'HTTP - POST /execute with env variables returns 200',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const env = new TestEnvironment();
+    await env.setup();
+
+    const originalWorkspaceDir = config.workspaceDir;
+    const originalImportMap = config.deno.importMap;
+
+    try {
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = env.workspaceDir;
+
+      await env.writeCode(
+        'env-test',
+        `
+      const apiKey = Deno.env.get('API_KEY');
+      console.log(JSON.stringify({
+        success: true,
+        apiKey: apiKey,
+      }));
+    `,
+      );
+
+      const response = await fetch(`${serverUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codeId: 'env-test',
+          timeout: 5000,
+          env: {
+            API_KEY: 'secret-123',
+          },
+        }),
+      });
+
+      assertEquals(response.status, 200);
+      const body = await response.json() as ApiResponse;
+      assertEquals(body.success, true);
+      if (body.success) {
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).apiKey, 'secret-123');
+      }
+    } finally {
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = originalWorkspaceDir;
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = originalImportMap;
+      await env.cleanup();
+    }
+  },
+});
+
+Deno.test({
+  name: 'HTTP - POST /execute with forbidden env key returns 400',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const response = await fetch(`${serverUrl}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        codeId: 'test',
+        env: {
+          PATH: '/usr/bin',
+        },
+      }),
+    });
+
+    assertEquals(response.status, 400);
+    const body = await response.json() as ErrorResponse;
+    assertEquals(body.success, false);
+    assertEquals(body.error.type, 'ValidationError');
+    assertEquals(body.error.message, 'env key "PATH" is forbidden');
+  },
+});
+
+Deno.test({
+  name: 'HTTP - POST /execute with multiple env variables returns 200',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const env = new TestEnvironment();
+    await env.setup();
+
+    const originalWorkspaceDir = config.workspaceDir;
+    const originalImportMap = config.deno.importMap;
+
+    try {
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = env.workspaceDir;
+
+      await env.writeCode(
+        'multi-env-test',
+        `
+      const apiKey = Deno.env.get('API_KEY');
+      const debugMode = Deno.env.get('DEBUG_MODE');
+      const userId = Deno.env.get('USER_ID');
+
+      console.log(JSON.stringify({
+        success: true,
+        apiKey: apiKey,
+        debugMode: debugMode,
+        userId: userId,
+      }));
+    `,
+      );
+
+      const response = await fetch(`${serverUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codeId: 'multi-env-test',
+          timeout: 5000,
+          env: {
+            API_KEY: 'test-key-123',
+            DEBUG_MODE: 'true',
+            USER_ID: '42',
+          },
+        }),
+      });
+
+      assertEquals(response.status, 200);
+      const body = await response.json() as ApiResponse;
+      assertEquals(body.success, true);
+      if (body.success) {
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).apiKey, 'test-key-123');
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).debugMode, 'true');
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).userId, '42');
+      }
+    } finally {
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = originalWorkspaceDir;
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = originalImportMap;
+      await env.cleanup();
+    }
+  },
+});
+
+Deno.test({
+  name: 'HTTP - POST /execute without env returns undefined for env variables',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const env = new TestEnvironment();
+    await env.setup();
+
+    const originalWorkspaceDir = config.workspaceDir;
+    const originalImportMap = config.deno.importMap;
+
+    try {
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = env.workspaceDir;
+
+      await env.writeCode(
+        'no-env-test',
+        `
+      const apiKey = Deno.env.get('API_KEY');
+
+      console.log(JSON.stringify({
+        success: true,
+        hasApiKey: apiKey !== undefined,
+        apiKey: apiKey,
+      }));
+    `,
+      );
+
+      const response = await fetch(`${serverUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codeId: 'no-env-test',
+          timeout: 5000,
+        }),
+      });
+
+      assertEquals(response.status, 200);
+      const body = await response.json() as ApiResponse;
+      assertEquals(body.success, true);
+      if (body.success) {
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).hasApiKey, false);
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).apiKey, undefined);
+      }
+    } finally {
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = originalWorkspaceDir;
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = originalImportMap;
+      await env.cleanup();
+    }
+  },
+});
+
+Deno.test({
+  name: 'HTTP - POST /execute with special characters in env value returns 200',
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await ensureServerStarted();
+
+    const env = new TestEnvironment();
+    await env.setup();
+
+    const originalWorkspaceDir = config.workspaceDir;
+    const originalImportMap = config.deno.importMap;
+
+    try {
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = `${env.workspaceDir}/import_map.json`;
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = env.workspaceDir;
+
+      await env.writeCode(
+        'special-chars-test',
+        `
+      const message = Deno.env.get('MESSAGE');
+      const json = Deno.env.get('JSON_DATA');
+
+      console.log(JSON.stringify({
+        success: true,
+        message: message,
+        json: json,
+      }));
+    `,
+      );
+
+      const specialValue = JSON.stringify({ key: 'value', unicode: 'こんにちは', emoji: '🚀' });
+
+      const response = await fetch(`${serverUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codeId: 'special-chars-test',
+          timeout: 5000,
+          env: {
+            MESSAGE: 'Hello "World" with \'quotes\' and\nnewlines',
+            JSON_DATA: specialValue,
+          },
+        }),
+      });
+
+      assertEquals(response.status, 200);
+      const body = await response.json() as ApiResponse;
+      assertEquals(body.success, true);
+      if (body.success) {
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).message, 'Hello "World" with \'quotes\' and\nnewlines');
+        // deno-lint-ignore no-explicit-any
+        assertEquals((body.result as any).json, specialValue);
+      }
+    } finally {
+      // deno-lint-ignore no-explicit-any
+      (config as any).workspaceDir = originalWorkspaceDir;
+      // deno-lint-ignore no-explicit-any
+      (config as any).deno.importMap = originalImportMap;
+      await env.cleanup();
+    }
+  },
+});
+
 // Cleanup: Stop the server after all tests
 Deno.test({
   name: 'HTTP - Server cleanup',

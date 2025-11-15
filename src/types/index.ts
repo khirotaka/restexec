@@ -2,6 +2,7 @@
 export interface ExecuteRequest {
   codeId: string;
   timeout?: number;
+  env?: Record<string, string>;
 }
 
 export interface LintRequest {

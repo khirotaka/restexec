@@ -71,6 +71,96 @@ function validateTimeout(timeout: unknown): void {
 }
 
 /**
+ * Validates environment variables
+ * @param env - The environment variables object to validate
+ * @throws {ValidationError} If validation fails
+ */
+function validateEnv(env: unknown): void {
+  if (env === undefined || env === null) {
+    return; // env is optional
+  }
+
+  if (typeof env !== 'object' || Array.isArray(env)) {
+    throw new ValidationError('env must be an object', { field: 'env', value: typeof env });
+  }
+
+  const envRecord = env as Record<string, unknown>;
+  const entries = Object.entries(envRecord);
+
+  // Check number of environment variables
+  const MAX_ENV_COUNT = 50;
+  if (entries.length > MAX_ENV_COUNT) {
+    throw new ValidationError(
+      `env must not exceed ${MAX_ENV_COUNT} entries`,
+      { field: 'env', count: entries.length, max: MAX_ENV_COUNT },
+    );
+  }
+
+  // Reserved/forbidden environment variable names
+  const FORBIDDEN_ENV_KEYS = [
+    'PATH',
+    'DENO_DIR',
+    'HOME',
+    'USER',
+    'PWD',
+    'SHELL',
+    'HOSTNAME',
+    'TMPDIR',
+    'TEMP',
+    'TMP',
+  ];
+
+  let totalSize = 0;
+  const MAX_TOTAL_SIZE = 10 * 1024; // 10KB
+
+  for (const [key, value] of entries) {
+    // Validate key format
+    if (!/^[A-Z0-9_]+$/.test(key)) {
+      throw new ValidationError(
+        'env keys must contain only uppercase letters, numbers, and underscores',
+        { field: 'env', key, pattern: '/^[A-Z0-9_]+$/' },
+      );
+    }
+
+    // Check for forbidden keys
+    if (FORBIDDEN_ENV_KEYS.includes(key) || key.startsWith('DENO_')) {
+      throw new ValidationError(
+        `env key "${key}" is forbidden`,
+        { field: 'env', key, reason: 'reserved system variable' },
+      );
+    }
+
+    // Validate value type
+    if (typeof value !== 'string') {
+      throw new ValidationError(
+        'env values must be strings',
+        { field: 'env', key, value: typeof value },
+      );
+    }
+
+    // Validate value length
+    const MAX_VALUE_LENGTH = 1000;
+    if (value.length > MAX_VALUE_LENGTH) {
+      throw new ValidationError(
+        `env value for "${key}" exceeds maximum length`,
+        { field: 'env', key, length: value.length, max: MAX_VALUE_LENGTH },
+      );
+    }
+
+    // Accumulate total size
+    totalSize += key.length + value.length;
+  }
+
+  // Check total size
+  if (totalSize > MAX_TOTAL_SIZE) {
+    throw new ValidationError(
+      'env total size exceeds maximum allowed size',
+      { field: 'env', size: totalSize, max: MAX_TOTAL_SIZE },
+    );
+  }
+}
+
+/**
  * Validates the execute request body
  */
 export async function validateExecuteRequest(ctx: Context, next: () => Promise<unknown>): Promise<void> {
@@ -85,11 +175,12 @@ export async function validateExecuteRequest(ctx: Context, next: () => Promise<u
     );
   }
 
-  const { codeId, timeout } = body;
+  const { codeId, timeout, env } = body;
 
   // Validate using helper functions
   validateCodeId(codeId);
   validateTimeout(timeout);
+  validateEnv(env);
 
   // Store validated body in state for the next middleware
   ctx.state.body = body;

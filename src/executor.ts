@@ -42,6 +42,9 @@ function buildDenoArgs(filePath: string): string[] {
     args.push('--allow-run');
   }
 
+  // Add environment variable access permission
+  args.push('--allow-env');
+
   // Add the file to execute
   args.push(filePath);
 
@@ -52,6 +55,7 @@ export interface ExecuteOptions {
   codeId: string;
   timeout: number;
   workspaceDir: string;
+  env?: Record<string, string>;
 }
 
 /**
@@ -100,6 +104,11 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
       const denoDir = Deno.env.get('DENO_DIR');
       if (path) allowedEnv.PATH = path;
       if (denoDir) allowedEnv.DENO_DIR = denoDir;
+
+      // Merge user-defined environment variables
+      if (options.env) {
+        Object.assign(allowedEnv, options.env);
+      }
 
       // Create Deno command
       const command = new Deno.Command(config.deno.path, {

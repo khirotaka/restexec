@@ -14,7 +14,11 @@
 ```json
 {
   "codeId": "exec-20250109-123456",
-  "timeout": 5000
+  "timeout": 5000,
+  "env": {
+    "API_KEY": "your-api-key",
+    "DEBUG_MODE": "true"
+  }
 }
 ```
 
@@ -24,10 +28,18 @@
 |-----------|-----|------|------------|------|
 | `codeId` | string | ✅ Yes | - | 実行するコードファイルの識別子（拡張子なし） |
 | `timeout` | number | ❌ No | 5000 | タイムアウト時間（ミリ秒単位） |
+| `env` | object | ❌ No | {} | 実行コードに渡す環境変数（キーと値のペア） |
 
 **バリデーションルール**:
 - `codeId`: 必須、空文字列不可、パス区切り文字（`/`, `\`）を含まない
 - `timeout`: オプション、指定する場合は正の整数（1 ≤ timeout ≤ 300000）
+- `env`: オプション、環境変数のオブジェクト
+  - **キー形式**: 大文字英数字とアンダースコアのみ (`/^[A-Z0-9_]+$/`)
+  - **値の型**: 文字列のみ
+  - **値の最大長**: 1000文字
+  - **最大個数**: 50個
+  - **全体サイズ**: 10KB以内（すべてのキーと値の合計バイト数）
+  - **禁止されたキー**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `HOSTNAME`, `TMPDIR`, `TEMP`, `TMP`, および `DENO_` で始まるすべての変数
 
 ### レスポンス仕様
 
@@ -73,6 +85,89 @@
 | `TimeoutError` | 408 | 実行がタイムアウトした |
 | `ExecutionError` | 500 | コード実行中のエラー |
 | `InternalError` | 500 | サーバー内部エラー |
+
+**エラーレスポンス例**:
+
+**禁止された環境変数キーを使用した場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env key \"PATH\" is forbidden",
+    "details": {
+      "field": "env",
+      "key": "PATH",
+      "reason": "reserved system variable"
+    }
+  }
+}
+```
+
+**環境変数のキー形式が不正な場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env keys must contain only uppercase letters, numbers, and underscores",
+    "details": {
+      "field": "env",
+      "key": "api-key",
+      "pattern": "/^[A-Z0-9_]+$/"
+    }
+  }
+}
+```
+
+**環境変数の値が最大長を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env value for \"API_KEY\" exceeds maximum length",
+    "details": {
+      "field": "env",
+      "key": "API_KEY",
+      "length": 1001,
+      "max": 1000
+    }
+  }
+}
+```
+
+**環境変数の個数が最大を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env must not exceed 50 entries",
+    "details": {
+      "field": "env",
+      "count": 51,
+      "max": 50
+    }
+  }
+}
+```
+
+**環境変数の全体サイズが最大を超えた場合**:
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "env total size exceeds maximum allowed size",
+    "details": {
+      "field": "env",
+      "size": 10241,
+      "max": 10240
+    }
+  }
+}
+```
 
 ## エンドポイント: POST /lint
 
