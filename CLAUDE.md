@@ -137,10 +137,52 @@ main().catch((error) => {
 });
 ```
 
+**Using Environment Variables**:
+
+```typescript
+async function main() {
+  // Get environment variables
+  const apiKey = Deno.env.get('API_KEY');
+  const debugMode = Deno.env.get('DEBUG_MODE');
+
+  const result = {
+    apiKey: apiKey,
+    debugEnabled: debugMode === 'true',
+    status: 'success'
+  };
+  console.log(JSON.stringify(result));
+}
+
+main().catch((error) => {
+  console.error(JSON.stringify({ success: false, error: error.message }));
+  Deno.exit(1);
+});
+```
+
+**API Request with Environment Variables**:
+```bash
+curl -X POST http://localhost:8080/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "codeId":"my-script",
+    "env": {
+      "API_KEY": "secret-123",
+      "DEBUG_MODE": "true"
+    }
+  }'
+```
+
+**Environment Variable Constraints**:
+- **Key format**: Uppercase letters, numbers, underscores only (`/^[A-Z0-9_]+$/`)
+- **Max count**: 50 variables
+- **Max size**: 10KB total (all keys and values)
+- **Forbidden keys**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `DENO_*`
+
 **Security Constraints**:
 - ✅ Read from `/workspace` and `/tools`
 - ❌ No write, network, or subprocess access (by default)
 - ⏱️ Default timeout: 5 seconds
+- 🔐 Environment variables are process-isolated and temporary
 
 **Complete guide**: [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
 
