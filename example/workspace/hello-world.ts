@@ -5,6 +5,9 @@
  */
 
 async function main() {
+  // 環境変数 TEST_ENV を console に表示
+  console.log(`TEST_ENV: ${Deno.env.get('TEST_ENV')}`);
+
   const result = {
     message: 'Hello, World!',
     timestamp: new Date().toISOString(),
