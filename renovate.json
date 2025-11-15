@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    "github>Omochice/renovate-config:deno",
     ":dependencyDashboard",
     ":semanticCommits",
     ":enablePreCommit"
@@ -20,65 +21,8 @@
       "semanticCommitType": "chore",
       "semanticCommitScope": "docker",
       "commitMessageTopic": "Deno runtime"
-    },
-    {
-      "description": "Deno standard library (@std/*) updates",
-      "matchDatasources": ["deno"],
-      "matchPackagePatterns": ["^@std/"],
-      "groupName": "Deno standard library",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps",
-      "commitMessageTopic": "Deno standard library",
-      "rangeStrategy": "bump"
-    },
-    {
-      "description": "Oak framework updates",
-      "matchDatasources": ["deno"],
-      "matchPackageNames": ["@oak/oak"],
-      "groupName": "Oak framework",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps",
-      "commitMessageTopic": "Oak framework"
-    },
-    {
-      "description": "External npm libraries via esm.sh",
-      "matchDatasources": ["deno"],
-      "matchPackagePatterns": ["^https://esm\\.sh/"],
-      "groupName": "npm libraries (esm.sh)",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps",
-      "commitMessageTopic": "npm libraries via esm.sh"
-    },
-    {
-      "description": "Utility libraries group",
-      "matchDatasources": ["deno"],
-      "matchPackagePatterns": [
-        "es-toolkit",
-        "date-fns",
-        "zod",
-        "papaparse",
-        "nanoid",
-        "decimal\\.js"
-      ],
-      "groupName": "utility libraries",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "deps",
-      "commitMessageTopic": "utility libraries"
     }
   ],
-  "deno": {
-    "enabled": true,
-    "fileMatch": [
-      "^deno\\.jsonc?$",
-      "^import_map\\.json$",
-      "^example/workspace/import_map\\.json$",
-      "^deps\\.ts$"
-    ]
-  },
-  "docker": {
-    "enabled": true,
-    "fileMatch": ["^Dockerfile$", "^compose\\.ya?ml$"]
-  },
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "dependencyDashboard": true,
