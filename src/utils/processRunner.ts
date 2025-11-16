@@ -56,8 +56,6 @@ export interface ProcessRunOptions {
 export async function runProcess(
   options: ProcessRunOptions,
 ): Promise<ProcessResult> {
-  options: ProcessRunOptions,
-): Promise<ProcessResult> {
   const { codeId, timeout, command, logContext = 'Executing' } = options;
   const startTime = Date.now();
 
