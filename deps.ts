@@ -16,7 +16,7 @@ export * from 'https://esm.sh/es-toolkit@1.41.0';
 
 // ===== Date/Time Libraries =====
 // Comprehensive date manipulation library
-export * from 'https://esm.sh/date-fns@3.0.0';
+export * from 'https://esm.sh/date-fns@3.6.0';
 
 // ===== Validation Libraries =====
 // TypeScript-first schema validation
