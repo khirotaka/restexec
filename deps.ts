@@ -32,4 +32,4 @@ export * from 'https://esm.sh/nanoid@5.1.6';
 
 // ===== Math Libraries =====
 // High-precision decimal arithmetic
-export * from 'https://esm.sh/decimal.js@10.4.3';
+export * from 'https://esm.sh/decimal.js@10.6.0';
