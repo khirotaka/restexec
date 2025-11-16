@@ -53,7 +53,9 @@ export interface ProcessRunOptions {
  * @throws TimeoutError if process exceeds timeout
  * @throws ExecutionError if buffer limits exceeded or process fails
  */
-export async function runProcess<T>(
+export async function runProcess(
+  options: ProcessRunOptions,
+): Promise<ProcessResult> {
   options: ProcessRunOptions,
 ): Promise<ProcessResult> {
   const { codeId, timeout, command, logContext = 'Executing' } = options;
@@ -81,7 +83,7 @@ export async function runProcess<T>(
       (async () => {
         const decoder = new TextDecoder();
         for await (const chunk of child.stdout) {
-          if (stdout.length > MAX_BUFFER) {
+          if (stdout.length + chunk.length > MAX_BUFFER) {
             if (!isSettled) {
               isSettled = true;
               logger.warn(`Process stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
@@ -109,7 +111,7 @@ export async function runProcess<T>(
       (async () => {
         const decoder = new TextDecoder();
         for await (const chunk of child.stderr) {
-          if (stderr.length > MAX_BUFFER) {
+          if (stderr.length + chunk.length > MAX_BUFFER) {
             if (!isSettled) {
               isSettled = true;
               logger.warn(`Process stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
