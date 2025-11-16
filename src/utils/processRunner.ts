@@ -70,7 +70,6 @@ export async function runProcess(
       let stdout = '';
       let stderr = '';
       let isTimedOut = false;
-      let isKilled = false;
       let isSettled = false; // Prevent multiple resolve/reject calls
       let killTimeoutId: number | undefined; // Track SIGKILL timer for cleanup
 
@@ -103,7 +102,10 @@ export async function runProcess(
           }
           stdout += decoder.decode(chunk);
         }
-      })();
+      })().catch((error) => {
+        // Stream reading errors should not crash the process
+        logger.warn(`Error reading stdout for ${codeId}: ${error.message}`);
+      });
 
       // Read stderr with buffer limit enforcement
       (async () => {
@@ -131,7 +133,10 @@ export async function runProcess(
           }
           stderr += decoder.decode(chunk);
         }
-      })();
+      })().catch((error) => {
+        // Stream reading errors should not crash the process
+        logger.warn(`Error reading stderr for ${codeId}: ${error.message}`);
+      });
 
       // Set up timeout with SIGTERM → SIGKILL escalation
       const timeoutId = setTimeout(() => {
@@ -145,13 +150,11 @@ export async function runProcess(
 
         // Wait for grace period, then send SIGKILL
         killTimeoutId = setTimeout(() => {
-          if (!isKilled) {
-            logger.warn(`Process did not terminate, sending SIGKILL`);
-            try {
-              child.kill('SIGKILL');
-            } catch {
-              // Ignore if process is already dead
-            }
+          logger.warn(`Process did not terminate, sending SIGKILL`);
+          try {
+            child.kill('SIGKILL');
+          } catch {
+            // Ignore if process is already dead
           }
         }, SIGKILL_GRACE_PERIOD_MS);
       }, timeout);
@@ -160,7 +163,6 @@ export async function runProcess(
       (async () => {
         try {
           const status = await child.status;
-          isKilled = true;
           clearTimeout(timeoutId);
           if (killTimeoutId !== undefined) {
             clearTimeout(killTimeoutId);
