@@ -1,13 +1,9 @@
 import { join } from '@std/path';
 import { logger } from './utils/logger.ts';
-import { ExecutionError, FileNotFoundError, TimeoutError } from './utils/errors.ts';
+import { ExecutionError, FileNotFoundError } from './utils/errors.ts';
 import { config } from './config.ts';
 import type { LintOutput, LintResult } from './types/index.ts';
-import { processManager } from './utils/processManager.ts';
-
-// 10MB buffer limit
-const MAX_BUFFER = 10 * 1024 * 1024;
-const SIGKILL_GRACE_PERIOD_MS = 1000;
+import { runProcess } from './utils/processRunner.ts';
 
 export interface LintOptions {
   codeId: string;
@@ -22,7 +18,6 @@ export interface LintOptions {
  */
 export async function lintCode(options: LintOptions): Promise<LintResult> {
   const { codeId, timeout, workspaceDir } = options;
-  const startTime = Date.now();
 
   // Construct file path
   const filePath = join(workspaceDir, `${codeId}.ts`);
@@ -35,185 +30,42 @@ export async function lintCode(options: LintOptions): Promise<LintResult> {
     throw new FileNotFoundError(codeId);
   }
 
-  // Increment active process count
-  processManager.increment();
-  const activeCount = processManager.getActiveCount();
-  logger.info(`Linting code: ${codeId} (timeout: ${timeout}ms, active processes: ${activeCount})`);
+  // Build Deno lint command arguments
+  const denoArgs = ['lint', '--json', filePath];
 
-  // Execute lint - decrement counter when done
-  try {
-    return await new Promise((resolve, reject) => {
-      let stdout = '';
-      let stderr = '';
-      let isTimedOut = false;
-      let isKilled = false;
-      let isSettled = false; // Prevent multiple resolve/reject calls
-      let killTimeoutId: number | undefined; // Track SIGKILL timer for cleanup
+  // Whitelist environment variables (minimal for Deno)
+  const allowedEnv: Record<string, string> = {};
+  const path = Deno.env.get('PATH');
+  const denoDir = Deno.env.get('DENO_DIR');
+  if (path) allowedEnv.PATH = path;
+  if (denoDir) allowedEnv.DENO_DIR = denoDir;
 
-      // Build Deno lint command arguments
-      const denoArgs = ['lint', '--json', filePath];
+  // Create Deno command
+  const command = new Deno.Command(config.deno.path, {
+    args: denoArgs,
+    cwd: workspaceDir,
+    env: allowedEnv,
+    stdout: 'piped',
+    stderr: 'piped',
+    stdin: 'null',
+  });
 
-      // Whitelist environment variables (minimal for Deno)
-      const allowedEnv: Record<string, string> = {};
-      const path = Deno.env.get('PATH');
-      const denoDir = Deno.env.get('DENO_DIR');
-      if (path) allowedEnv.PATH = path;
-      if (denoDir) allowedEnv.DENO_DIR = denoDir;
+  // Execute process with common runner
+  const result = await runProcess({
+    codeId,
+    timeout,
+    command,
+    logContext: 'Linting',
+  });
 
-      // Create Deno command
-      const command = new Deno.Command(config.deno.path, {
-        args: denoArgs,
-        cwd: workspaceDir,
-        env: allowedEnv,
-        stdout: 'piped',
-        stderr: 'piped',
-        stdin: 'null',
-      });
-
-      // Spawn process
-      const child = command.spawn();
-
-      // Read stdout
-      (async () => {
-        const decoder = new TextDecoder();
-        for await (const chunk of child.stdout) {
-          if (stdout.length > MAX_BUFFER) {
-            if (!isSettled) {
-              isSettled = true;
-              logger.warn(`Lint stdout buffer limit exceeded for ${codeId}, sending SIGTERM`);
-              try {
-                child.kill('SIGTERM');
-                killTimeoutId = setTimeout(() => {
-                  try {
-                    child.kill('SIGKILL');
-                  } catch {
-                    // Process might already be terminated
-                  }
-                }, SIGKILL_GRACE_PERIOD_MS);
-              } catch {
-                // Ignore if process is already dead
-              }
-              reject(new ExecutionError('stdout buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
-            }
-            return;
-          }
-          stdout += decoder.decode(chunk);
-        }
-      })();
-
-      // Read stderr
-      (async () => {
-        const decoder = new TextDecoder();
-        for await (const chunk of child.stderr) {
-          if (stderr.length > MAX_BUFFER) {
-            if (!isSettled) {
-              isSettled = true;
-              logger.warn(`Lint stderr buffer limit exceeded for ${codeId}, sending SIGTERM`);
-              try {
-                child.kill('SIGTERM');
-                killTimeoutId = setTimeout(() => {
-                  try {
-                    child.kill('SIGKILL');
-                  } catch {
-                    // Process might already be terminated
-                  }
-                }, SIGKILL_GRACE_PERIOD_MS);
-              } catch {
-                // Ignore if process is already dead
-              }
-              reject(new ExecutionError('stderr buffer limit exceeded', { maxBuffer: MAX_BUFFER }));
-            }
-            return;
-          }
-          stderr += decoder.decode(chunk);
-        }
-      })();
-
-      // Set up timeout
-      const timeoutId = setTimeout(() => {
-        isTimedOut = true;
-        logger.warn(`Lint timeout for ${codeId}, sending SIGTERM`);
-        try {
-          child.kill('SIGTERM');
-        } catch {
-          // Ignore if process is already dead
-        }
-
-        // Wait 1 second, then send SIGKILL
-        killTimeoutId = setTimeout(() => {
-          if (!isKilled) {
-            logger.warn(`Lint process did not terminate, sending SIGKILL`);
-            try {
-              child.kill('SIGKILL');
-            } catch {
-              // Ignore if process is already dead
-            }
-          }
-        }, SIGKILL_GRACE_PERIOD_MS);
-      }, timeout);
-
-      // Wait for process to complete
-      (async () => {
-        try {
-          const status = await child.status;
-          isKilled = true;
-          clearTimeout(timeoutId);
-          if (killTimeoutId !== undefined) {
-            clearTimeout(killTimeoutId);
-          }
-
-          // Skip if promise is already settled
-          if (isSettled) {
-            return;
-          }
-
-          const executionTime = Date.now() - startTime;
-          const code = status.code;
-          const signal = status.signal;
-
-          logger.info(`Lint process exited: ${codeId} (code: ${code}, signal: ${signal}, time: ${executionTime}ms)`);
-
-          // Mark as settled before resolving/rejecting
-          isSettled = true;
-
-          // Check if timed out
-          if (isTimedOut) {
-            reject(new TimeoutError(timeout));
-            return;
-          }
-
-          // Parse result
-          try {
-            const result = parseLintOutput(stdout, stderr, code, signal, executionTime);
-            resolve(result);
-          } catch (error) {
-            reject(error);
-          }
-        } catch (error) {
-          clearTimeout(timeoutId);
-          if (killTimeoutId !== undefined) {
-            clearTimeout(killTimeoutId);
-          }
-
-          // Skip if promise is already settled
-          if (isSettled) {
-            return;
-          }
-
-          isSettled = true;
-          logger.error(`Lint process error for ${codeId}:`, error as Error);
-          reject(
-            new ExecutionError(`Failed to execute lint process: ${(error as Error).message}`, {
-              error: (error as Error).message,
-            }),
-          );
-        }
-      })();
-    });
-  } finally {
-    // Always decrement counter when execution completes (success or failure)
-    processManager.decrement();
-  }
+  // Parse and return lint result
+  return parseLintOutput(
+    result.stdout,
+    result.stderr,
+    result.exitCode,
+    result.signal,
+    result.executionTime,
+  );
 }
 
 /**
