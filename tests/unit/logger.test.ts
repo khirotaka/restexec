@@ -32,7 +32,7 @@ Deno.test('Logger.error - should log message only', () => {
 
 Deno.test('Logger.error - should log message with Error object', () => {
   const testError = new Error('Test error occurred');
-  const originalLogLevel = Deno.env.get('DENO_LOG_LEVEL');
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
 
   try {
     Deno.env.set('LOG_INCLUDE_STACK', 'true');
@@ -49,12 +49,12 @@ Deno.test('Logger.error - should log message with Error object', () => {
     assertStringIncludes(output, '"message":"Test error occurred"');
     assertStringIncludes(output, '"stack"');
   } finally {
-    if (originalLogLevel !== undefined) {
+    if (originalLogIncludeStack !== undefined) {
       // 元の値が存在した場合は、元に戻す
-      Deno.env.set('DENO_LOG_LEVEL', originalLogLevel);
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
     } else {
       // 元の値が存在しなかった場合は、削除する
-      Deno.env.delete('DENO_LOG_LEVEL');
+      Deno.env.delete('LOG_INCLUDE_STACK');
     }
   }
 });
@@ -75,8 +75,9 @@ Deno.test('Logger.error - should log message with context only', () => {
 
 Deno.test('Logger.error - should log message with both Error and context', () => {
   const testError = new Error('Database connection failed');
-  const originalLogLevel = Deno.env.get('DENO_LOG_LEVEL');
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
   try {
+    Deno.env.set('LOG_INCLUDE_STACK', 'true');
     const output = captureConsoleError(() => {
       logger.error(
         'Database operation failed',
@@ -99,12 +100,12 @@ Deno.test('Logger.error - should log message with both Error and context', () =>
     assertStringIncludes(output, 'operation');
     assertStringIncludes(output, 'INSERT');
   } finally {
-    if (originalLogLevel !== undefined) {
+    if (originalLogIncludeStack !== undefined) {
       // 元の値が存在した場合は、元に戻す
-      Deno.env.set('DENO_LOG_LEVEL', originalLogLevel);
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
     } else {
       // 元の値が存在しなかった場合は、削除する
-      Deno.env.delete('DENO_LOG_LEVEL');
+      Deno.env.delete('LOG_INCLUDE_STACK');
     }
   }
 });
