@@ -9,7 +9,7 @@ import { runProcess } from './utils/processRunner.ts';
  * Build Deno command arguments with permissions
  */
 function buildDenoArgs(filePath: string): string[] {
-  const args = ['run', '--no-prompt', '--cached-only'];
+  const args = ['run', '--no-prompt', '--cached-only', '--no-remote'];
 
   // Add import map
   if (config.deno.importMap) {
