@@ -2,21 +2,19 @@ import { assertEquals } from '@std/assert';
 import { buildAllowedEnv } from '../../../src/utils/env.ts';
 
 Deno.test('buildAllowedEnv - includes system environment variables', () => {
-  const result = buildAllowedEnv();
-
   // PATH and DENO_DIR should be included if they exist in the system
   // (They may not exist in all environments, so we just check the object structure)
   const result = buildAllowedEnv();
 
   // Should be an object
   assertEquals(typeof result, 'object');
-  
+
   // If PATH exists in system, it should be included
   const systemPath = Deno.env.get('PATH');
   if (systemPath) {
     assertEquals(result.PATH, systemPath);
   }
-  
+
   // If DENO_DIR exists in system, it should be included
   const systemDenoDir = Deno.env.get('DENO_DIR');
   if (systemDenoDir) {
@@ -40,14 +38,12 @@ Deno.test('buildAllowedEnv - merges user-defined environment variables', () => {
 });
 
 Deno.test('buildAllowedEnv - handles empty user environment object', () => {
-  const result = buildAllowedEnv({});
-
   // Should still include system environment variables
   const result = buildAllowedEnv({});
 
   // Should still include system environment variables
   assertEquals(typeof result, 'object');
-  
+
   // Verify system variables are present
   const systemPath = Deno.env.get('PATH');
   if (systemPath) {
@@ -76,20 +72,13 @@ Deno.test('buildAllowedEnv - system variables take precedence over user input', 
   const result = buildAllowedEnv(userEnv);
 
   // System variables should take precedence (not user-provided values)
-  assertEquals(result.PATH, originalPath);
-  assertEquals(result.DENO_DIR, originalDenoDir);
-});
-  // Test that if user tries to override system vars, they can be overridden
-  const userEnv = {
-    PATH: '/custom/path',
-    DENO_DIR: '/custom/deno',
-  };
-
-  const result = buildAllowedEnv(userEnv);
-
-  // User-provided PATH and DENO_DIR should be in the result
-  assertEquals(result.PATH, '/custom/path');
-  assertEquals(result.DENO_DIR, '/custom/deno');
+  // This is a security feature - system environment variables cannot be overridden
+  if (originalPath) {
+    assertEquals(result.PATH, originalPath);
+  }
+  if (originalDenoDir) {
+    assertEquals(result.DENO_DIR, originalDenoDir);
+  }
 });
 
 Deno.test('buildAllowedEnv - multiple calls with different inputs return correct values', () => {

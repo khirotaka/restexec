@@ -23,18 +23,18 @@ export function buildAllowedEnv(
 
   // Merge user-defined environment variables
   if (userEnv) {
-  // System-required environment variables (these should NOT be overridden)
-  const path = Deno.env.get('PATH');
-  const denoDir = Deno.env.get('DENO_DIR');
+    // System-required environment variables (these should NOT be overridden)
+    const path = Deno.env.get('PATH');
+    const denoDir = Deno.env.get('DENO_DIR');
 
-  // Merge user-defined environment variables first
-  if (userEnv) {
-    Object.assign(allowedEnv, userEnv);
-  }
+    // Merge user-defined environment variables first
+    if (userEnv) {
+      Object.assign(allowedEnv, userEnv);
+    }
 
-  // System variables take precedence (override user values if present)
-  if (path) allowedEnv.PATH = path;
-  if (denoDir) allowedEnv.DENO_DIR = denoDir;
+    // System variables take precedence (override user values if present)
+    if (path) allowedEnv.PATH = path;
+    if (denoDir) allowedEnv.DENO_DIR = denoDir;
   }
 
   return allowedEnv;
