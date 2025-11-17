@@ -1,6 +1,7 @@
 import { join } from '@std/path';
 import { logger } from './utils/logger.ts';
 import { ExecutionError, FileNotFoundError } from './utils/errors.ts';
+import { buildAllowedEnv } from './utils/env.ts';
 import { config } from './config.ts';
 import type { ExecutionResult } from './types/index.ts';
 import { runProcess } from './utils/processRunner.ts';
@@ -85,17 +86,8 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
   // Build Deno command arguments
   const denoArgs = buildDenoArgs(filePath, options.env);
 
-  // Whitelist environment variables (minimal for Deno)
-  const allowedEnv: Record<string, string> = {};
-  const path = Deno.env.get('PATH');
-  const denoDir = Deno.env.get('DENO_DIR');
-  if (path) allowedEnv.PATH = path;
-  if (denoDir) allowedEnv.DENO_DIR = denoDir;
-
-  // Merge user-defined environment variables
-  if (options.env) {
-    Object.assign(allowedEnv, options.env);
-  }
+  // Build allowed environment variables
+  const allowedEnv = buildAllowedEnv(options.env);
 
   // Create Deno command
   const command = new Deno.Command(config.deno.path, {
