@@ -24,7 +24,7 @@ export * from 'https://esm.sh/zod@3.22.4';
 
 // ===== Data Processing =====
 // CSV parser and writer
-export * from 'https://esm.sh/papaparse@5.4.1';
+export * from 'https://esm.sh/papaparse@5.5.3';
 
 // ===== String/ID Generation =====
 // Secure, URL-friendly unique ID generator
