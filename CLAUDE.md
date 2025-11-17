@@ -161,7 +161,7 @@ main().catch((error) => {
 
 **API Request with Environment Variables**:
 ```bash
-curl -X POST http://localhost:8080/execute \
+curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
   -d '{
     "codeId":"my-script",
@@ -380,12 +380,12 @@ docker compose up -d
 **Solution**:
 ```bash
 # 1. Save first
-curl -X PUT http://localhost:8080/workspace \
+curl -X PUT http://localhost:3000/workspace \
   -H "Content-Type: application/json" \
   -d '{"codeId":"my-script","code":"..."}'
 
 # 2. Then execute (use same codeId, no .ts extension)
-curl -X POST http://localhost:8080/execute \
+curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
   -d '{"codeId":"my-script"}'
 ```
@@ -452,8 +452,8 @@ deno task test
 # 1. Check logs
 docker compose logs
 
-# 2. Verify port 8080 available
-lsof -i :8080
+# 2. Verify port 3000 available
+lsof -i :3000
 
 # 3. Rebuild from scratch
 docker compose build --no-cache

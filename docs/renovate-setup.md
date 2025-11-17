@@ -196,7 +196,7 @@ deno task test
 # Dockerビルドを確認（deps.tsやimport_map.json更新時）
 docker compose build
 docker compose up -d
-curl http://localhost:8080/health
+curl http://localhost:3000/health
 ```
 
 ### 3. マージ

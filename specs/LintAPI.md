@@ -241,7 +241,7 @@ Lint operations are typically faster than code execution:
 ### Request Example 1: Lint a clean file
 
 ```bash
-curl -X POST http://localhost:8080/lint \
+curl -X POST http://localhost:3000/lint \
   -H "Content-Type: application/json" \
   -d '{"codeId": "example-clean"}'
 ```
@@ -265,7 +265,7 @@ Response:
 ### Request Example 2: Lint a file with issues
 
 ```bash
-curl -X POST http://localhost:8080/lint \
+curl -X POST http://localhost:3000/lint \
   -H "Content-Type: application/json" \
   -d '{"codeId": "example-issues", "timeout": 10000}'
 ```
@@ -300,7 +300,7 @@ Response:
 ### Request Example 3: File not found
 
 ```bash
-curl -X POST http://localhost:8080/lint \
+curl -X POST http://localhost:3000/lint \
   -H "Content-Type: application/json" \
   -d '{"codeId": "nonexistent"}'
 ```
