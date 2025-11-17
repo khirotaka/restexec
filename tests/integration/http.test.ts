@@ -427,11 +427,21 @@ Deno.test({
       await env.writeCode(
         'no-env-test',
         `
-      const apiKey = Deno.env.get('API_KEY');
+      // 環境変数が許可されていない場合、アクセス時にエラーが発生する
+      let apiKey;
+      let hasApiKey = false;
+      try {
+        apiKey = Deno.env.get('API_KEY');
+        hasApiKey = apiKey !== undefined;
+      } catch (error) {
+        // NotCapable エラーの場合、環境変数へのアクセスが許可されていない
+        apiKey = undefined;
+        hasApiKey = false;
+      }
 
       console.log(JSON.stringify({
         success: true,
-        hasApiKey: apiKey !== undefined,
+        hasApiKey: hasApiKey,
         apiKey: apiKey,
       }));
     `,

@@ -8,7 +8,7 @@ import { runProcess } from './utils/processRunner.ts';
 /**
  * Build Deno command arguments with permissions
  */
-function buildDenoArgs(filePath: string): string[] {
+function buildDenoArgs(filePath: string, env?: Record<string, string>): string[] {
   const args = ['run', '--no-prompt', '--cached-only', '--no-remote'];
 
   // Add import map
@@ -39,8 +39,18 @@ function buildDenoArgs(filePath: string): string[] {
     args.push('--allow-run');
   }
 
-  // Add environment variable access permission
-  args.push('--allow-env');
+  // システム環境変数（PATH, DENO_DIR）は常に許可
+  const systemEnvKeys = ['PATH', 'DENO_DIR'];
+  let envKeys = [...systemEnvKeys];
+
+  // ユーザー指定の環境変数を追加
+  if (env && Object.keys(env).length > 0) {
+    envKeys = [...envKeys, ...Object.keys(env)];
+  }
+
+  // 重複を削除して --allow-env に追加
+  envKeys = [...new Set(envKeys)];
+  args.push(`--allow-env=${envKeys.join(',')}`);
 
   // Add the file to execute
   args.push(filePath);
@@ -77,7 +87,7 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
   }
 
   // Build Deno command arguments
-  const denoArgs = buildDenoArgs(filePath);
+  const denoArgs = buildDenoArgs(filePath, options.env);
 
   // Whitelist environment variables (minimal for Deno)
   const allowedEnv: Record<string, string> = {};
