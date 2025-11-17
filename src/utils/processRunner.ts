@@ -59,12 +59,23 @@ export async function runProcess(
   const startTime = Date.now();
 
   // Merge environment variables: system defaults (PATH, DENO_DIR) + user-defined
+  // System environment variables are protected and cannot be overridden by user input
   const allowedEnv: Record<string, string> = {};
+  const systemEnvKeys = ['PATH', 'DENO_DIR'];
+
+  // Add user-defined environment variables (excluding system keys)
+  if (env) {
+    const filteredEnv = Object.fromEntries(
+      Object.entries(env).filter(([key]) => !systemEnvKeys.includes(key)),
+    );
+    Object.assign(allowedEnv, filteredEnv);
+  }
+
+  // Add system environment variables (protected from user override)
   const path = Deno.env.get('PATH');
   const denoDir = Deno.env.get('DENO_DIR');
   if (path) allowedEnv.PATH = path;
   if (denoDir) allowedEnv.DENO_DIR = denoDir;
-  if (env) Object.assign(allowedEnv, env);
 
   // Create Deno command with merged environment
   const command = new Deno.Command(cmd, {
