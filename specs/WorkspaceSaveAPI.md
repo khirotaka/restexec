@@ -145,7 +145,7 @@ The request must satisfy the following validation rules:
 ### Request
 
 ```bash
-curl -X PUT http://localhost:8080/workspace \
+curl -X PUT http://localhost:3000/workspace \
   -H "Content-Type: application/json" \
   -d '{
     "codeId": "hello-world",
@@ -171,7 +171,7 @@ curl -X PUT http://localhost:8080/workspace \
 After saving the code, it can be executed via the `/execute` endpoint:
 
 ```bash
-curl -X POST http://localhost:8080/execute \
+curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
   -d '{
     "codeId": "hello-world",
