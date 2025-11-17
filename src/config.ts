@@ -18,6 +18,15 @@ function parseBooleanEnv(envVar: string | undefined, defaultValue: boolean): boo
   return envVar.toLowerCase() === 'true';
 }
 
+/**
+ * Shared constants used across multiple modules
+ */
+export const constants = {
+  MAX_BUFFER: 10 * 1024 * 1024, // 10MB
+  SIGKILL_GRACE_PERIOD_MS: 1000, // 1 second
+  MAX_CODE_SIZE: 10 * 1024 * 1024, // 10MB
+} as const;
+
 export const config = {
   port: parseInt(Deno.env.get('PORT') || '3000', 10),
   workspaceDir: Deno.env.get('WORKSPACE_DIR') || '/workspace',

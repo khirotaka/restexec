@@ -1,16 +1,9 @@
 import { logger } from './logger.ts';
 import { ExecutionError, TimeoutError } from './errors.ts';
 import { processManager } from './processManager.ts';
+import { constants } from '../config.ts';
 
-/**
- * Maximum buffer size for stdout/stderr (10MB)
- */
-export const MAX_BUFFER = 10 * 1024 * 1024;
-
-/**
- * Grace period before sending SIGKILL after SIGTERM (1 second)
- */
-export const SIGKILL_GRACE_PERIOD_MS = 1000;
+const { MAX_BUFFER, SIGKILL_GRACE_PERIOD_MS } = constants;
 
 /**
  * Process execution result containing raw output and metadata
