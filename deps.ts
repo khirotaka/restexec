@@ -20,11 +20,11 @@ export * from 'https://esm.sh/date-fns@3.6.0';
 
 // ===== Validation Libraries =====
 // TypeScript-first schema validation
-export * from 'https://esm.sh/zod@3.22.4';
+export * from 'https://esm.sh/zod@3.25.76';
 
 // ===== Data Processing =====
 // CSV parser and writer
-export * from 'https://esm.sh/papaparse@5.4.1';
+export * from 'https://esm.sh/papaparse@5.5.3';
 
 // ===== String/ID Generation =====
 // Secure, URL-friendly unique ID generator
@@ -32,4 +32,4 @@ export * from 'https://esm.sh/nanoid@5.1.6';
 
 // ===== Math Libraries =====
 // High-precision decimal arithmetic
-export * from 'https://esm.sh/decimal.js@10.4.3';
+export * from 'https://esm.sh/decimal.js@10.6.0';
