@@ -32,19 +32,31 @@ Deno.test('Logger.error - should log message only', () => {
 
 Deno.test('Logger.error - should log message with Error object', () => {
   const testError = new Error('Test error occurred');
+  const originalLogLevel = Deno.env.get('DENO_LOG_LEVEL');
 
-  const output = captureConsoleError(() => {
-    logger.error('Failed to execute', testError);
-  });
+  try {
+    Deno.env.set('LOG_INCLUDE_STACK', 'true');
+    const output = captureConsoleError(() => {
+      logger.error('Failed to execute', testError);
+    });
 
-  // Message should include both the custom message and error message
-  assertStringIncludes(output, 'Failed to execute - Test error occurred');
-  assertStringIncludes(output, 'ERROR');
+    // Message should include both the custom message and error message
+    assertStringIncludes(output, 'Failed to execute - Test error occurred');
+    assertStringIncludes(output, 'ERROR');
 
-  // Should include error details in context
-  assertStringIncludes(output, '"name":"Error"');
-  assertStringIncludes(output, '"message":"Test error occurred"');
-  assertStringIncludes(output, '"stack"');
+    // Should include error details in context
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Test error occurred"');
+    assertStringIncludes(output, '"stack"');
+  } finally {
+    if (originalLogLevel !== undefined) {
+      // 元の値が存在した場合は、元に戻す
+      Deno.env.set('DENO_LOG_LEVEL', originalLogLevel);
+    } else {
+      // 元の値が存在しなかった場合は、削除する
+      Deno.env.delete('DENO_LOG_LEVEL');
+    }
+  }
 });
 
 Deno.test('Logger.error - should log message with context only', () => {
@@ -63,28 +75,38 @@ Deno.test('Logger.error - should log message with context only', () => {
 
 Deno.test('Logger.error - should log message with both Error and context', () => {
   const testError = new Error('Database connection failed');
+  const originalLogLevel = Deno.env.get('DENO_LOG_LEVEL');
+  try {
+    const output = captureConsoleError(() => {
+      logger.error(
+        'Database operation failed',
+        testError,
+        { requestId: 'req-456', operation: 'INSERT' },
+      );
+    });
 
-  const output = captureConsoleError(() => {
-    logger.error(
-      'Database operation failed',
-      testError,
-      { requestId: 'req-456', operation: 'INSERT' },
-    );
-  });
+    // Message should include both custom message and error message
+    assertStringIncludes(output, 'Database operation failed - Database connection failed');
+    assertStringIncludes(output, 'ERROR');
 
-  // Message should include both custom message and error message
-  assertStringIncludes(output, 'Database operation failed - Database connection failed');
-  assertStringIncludes(output, 'ERROR');
-
-  // Should include both error details and custom context
-  assertStringIncludes(output, '"name":"Error"');
-  assertStringIncludes(output, '"message":"Database connection failed"');
-  assertStringIncludes(output, '"stack"');
-  // Text format: requestId="req-456" or JSON format: "requestId":"req-456"
-  assertStringIncludes(output, 'requestId');
-  assertStringIncludes(output, 'req-456');
-  assertStringIncludes(output, 'operation');
-  assertStringIncludes(output, 'INSERT');
+    // Should include both error details and custom context
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Database connection failed"');
+    assertStringIncludes(output, '"stack"');
+    // Text format: requestId="req-456" or JSON format: "requestId":"req-456"
+    assertStringIncludes(output, 'requestId');
+    assertStringIncludes(output, 'req-456');
+    assertStringIncludes(output, 'operation');
+    assertStringIncludes(output, 'INSERT');
+  } finally {
+    if (originalLogLevel !== undefined) {
+      // 元の値が存在した場合は、元に戻す
+      Deno.env.set('DENO_LOG_LEVEL', originalLogLevel);
+    } else {
+      // 元の値が存在しなかった場合は、削除する
+      Deno.env.delete('DENO_LOG_LEVEL');
+    }
+  }
 });
 
 Deno.test('Logger.error - should preserve custom context when error is provided', () => {
