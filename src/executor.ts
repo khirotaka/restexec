@@ -85,33 +85,14 @@ export async function executeCode(options: ExecuteOptions): Promise<ExecutionRes
   // Build Deno command arguments
   const denoArgs = buildDenoArgs(filePath, options.env);
 
-  // Whitelist environment variables (minimal for Deno)
-  const allowedEnv: Record<string, string> = {};
-  const path = Deno.env.get('PATH');
-  const denoDir = Deno.env.get('DENO_DIR');
-  if (path) allowedEnv.PATH = path;
-  if (denoDir) allowedEnv.DENO_DIR = denoDir;
-
-  // Merge user-defined environment variables
-  if (options.env) {
-    Object.assign(allowedEnv, options.env);
-  }
-
-  // Create Deno command
-  const command = new Deno.Command(config.deno.path, {
-    args: denoArgs,
-    cwd: workspaceDir,
-    env: allowedEnv,
-    stdout: 'piped',
-    stderr: 'piped',
-    stdin: 'null',
-  });
-
-  // Execute process with common runner
+  // Execute process with common runner (env merging is handled by runProcess)
   const result = await runProcess({
     codeId,
     timeout,
-    command,
+    cmd: config.deno.path,
+    args: denoArgs,
+    cwd: workspaceDir,
+    env: options.env,
     logContext: 'Executing',
   });
 

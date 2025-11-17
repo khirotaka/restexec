@@ -24,8 +24,14 @@ export interface ProcessRunOptions {
   codeId: string;
   /** Timeout in milliseconds */
   timeout: number;
-  /** Deno command to execute */
-  command: Deno.Command;
+  /** Command executable path */
+  cmd: string;
+  /** Command arguments */
+  args: string[];
+  /** Working directory */
+  cwd?: string;
+  /** User-defined environment variables (merged with system defaults) */
+  env?: Record<string, string>;
   /** Optional context for logging (e.g., "Executing", "Linting") */
   logContext?: string;
 }
@@ -49,8 +55,26 @@ export interface ProcessRunOptions {
 export async function runProcess(
   options: ProcessRunOptions,
 ): Promise<ProcessResult> {
-  const { codeId, timeout, command, logContext = 'Executing' } = options;
+  const { codeId, timeout, cmd, args, cwd, env, logContext = 'Executing' } = options;
   const startTime = Date.now();
+
+  // Merge environment variables: system defaults (PATH, DENO_DIR) + user-defined
+  const allowedEnv: Record<string, string> = {};
+  const path = Deno.env.get('PATH');
+  const denoDir = Deno.env.get('DENO_DIR');
+  if (path) allowedEnv.PATH = path;
+  if (denoDir) allowedEnv.DENO_DIR = denoDir;
+  if (env) Object.assign(allowedEnv, env);
+
+  // Create Deno command with merged environment
+  const command = new Deno.Command(cmd, {
+    args,
+    cwd,
+    env: allowedEnv,
+    stdout: 'piped',
+    stderr: 'piped',
+    stdin: 'null',
+  });
 
   // Increment active process count
   processManager.increment();
