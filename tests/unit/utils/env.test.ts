@@ -67,6 +67,7 @@ Deno.test('buildAllowedEnv - system variables take precedence over user input', 
   const userEnv = {
     PATH: '/malicious/path',
     DENO_DIR: '/malicious/deno',
+    SAFE_VAR: 'safe-value',
   };
 
   const result = buildAllowedEnv(userEnv);
@@ -74,10 +75,98 @@ Deno.test('buildAllowedEnv - system variables take precedence over user input', 
   // System variables should take precedence (not user-provided values)
   // This is a security feature - system environment variables cannot be overridden
   if (originalPath) {
-    assertEquals(result.PATH, originalPath);
+    assertEquals(
+      result.PATH,
+      originalPath,
+      'PATH should not be overridden by user input when system PATH exists',
+    );
+  } else {
+    // If PATH doesn't exist in system, user-provided value is used
+    assertEquals(
+      result.PATH,
+      '/malicious/path',
+      'PATH can be provided by user only if not in system',
+    );
+  }
+
+  if (originalDenoDir) {
+    assertEquals(
+      result.DENO_DIR,
+      originalDenoDir,
+      'DENO_DIR should not be overridden by user input when system DENO_DIR exists',
+    );
+  } else {
+    // If DENO_DIR doesn't exist in system, user-provided value is used
+    assertEquals(
+      result.DENO_DIR,
+      '/malicious/deno',
+      'DENO_DIR can be provided by user only if not in system',
+    );
+  }
+
+  // Safe variables should still be merged
+  assertEquals(result.SAFE_VAR, 'safe-value');
+});
+
+Deno.test('buildAllowedEnv - security: validates that only system PATH/DENO_DIR are used', () => {
+  const originalPath = Deno.env.get('PATH');
+  const originalDenoDir = Deno.env.get('DENO_DIR');
+
+  // Even if user-provided values are passed, system variables take absolute precedence
+  const userEnv = {
+    PATH: '/malicious/path',
+    DENO_DIR: '/malicious/deno',
+    CUSTOM_VAR: 'custom-value',
+  };
+
+  const result = buildAllowedEnv(userEnv);
+
+  // System variables must always be used if they exist
+  if (originalPath) {
+    assertEquals(
+      result.PATH,
+      originalPath,
+      'Must use system PATH even when user provides different value',
+    );
   }
   if (originalDenoDir) {
-    assertEquals(result.DENO_DIR, originalDenoDir);
+    assertEquals(
+      result.DENO_DIR,
+      originalDenoDir,
+      'Must use system DENO_DIR even when user provides different value',
+    );
+  }
+
+  // Custom variables should be preserved
+  assertEquals(result.CUSTOM_VAR, 'custom-value');
+});
+
+Deno.test('buildAllowedEnv - handles missing system variables gracefully', () => {
+  const userEnv = { OTHER_VAR: 'value', ANOTHER_VAR: 'another' };
+
+  const result = buildAllowedEnv(userEnv);
+
+  assertEquals(typeof result, 'object');
+  assertEquals(result.OTHER_VAR, 'value');
+  assertEquals(result.ANOTHER_VAR, 'another');
+
+  // System variables that don't exist shouldn't be added
+  const systemPath = Deno.env.get('PATH');
+  const systemDenoDir = Deno.env.get('DENO_DIR');
+
+  if (!systemPath) {
+    assertEquals(
+      result.PATH,
+      undefined,
+      'PATH should not be added if not in system environment',
+    );
+  }
+  if (!systemDenoDir) {
+    assertEquals(
+      result.DENO_DIR,
+      undefined,
+      'DENO_DIR should not be added if not in system environment',
+    );
   }
 });
 
