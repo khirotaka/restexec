@@ -1,4 +1,4 @@
-import { assertStringIncludes } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { logger } from '../../src/utils/logger.ts';
 
 /**
@@ -55,6 +55,31 @@ Deno.test('Logger.error - should log message with Error object', () => {
     } else {
       // 元の値が存在しなかった場合は、削除する
       Deno.env.delete('LOG_INCLUDE_STACK');
+    }
+  }
+});
+
+Deno.test('Logger.error - should NOT include stack trace by default (info level)', () => {
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
+  try {
+    // LOG_INCLUDE_STACKが設定されていないことを確認
+    Deno.env.delete('LOG_INCLUDE_STACK');
+
+    const testError = new Error('Test error occurred');
+    const output = captureConsoleError(() => {
+      logger.error('Failed to execute', testError);
+    });
+
+    // エラーメッセージは含まれるべき
+    assertStringIncludes(output, 'Failed to execute - Test error occurred');
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Test error occurred"');
+
+    // スタックトレースは含まれないべき
+    assertEquals(output.includes('"stack"'), false);
+  } finally {
+    if (originalLogIncludeStack !== undefined) {
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
     }
   }
 });
