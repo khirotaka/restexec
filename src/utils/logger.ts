@@ -85,13 +85,20 @@ class Logger {
 
       if (error) {
         finalMessage = `${message} - ${error.message}`;
+        const errorContext: { name: string; message: string; stack?: string } = {
+          name: error.name,
+          message: error.message,
+        };
+
+        const includeStack = Deno.env.get('LOG_INCLUDE_STACK') === 'true' ||
+          this.level === 'debug';
+        if (includeStack && error.stack) {
+          errorContext.stack = error.stack;
+        }
+
         finalContext = {
           ...finalContext,
-          error: {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          },
+          error: errorContext,
         };
       }
 

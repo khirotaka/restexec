@@ -1,5 +1,5 @@
 import { Context } from '@oak/oak';
-import { config } from '../config.ts';
+import { config, constants } from '../config.ts';
 import { ValidationError } from '../utils/errors.ts';
 import type { ExecuteRequest, LintRequest, WorkspaceSaveRequest } from '../types/index.ts';
 
@@ -248,13 +248,12 @@ export async function validateWorkspaceSaveRequest(ctx: Context, next: () => Pro
   }
 
   // Validate code size (10MB limit)
-  const MAX_CODE_SIZE = 10 * 1024 * 1024; // 10MB
   const encoder = new TextEncoder();
   const codeBytes = encoder.encode(code);
-  if (codeBytes.length > MAX_CODE_SIZE) {
+  if (codeBytes.length > constants.MAX_CODE_SIZE) {
     throw new ValidationError(
       'Code size exceeds maximum allowed size',
-      { field: 'code', maxSize: MAX_CODE_SIZE, actualSize: codeBytes.length },
+      { field: 'code', maxSize: constants.MAX_CODE_SIZE, actualSize: codeBytes.length },
     );
   }
 

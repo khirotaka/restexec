@@ -1,4 +1,4 @@
-import { assertStringIncludes } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { logger } from '../../src/utils/logger.ts';
 
 /**
@@ -32,19 +32,56 @@ Deno.test('Logger.error - should log message only', () => {
 
 Deno.test('Logger.error - should log message with Error object', () => {
   const testError = new Error('Test error occurred');
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
 
-  const output = captureConsoleError(() => {
-    logger.error('Failed to execute', testError);
-  });
+  try {
+    Deno.env.set('LOG_INCLUDE_STACK', 'true');
+    const output = captureConsoleError(() => {
+      logger.error('Failed to execute', testError);
+    });
 
-  // Message should include both the custom message and error message
-  assertStringIncludes(output, 'Failed to execute - Test error occurred');
-  assertStringIncludes(output, 'ERROR');
+    // Message should include both the custom message and error message
+    assertStringIncludes(output, 'Failed to execute - Test error occurred');
+    assertStringIncludes(output, 'ERROR');
 
-  // Should include error details in context
-  assertStringIncludes(output, '"name":"Error"');
-  assertStringIncludes(output, '"message":"Test error occurred"');
-  assertStringIncludes(output, '"stack"');
+    // Should include error details in context
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Test error occurred"');
+    assertStringIncludes(output, '"stack"');
+  } finally {
+    if (originalLogIncludeStack !== undefined) {
+      // 元の値が存在した場合は、元に戻す
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
+    } else {
+      // 元の値が存在しなかった場合は、削除する
+      Deno.env.delete('LOG_INCLUDE_STACK');
+    }
+  }
+});
+
+Deno.test('Logger.error - should NOT include stack trace by default (info level)', () => {
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
+  try {
+    // LOG_INCLUDE_STACKが設定されていないことを確認
+    Deno.env.delete('LOG_INCLUDE_STACK');
+
+    const testError = new Error('Test error occurred');
+    const output = captureConsoleError(() => {
+      logger.error('Failed to execute', testError);
+    });
+
+    // エラーメッセージは含まれるべき
+    assertStringIncludes(output, 'Failed to execute - Test error occurred');
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Test error occurred"');
+
+    // スタックトレースは含まれないべき
+    assertEquals(output.includes('"stack"'), false);
+  } finally {
+    if (originalLogIncludeStack !== undefined) {
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
+    }
+  }
 });
 
 Deno.test('Logger.error - should log message with context only', () => {
@@ -63,28 +100,39 @@ Deno.test('Logger.error - should log message with context only', () => {
 
 Deno.test('Logger.error - should log message with both Error and context', () => {
   const testError = new Error('Database connection failed');
+  const originalLogIncludeStack = Deno.env.get('LOG_INCLUDE_STACK');
+  try {
+    Deno.env.set('LOG_INCLUDE_STACK', 'true');
+    const output = captureConsoleError(() => {
+      logger.error(
+        'Database operation failed',
+        testError,
+        { requestId: 'req-456', operation: 'INSERT' },
+      );
+    });
 
-  const output = captureConsoleError(() => {
-    logger.error(
-      'Database operation failed',
-      testError,
-      { requestId: 'req-456', operation: 'INSERT' },
-    );
-  });
+    // Message should include both custom message and error message
+    assertStringIncludes(output, 'Database operation failed - Database connection failed');
+    assertStringIncludes(output, 'ERROR');
 
-  // Message should include both custom message and error message
-  assertStringIncludes(output, 'Database operation failed - Database connection failed');
-  assertStringIncludes(output, 'ERROR');
-
-  // Should include both error details and custom context
-  assertStringIncludes(output, '"name":"Error"');
-  assertStringIncludes(output, '"message":"Database connection failed"');
-  assertStringIncludes(output, '"stack"');
-  // Text format: requestId="req-456" or JSON format: "requestId":"req-456"
-  assertStringIncludes(output, 'requestId');
-  assertStringIncludes(output, 'req-456');
-  assertStringIncludes(output, 'operation');
-  assertStringIncludes(output, 'INSERT');
+    // Should include both error details and custom context
+    assertStringIncludes(output, '"name":"Error"');
+    assertStringIncludes(output, '"message":"Database connection failed"');
+    assertStringIncludes(output, '"stack"');
+    // Text format: requestId="req-456" or JSON format: "requestId":"req-456"
+    assertStringIncludes(output, 'requestId');
+    assertStringIncludes(output, 'req-456');
+    assertStringIncludes(output, 'operation');
+    assertStringIncludes(output, 'INSERT');
+  } finally {
+    if (originalLogIncludeStack !== undefined) {
+      // 元の値が存在した場合は、元に戻す
+      Deno.env.set('LOG_INCLUDE_STACK', originalLogIncludeStack);
+    } else {
+      // 元の値が存在しなかった場合は、削除する
+      Deno.env.delete('LOG_INCLUDE_STACK');
+    }
+  }
 });
 
 Deno.test('Logger.error - should preserve custom context when error is provided', () => {
