@@ -39,18 +39,14 @@ function buildDenoArgs(filePath: string, env?: Record<string, string>): string[]
     args.push('--allow-run');
   }
 
-  // システム環境変数（PATH, DENO_DIR）は常に許可
-  const systemEnvKeys = ['PATH', 'DENO_DIR'];
-  let envKeys = [...systemEnvKeys];
-
-  // ユーザー指定の環境変数を追加
+  // ユーザー指定の環境変数がある場合のみ --allow-env を付与（最小権限の原則）
   if (env && Object.keys(env).length > 0) {
-    envKeys = [...envKeys, ...Object.keys(env)];
+    // システム環境変数（PATH, DENO_DIR）は常に許可
+    const systemEnvKeys = ['PATH', 'DENO_DIR'];
+    const envKeys = [...new Set([...systemEnvKeys, ...Object.keys(env)])];
+    args.push(`--allow-env=${envKeys.join(',')}`);
   }
-
-  // 重複を削除して --allow-env に追加
-  envKeys = [...new Set(envKeys)];
-  args.push(`--allow-env=${envKeys.join(',')}`);
+  // 環境変数が不要な場合は --allow-env を付与しない（完全拒否）
 
   // Add the file to execute
   args.push(filePath);

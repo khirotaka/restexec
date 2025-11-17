@@ -427,14 +427,15 @@ Deno.test({
       await env.writeCode(
         'no-env-test',
         `
-      // 環境変数が許可されていない場合、アクセス時にエラーが発生する
+      // 環境変数を指定しない場合は --allow-env が付与されないため、
+      // Deno.env.get() を呼び出すと NotCapable エラーが発生する
       let apiKey;
       let hasApiKey = false;
       try {
         apiKey = Deno.env.get('API_KEY');
         hasApiKey = apiKey !== undefined;
       } catch (error) {
-        // NotCapable エラーの場合、環境変数へのアクセスが許可されていない
+        // 環境変数へのアクセスが拒否された（期待通りの動作）
         apiKey = undefined;
         hasApiKey = false;
       }
