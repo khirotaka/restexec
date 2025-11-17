@@ -6,6 +6,7 @@
 |-------|-----------|------|
 | `PORT` | 3000 | HTTPサーバーのリスニングポート |
 | `LOG_LEVEL` | info | ログレベル (DEBUG, INFO, WARN, ERROR) |
+| `LOG_INCLUDE_STACK` | false | エラーログにスタックトレースを含めるか (true/false)。LOG_LEVEL=debugの場合は自動的に有効 |
 
 ## 実行設定
 
