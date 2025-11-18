@@ -34,8 +34,8 @@ export function createApp(): Application {
     try {
       await next();
     } catch (err) {
-      const error = err as Error;
       const executionTime = Date.now() - ctx.state.startTime;
+      const error = err instanceof Error ? err : new Error(String(err));
 
       if (error instanceof RestExecError) {
         logger.warn(`Request failed with ${error.type}: ${error.message}`);

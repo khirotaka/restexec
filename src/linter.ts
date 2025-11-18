@@ -104,9 +104,10 @@ function parseLintOutput(
       };
     }
   } catch (error) {
-    logger.error(`Failed to parse lint JSON output: ${(error as Error).message}`);
+    const wrappedError = error instanceof Error ? error : new Error(String(error));
+    logger.error(`Failed to parse lint JSON output: ${wrappedError.message}`, wrappedError);
     throw new ExecutionError('Failed to parse lint output as JSON', {
-      error: (error as Error).message,
+      error: wrappedError.message,
       stdout: stdout.trim(),
       stderr: stderr.trim(),
     });
