@@ -2,6 +2,7 @@ import { Context } from '@oak/oak';
 import { config, constants } from '../config.ts';
 import { ValidationError } from '../utils/errors.ts';
 import type { ExecuteRequest, LintRequest, WorkspaceSaveRequest } from '../types/index.ts';
+import { FORBIDDEN_ENV_KEYS } from '../constants/security.ts';
 
 /**
  * Validates codeId field
@@ -96,20 +97,7 @@ function validateEnv(env: unknown): void {
     );
   }
 
-  // Reserved/forbidden environment variable names
-  const FORBIDDEN_ENV_KEYS = [
-    'PATH',
-    'DENO_DIR',
-    'HOME',
-    'USER',
-    'PWD',
-    'SHELL',
-    'HOSTNAME',
-    'TMPDIR',
-    'TEMP',
-    'TMP',
-  ];
-
+  // Check for reserved/forbidden environment variable names
   let totalSize = 0;
   const MAX_TOTAL_SIZE = 10 * 1024; // 10KB
 
@@ -123,7 +111,8 @@ function validateEnv(env: unknown): void {
     }
 
     // Check for forbidden keys
-    if (FORBIDDEN_ENV_KEYS.includes(key) || key.startsWith('DENO_')) {
+    const forbiddenKeys = FORBIDDEN_ENV_KEYS as readonly string[];
+    if (forbiddenKeys.includes(key) || key.startsWith('DENO_')) {
       throw new ValidationError(
         `env key "${key}" is forbidden`,
         { field: 'env', key, reason: 'reserved system variable' },

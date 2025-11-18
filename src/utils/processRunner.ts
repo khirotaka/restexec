@@ -2,6 +2,7 @@ import { logger } from './logger.ts';
 import { ExecutionError, TimeoutError } from './errors.ts';
 import { processManager } from './processManager.ts';
 import { constants } from '../config.ts';
+import { FORBIDDEN_ENV_KEYS } from '../constants/security.ts';
 
 const { MAX_BUFFER, SIGKILL_GRACE_PERIOD_MS } = constants;
 
@@ -61,12 +62,12 @@ export async function runProcess(
   // Merge environment variables: system defaults (PATH, DENO_DIR) + user-defined
   // System environment variables are protected and cannot be overridden by user input
   const allowedEnv: Record<string, string> = {};
-  const systemEnvKeys = ['PATH', 'DENO_DIR'];
 
-  // Add user-defined environment variables (excluding system keys)
+  // Add user-defined environment variables (excluding forbidden keys)
   if (env) {
+    const forbiddenKeys = FORBIDDEN_ENV_KEYS as readonly string[];
     const filteredEnv = Object.fromEntries(
-      Object.entries(env).filter(([key]) => !systemEnvKeys.includes(key)),
+      Object.entries(env).filter(([key]) => !forbiddenKeys.includes(key)),
     );
     Object.assign(allowedEnv, filteredEnv);
   }
