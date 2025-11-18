@@ -12,7 +12,7 @@
 
 // ===== Utility Libraries =====
 // Modern utility library with optimized performance
-export * from 'https://esm.sh/es-toolkit@1.41.0';
+export * from 'https://esm.sh/es-toolkit@1.42.0';
 
 // ===== Date/Time Libraries =====
 // Comprehensive date manipulation library
