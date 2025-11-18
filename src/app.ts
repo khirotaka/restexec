@@ -34,24 +34,24 @@ export function createApp(): Application {
     try {
       await next();
     } catch (err) {
-      const error = err as Error;
       const executionTime = Date.now() - ctx.state.startTime;
 
-      if (error instanceof RestExecError) {
-        logger.warn(`Request failed with ${error.type}: ${error.message}`);
-        ctx.response.status = error.statusCode;
+      if (err instanceof RestExecError) {
+        logger.warn(`Request failed with ${err.type}: ${err.message}`);
+        ctx.response.status = err.statusCode;
         ctx.response.body = {
           success: false,
           error: {
-            type: error.type,
-            message: error.message,
-            details: error.details,
+            type: err.type,
+            message: err.message,
+            details: err.details,
           },
           executionTime,
         } satisfies ApiResponse;
         return;
       }
 
+      const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Unhandled error', error);
       ctx.response.status = 500;
       ctx.response.body = {

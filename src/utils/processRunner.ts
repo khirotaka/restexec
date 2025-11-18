@@ -237,10 +237,11 @@ export async function runProcess(
           }
 
           isSettled = true;
-          logger.error(`Process error for ${codeId}:`, error as Error);
+          const processError = error instanceof Error ? error : new Error(String(error));
+          logger.error(`Process error for ${codeId}:`, processError);
           reject(
-            new ExecutionError(`Failed to execute process: ${(error as Error).message}`, {
-              error: (error as Error).message,
+            new ExecutionError(`Failed to execute process: ${processError.message}`, {
+              error: processError.message,
             }),
           );
         }
