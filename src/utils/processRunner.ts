@@ -133,7 +133,8 @@ export async function runProcess(
         }
       })().catch((error) => {
         // Stream reading errors should not crash the process
-        logger.warn(`Error reading stdout for ${codeId}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.warn(`Error reading stdout for ${codeId}: ${errorMessage}`);
       });
 
       // Read stderr with buffer limit enforcement
@@ -164,7 +165,8 @@ export async function runProcess(
         }
       })().catch((error) => {
         // Stream reading errors should not crash the process
-        logger.warn(`Error reading stderr for ${codeId}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.warn(`Error reading stderr for ${codeId}: ${errorMessage}`);
       });
 
       // Set up timeout with SIGTERM → SIGKILL escalation
@@ -237,11 +239,11 @@ export async function runProcess(
           }
 
           isSettled = true;
-          const processError = error instanceof Error ? error : new Error(String(error));
-          logger.error(`Process error for ${codeId}:`, processError);
+          const normalizedError = error instanceof Error ? error : new Error(String(error));
+          logger.error(`Process error for ${codeId}:`, normalizedError);
           reject(
-            new ExecutionError(`Failed to execute process: ${processError.message}`, {
-              error: processError.message,
+            new ExecutionError(`Failed to execute process: ${normalizedError.message}`, {
+              error: normalizedError.message,
             }),
           );
         }

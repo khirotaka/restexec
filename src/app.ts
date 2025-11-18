@@ -35,23 +35,23 @@ export function createApp(): Application {
       await next();
     } catch (err) {
       const executionTime = Date.now() - ctx.state.startTime;
+      const error = err instanceof Error ? err : new Error(String(err));
 
-      if (err instanceof RestExecError) {
-        logger.warn(`Request failed with ${err.type}: ${err.message}`);
-        ctx.response.status = err.statusCode;
+      if (error instanceof RestExecError) {
+        logger.warn(`Request failed with ${error.type}: ${error.message}`);
+        ctx.response.status = error.statusCode;
         ctx.response.body = {
           success: false,
           error: {
-            type: err.type,
-            message: err.message,
-            details: err.details,
+            type: error.type,
+            message: error.message,
+            details: error.details,
           },
           executionTime,
         } satisfies ApiResponse;
         return;
       }
 
-      const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Unhandled error', error);
       ctx.response.status = 500;
       ctx.response.body = {
