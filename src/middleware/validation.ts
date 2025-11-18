@@ -9,8 +9,6 @@ import { FORBIDDEN_ENV_KEYS } from '../constants/security.ts';
  * @param codeId - The code identifier to validate
  * @param options - Optional validation options
  * @throws {ValidationError} If validation fails
- * @param options - Optional validation options
- * @throws {ValidationError} If validation fails
  */
 function validateCodeId(codeId: unknown, options?: { maxLength?: number }): void {
   // Validate codeId presence
@@ -50,7 +48,6 @@ function validateCodeId(codeId: unknown, options?: { maxLength?: number }): void
 
 /**
  * Validates timeout field
- * @param timeout - The timeout value to validate (optional)
  * @param timeout - The timeout value to validate (optional)
  * @throws {ValidationError} If validation fails
  */
