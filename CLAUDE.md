@@ -176,7 +176,7 @@ curl -X POST http://localhost:3000/execute \
 - **Key format**: Uppercase letters, numbers, underscores only (`/^[A-Z0-9_]+$/`)
 - **Max count**: 50 variables
 - **Max size**: 10KB total (all keys and values)
-- **Forbidden keys**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `DENO_*`
+- **Forbidden keys**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `HOSTNAME`, `TMPDIR`, `TEMP`, `TMP`, `DENO_*`
 
 **Security Constraints**:
 - ✅ Read from `/workspace` and `/tools`
