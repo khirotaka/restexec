@@ -2,6 +2,7 @@ import { logger } from './logger.ts';
 import { ExecutionError, TimeoutError } from './errors.ts';
 import { processManager } from './processManager.ts';
 import { constants } from '../config.ts';
+import { FORBIDDEN_ENV_KEYS } from '../constants/security.ts';
 
 const { MAX_BUFFER, SIGKILL_GRACE_PERIOD_MS } = constants;
 
@@ -24,8 +25,14 @@ export interface ProcessRunOptions {
   codeId: string;
   /** Timeout in milliseconds */
   timeout: number;
-  /** Deno command to execute */
-  command: Deno.Command;
+  /** Command executable path */
+  cmd: string;
+  /** Command arguments */
+  args: string[];
+  /** Working directory */
+  cwd?: string;
+  /** User-defined environment variables (merged with system defaults) */
+  env?: Record<string, string>;
   /** Optional context for logging (e.g., "Executing", "Linting") */
   logContext?: string;
 }
@@ -49,8 +56,37 @@ export interface ProcessRunOptions {
 export async function runProcess(
   options: ProcessRunOptions,
 ): Promise<ProcessResult> {
-  const { codeId, timeout, command, logContext = 'Executing' } = options;
+  const { codeId, timeout, cmd, args, cwd, env, logContext = 'Executing' } = options;
   const startTime = Date.now();
+
+  // Merge environment variables: system defaults (PATH, DENO_DIR) + user-defined
+  // System environment variables are protected and cannot be overridden by user input
+  const allowedEnv: Record<string, string> = {};
+
+  // Add user-defined environment variables (excluding forbidden keys)
+  if (env) {
+    const forbiddenKeys = FORBIDDEN_ENV_KEYS as readonly string[];
+    const filteredEnv = Object.fromEntries(
+      Object.entries(env).filter(([key]) => !forbiddenKeys.includes(key)),
+    );
+    Object.assign(allowedEnv, filteredEnv);
+  }
+
+  // Add system environment variables (protected from user override)
+  const path = Deno.env.get('PATH');
+  const denoDir = Deno.env.get('DENO_DIR');
+  if (path) allowedEnv.PATH = path;
+  if (denoDir) allowedEnv.DENO_DIR = denoDir;
+
+  // Create Deno command with merged environment
+  const command = new Deno.Command(cmd, {
+    args,
+    cwd,
+    env: allowedEnv,
+    stdout: 'piped',
+    stderr: 'piped',
+    stdin: 'null',
+  });
 
   // Increment active process count
   processManager.increment();
