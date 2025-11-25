@@ -20,7 +20,7 @@ export * from 'https://esm.sh/date-fns@4.1.0';
 
 // ===== Validation Libraries =====
 // TypeScript-first schema validation
-export * from 'https://esm.sh/zod@4.1.12';
+export * from 'https://esm.sh/zod@4.1.13';
 
 // ===== Data Processing =====
 // CSV parser and writer
