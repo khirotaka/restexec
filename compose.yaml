@@ -1,7 +1,7 @@
 services:
   restexec:
     build:
-      context: .
+      context: ./services/restexec
       dockerfile: Dockerfile
     container_name: restexec
     ports:
@@ -27,8 +27,8 @@ services:
       - ./example/tools:/tools
       # For development: mount source code to enable changes without rebuilding
       # Uncomment the following lines for development mode
-      # - ./src:/app/src:ro
-      # - ./deno.json:/app/deno.json:ro
+      # - ./services/restexec/src:/app/src:ro
+      # - ./services/restexec/deno.json:/app/deno.json:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]

@@ -58,50 +58,54 @@ graph TB
     style Tools fill:#f0f0f0
 ```
 
-## ディレクトリ構造
+## プロジェクト構成
+
+このプロジェクトは **モノレポ構成** を採用しており、複数のサービスを含んでいます。
 
 ```
 restexec/
-├── src/                       # ソースコード
-│   ├── app.ts                 # Oak アプリケーション設定
-│   ├── index.ts               # エントリーポイント
-│   ├── config.ts              # 設定管理
-│   ├── executor.ts            # コード実行エンジン
-│   ├── middleware/
-│   │   └── validation.ts      # リクエストバリデーション
-│   ├── routes/
-│   │   ├── execute.ts         # 実行エンドポイント
-│   │   └── health.ts          # ヘルスチェックエンドポイント
-│   ├── types/
-│   │   └── index.ts           # 型定義
-│   └── utils/
-│       ├── logger.ts          # ロガー
-│       └── errors.ts          # カスタムエラークラス
-├── tests/                     # テストスイート
-│   ├── unit/
-│   │   └── executor.test.ts   # Executor ユニットテスト
-│   └── fixtures/
-│       ├── success.ts         # テスト用の成功コード
-│       ├── error.ts           # テスト用のエラーコード
-│       └── timeout.ts         # テスト用のタイムアウトコード
+├── services/                  # サービスディレクトリ
+│   ├── restexec/              # メインのコード実行サービス
+│   │   ├── src/               # ソースコード
+│   │   │   ├── app.ts         # Oak アプリケーション設定
+│   │   │   ├── index.ts       # エントリーポイント
+│   │   │   ├── config.ts      # 設定管理
+│   │   │   ├── executor.ts    # コード実行エンジン
+│   │   │   ├── middleware/
+│   │   │   ├── routes/
+│   │   │   ├── types/
+│   │   │   └── utils/
+│   │   ├── tests/             # テストスイート
+│   │   ├── deps.ts            # 外部ライブラリ依存関係
+│   │   ├── Dockerfile         # Docker イメージ定義
+│   │   ├── deno.json          # Deno 設定
+│   │   └── import_map.json    # Import マップ
+│   └── mcp-gateway/           # MCP Gateway サービス（開発中）
+│       ├── src/
+│       │   ├── main.ts
+│       │   ├── mcp/
+│       │   ├── routes/
+│       │   └── utils/
+│       └── tests/
 ├── example/                   # サンプルコードとユーティリティ
 │   ├── workspace/             # 実行可能スクリプト
 │   │   ├── hello-world.ts
 │   │   ├── with-import.ts
 │   │   └── async-example.ts
 │   └── tools/                 # 共有ユーティリティライブラリ
-│       ├── math.ts
-│       └── string.ts
+│       ├── utils/
+│       │   ├── math.ts
+│       │   └── string.ts
+│       └── mcp/               # MCP クライアントラッパー（開発中）
 ├── specs/                     # 仕様書
 │   ├── API.md
 │   ├── SystemArchitecture.md
 │   ├── Security.md
 │   ├── Libraries.md           # ライブラリ追加ガイド
 │   └── ...
-├── deps.ts                    # 外部ライブラリ依存関係
-├── Dockerfile                 # Docker イメージ定義
+├── docs/                      # ドキュメント
 ├── compose.yaml               # Docker Compose 設定
-├── deno.json                  # Deno 設定
+├── deno.json                  # Workspace 設定
 ├── CLAUDE.md                  # AI アシスタント向けガイド
 ├── DOCKER.md                  # Docker ドキュメント
 └── README.md
