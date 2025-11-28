@@ -21,6 +21,13 @@
       "semanticCommitType": "chore",
       "semanticCommitScope": "docker",
       "commitMessageTopic": "Deno runtime"
+    },
+    {
+      "description": "Deno dependencies in restexec service",
+      "matchFileNames": ["services/restexec/deno.json", "services/restexec/deps.ts"],
+      "groupName": "restexec dependencies",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "restexec"
     }
   ],
   "prConcurrentLimit": 5,
