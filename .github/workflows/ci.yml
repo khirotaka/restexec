@@ -65,14 +65,7 @@ jobs:
           mkdir -p /tmp/restexec-test-workspace
           mkdir -p /tmp/restexec-test-tools
 
-      - name: Run tests
-        run: deno task test
-        env:
-          DENO_PATH: deno
-          WORKSPACE_DIR: /tmp/restexec-test-workspace
-          TOOLS_DIR: /tmp/restexec-test-tools
-
-      - name: Generate coverage report
+      - name: Run tests & Generate coverage report
         run: deno test --coverage=coverage --allow-read --allow-write --allow-net --allow-env --allow-run
         env:
           DENO_PATH: deno
@@ -80,6 +73,7 @@ jobs:
           TOOLS_DIR: /tmp/restexec-test-tools
 
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@v5
         with:
           name: coverage-report
