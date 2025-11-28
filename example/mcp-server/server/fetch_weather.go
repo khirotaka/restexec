@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -79,7 +80,23 @@ func (s *MCPServer) fetchWeatherHandler(ctx context.Context, _ *mcp.CallToolRequ
 		}, FetchWeatherOutput{}, nil
 	}
 	address := fmt.Sprintf("%s?lat=%f&lon=%f&appid=%s&units=metric", openWeatherMapURL, cityLat, cityLon, apiKey)
-	resp, err := http.Get(address)
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", address, nil)
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: "failed to create request: " + err.Error(),
+				},
+			},
+		}, FetchWeatherOutput{}, nil
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
