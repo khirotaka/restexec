@@ -92,6 +92,17 @@ func (s *MCPServer) fetchWeatherHandler(ctx context.Context, _ *mcp.CallToolRequ
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("weather API returned status: %d", resp.StatusCode),
+				},
+			},
+		}, FetchWeatherOutput{}, nil
+	}
+
 	var weatherData OpenWeatherMapResponse
 	if err := json.NewDecoder(resp.Body).Decode(&weatherData); err != nil {
 		return &mcp.CallToolResult{
