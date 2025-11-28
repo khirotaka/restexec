@@ -93,7 +93,7 @@ restexec/                   # Project root (monorepo)
 - Testing untrusted code
 - LLM-powered code generation/execution
 
-**Full details**: [README.md](README.md), [specs/SystemArchitecture.md](specs/SystemArchitecture.md)
+**Full details**: [services/restexec/README.md](services/restexec/README.md), [services/restexec/specs/API.md](services/restexec/specs/API.md)
 
 ---
 
@@ -199,7 +199,7 @@ curl -X POST http://localhost:3000/execute \
 - ⏱️ Default timeout: 5 seconds
 - 🔐 Environment variables are process-isolated and temporary
 
-**Complete guide**: [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
+**Complete guide**: [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
 
 ---
 
@@ -238,7 +238,7 @@ curl -X POST http://localhost:3000/execute \
 
 **Recommended libraries**: es-toolkit, date-fns, zod, lodash-es, mathjs
 
-**Complete guide**: [specs/Libraries.md](specs/Libraries.md)
+**Complete guide**: [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
 
 ---
 
@@ -281,7 +281,7 @@ curl -X POST http://localhost:3000/execute \
 PUT /workspace → (POST /lint) → POST /execute
 ```
 
-**Complete specs**: [specs/API.md](specs/API.md), [specs/LintAPI.md](specs/LintAPI.md), [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md)
+**Complete specs**: [services/restexec/specs/API.md](services/restexec/specs/API.md), [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md), [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md)
 
 ---
 
@@ -319,7 +319,7 @@ WORKSPACE_DIR=/tmp/restexec-workspace deno task test
 deno test --allow-read --allow-write --allow-net --allow-env --allow-run services/restexec/tests/integration/workspace.test.ts
 ```
 
-**Complete guide**: [specs/Test.md](specs/Test.md)
+**Complete guide**: [services/restexec/specs/Test.md](services/restexec/specs/Test.md)
 
 ---
 
@@ -382,7 +382,7 @@ docker compose up -d
 2. Ensure code only accesses `/workspace` and `/tools`
 3. Configure permissions via environment variables if needed
 
-**Details**: [specs/Security.md](specs/Security.md)
+**Details**: [services/restexec/specs/Security.md](services/restexec/specs/Security.md)
 
 ---
 
@@ -452,7 +452,7 @@ export TOOLS_DIR=/tmp/restexec-tools
 deno task test
 ```
 
-**See**: Line 78-87 in [tests/integration/workspace.test.ts](tests/integration/workspace.test.ts)
+**See**: Line 78-87 in [services/restexec/tests/integration/workspace.test.ts](services/restexec/tests/integration/workspace.test.ts)
 
 ---
 
@@ -484,43 +484,43 @@ cat compose.yaml
 ### Essential Documentation
 
 **For Development**:
-- [docs/workspace-code-guide.md](docs/workspace-code-guide.md) - Complete guide to writing workspace code
-- [specs/Security.md](specs/Security.md) - Security model and permissions
-- [specs/Libraries.md](specs/Libraries.md) - External library management
+- [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md) - Complete guide to writing workspace code
+- [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model and permissions
+- [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md) - External library management
 
 **API Specifications**:
-- [specs/API.md](specs/API.md) - POST /execute endpoint
-- [specs/LintAPI.md](specs/LintAPI.md) - POST /lint endpoint
-- [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
+- [services/restexec/specs/API.md](services/restexec/specs/API.md) - POST /execute endpoint
+- [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md) - POST /lint endpoint
+- [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
 
 **Architecture**:
-- [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - System design
-- [specs/Sequence.md](specs/Sequence.md) - Execution flow diagrams
-- [specs/CodeExecution.md](specs/CodeExecution.md) - Execution details
+- [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - System design
+- [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow diagrams
+- [services/restexec/specs/CodeExecution.md](services/restexec/specs/CodeExecution.md) - Execution details
 
 **Operations**:
-- [README.md](README.md) - Quick start guide
-- [DOCKER.md](DOCKER.md) - Docker setup
-- [specs/Deployment.md](specs/Deployment.md) - Deployment guide
-- [specs/Configuration.md](specs/Configuration.md) - Environment variables
-- [specs/Test.md](specs/Test.md) - Testing strategy
+- [services/restexec/README.md](services/restexec/README.md) - Quick start guide
+- [services/restexec/DOCKER.md](services/restexec/DOCKER.md) - Docker setup
+- [services/restexec/specs/Deployment.md](services/restexec/specs/Deployment.md) - Deployment guide
+- [services/restexec/specs/Configuration.md](services/restexec/specs/Configuration.md) - Environment variables
+- [services/restexec/specs/Test.md](services/restexec/specs/Test.md) - Testing strategy
 
 **Other Specs**:
-- [specs/FileSystem.md](specs/FileSystem.md) - File system structure
-- [specs/Logging.md](specs/Logging.md) - Logging configuration
-- [specs/Performance.md](specs/Performance.md) - Performance benchmarks
-- [specs/Regulation.md](specs/Regulation.md) - Execution regulations
+- [services/restexec/specs/FileSystem.md](services/restexec/specs/FileSystem.md) - File system structure
+- [services/restexec/specs/Logging.md](services/restexec/specs/Logging.md) - Logging configuration
+- [services/restexec/specs/Performance.md](services/restexec/specs/Performance.md) - Performance benchmarks
+- [services/restexec/specs/Regulation.md](services/restexec/specs/Regulation.md) - Execution regulations
 
 ### Working Examples
 
 **Code Examples**:
-- [example/workspace/hello-world.ts](example/workspace/hello-world.ts) - Simple example
-- [example/workspace/with-import.ts](example/workspace/with-import.ts) - Import example
-- [example/workspace/async-example.ts](example/workspace/async-example.ts) - Async example
+- [services/restexec/example/workspace/hello-world.ts](services/restexec/example/workspace/hello-world.ts) - Simple example
+- [services/restexec/example/workspace/with-import.ts](services/restexec/example/workspace/with-import.ts) - Import example
+- [services/restexec/example/workspace/async-example.ts](services/restexec/example/workspace/async-example.ts) - Async example
 
 **Utility Examples**:
-- [example/tools/utils/math.ts](example/tools/utils/math.ts) - Math utilities
-- [example/tools/utils/string.ts](example/tools/utils/string.ts) - String utilities
+- [services/restexec/example/tools/utils/math.ts](services/restexec/example/tools/utils/math.ts) - Math utilities
+- [services/restexec/example/tools/utils/string.ts](services/restexec/example/tools/utils/string.ts) - String utilities
 
 ---
 
@@ -535,18 +535,18 @@ cat compose.yaml
 
 ### When User Asks About...
 
-- **"How do I write code?"** → Use template + link to [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
-- **"How do I add a library?"** → 4-step process + link to [specs/Libraries.md](specs/Libraries.md)
-- **"What APIs are available?"** → Quick reference + link to [specs/API.md](specs/API.md)
+- **"How do I write code?"** → Use template + link to [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
+- **"How do I add a library?"** → 4-step process + link to [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
+- **"What APIs are available?"** → Quick reference + link to [services/restexec/specs/API.md](services/restexec/specs/API.md)
 - **"Why is my code not working?"** → Check [Troubleshooting](#-troubleshooting) section
 - **"How do I run tests?"** → See [Task: Run Tests](#task-run-tests) section
 
 ### Architecture Questions
 
 For detailed architecture questions, read:
-1. [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - High-level design
-2. [specs/Sequence.md](specs/Sequence.md) - Execution flow
-3. [specs/Security.md](specs/Security.md) - Security model
+1. [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - High-level design
+2. [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow
+3. [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model
 4. Relevant source files in `services/restexec/src/`
 
 ---
@@ -707,4 +707,4 @@ deno fmt services/restexec/src/ services/restexec/tests/
 
 *This is a navigation guide. For complete information, see the linked documentation files.*
 
-*Last updated: 2025-11-14*
+*Last updated: 2025-11-28*
