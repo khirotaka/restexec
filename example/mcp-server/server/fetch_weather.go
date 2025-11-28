@@ -62,8 +62,8 @@ func (s *MCPServer) fetchWeatherHandler(ctx context.Context, _ *mcp.CallToolRequ
 		cityLat = 34.7024854
 		cityLon = 135.4959506
 	case "fukuoka":
-		cityLat = 36.708294
-		cityLon = 136.9320372
+		cityLat = 33.5904
+		cityLon = 130.4017
 	}
 
 	// Open Weather Map にリクエストを投げる
