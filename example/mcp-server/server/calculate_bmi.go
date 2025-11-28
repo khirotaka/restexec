@@ -16,6 +16,16 @@ type CalculateBMIOutput struct {
 }
 
 func (s *MCPServer) calculateBMIHandler(ctx context.Context, _ *mcp.CallToolRequest, input *CalculateBMIInput) (*mcp.CallToolResult, CalculateBMIOutput, error) {
+	if input.HeightM <= 0 || input.WeightKg <= 0 {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: "Invalid input: height and weight must be positive values",
+				},
+			},
+		}, CalculateBMIOutput{}, nil
+	}
 	output := CalculateBMIOutput{
 		Result: input.WeightKg / (input.HeightM * input.HeightM),
 	}
