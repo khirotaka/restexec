@@ -6,12 +6,9 @@
   "tasks": {
     "test": "deno test --allow-read --allow-write --allow-net --allow-env --allow-run --coverage",
     "test:restexec": "cd services/restexec && WORKSPACE_DIR=/tmp/restexec-workspace deno task test",
-    "test:mcp-gateway": "cd services/mcp-gateway && deno task test",
     "lint": "deno lint",
     "lint:restexec": "cd services/restexec && deno lint",
-    "lint:mcp-gateway": "cd services/mcp-gateway && deno lint",
     "fmt": "deno fmt",
-    "fmt:restexec": "cd services/restexec && deno fmt",
-    "fmt:mcp-gateway": "cd services/mcp-gateway && deno fmt"
+    "fmt:restexec": "cd services/restexec && deno fmt"
   }
 }

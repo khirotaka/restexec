@@ -1,3 +1,5 @@
+import { join } from '@std/path';
+
 /**
  * Parse comma-separated environment variable into array
  */
@@ -27,10 +29,14 @@ export const constants = {
   MAX_CODE_SIZE: 10 * 1024 * 1024, // 10MB
 } as const;
 
+const workspaceDir = Deno.env.get('WORKSPACE_DIR') || join(Deno.cwd(), 'workspace');
+const toolsDir = Deno.env.get('TOOLS_DIR') || join(Deno.cwd(), 'tools');
+const importMap = Deno.env.get('DENO_IMPORT_MAP') || join(workspaceDir, 'import_map.json');
+
 export const config = {
   port: parseInt(Deno.env.get('PORT') || '3000', 10),
-  workspaceDir: Deno.env.get('WORKSPACE_DIR') || '/workspace',
-  toolsDir: Deno.env.get('TOOLS_DIR') || '/tools',
+  workspaceDir,
+  toolsDir,
   defaultTimeout: parseInt(Deno.env.get('DEFAULT_TIMEOUT') || '5000', 10),
   maxTimeout: parseInt(Deno.env.get('MAX_TIMEOUT') || '300000', 10),
   logLevel: Deno.env.get('LOG_LEVEL') || 'info',
@@ -39,9 +45,9 @@ export const config = {
   // Deno runtime configuration
   deno: {
     path: Deno.env.get('DENO_PATH') || 'deno',
-    importMap: Deno.env.get('DENO_IMPORT_MAP') || '/workspace/import_map.json',
+    importMap,
     permissions: {
-      allowRead: parseArrayEnv(Deno.env.get('DENO_ALLOW_READ'), ['/workspace', '/tools']),
+      allowRead: parseArrayEnv(Deno.env.get('DENO_ALLOW_READ'), [workspaceDir, toolsDir]),
       allowWrite: parseArrayEnv(Deno.env.get('DENO_ALLOW_WRITE'), []),
       allowNet: parseArrayEnv(Deno.env.get('DENO_ALLOW_NET'), []),
       allowRun: parseBooleanEnv(Deno.env.get('DENO_ALLOW_RUN'), false),

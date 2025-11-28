@@ -29,6 +29,8 @@ router.put('/workspace', validateWorkspaceSaveRequest, async (ctx) => {
     // Construct file path
     const fileName = `${codeId}.ts`;
     const filePath = join(config.workspaceDir, fileName);
+    // Ensure workspace directory exists
+    await Deno.mkdir(config.workspaceDir, { recursive: true });
 
     // Write to temporary file first for atomicity
     const tempFilePath = `${filePath}.tmp`;

@@ -19,7 +19,7 @@ on:
       - 'LICENSE'
 
 jobs:
-  lint-and-typecheck:
+  lint-and-typecheck-restexec:
     name: Lint and Type Check
     runs-on: ubuntu-latest
 
@@ -33,18 +33,18 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        run: deno cache src/index.ts
+        run: deno cache services/restexec/src/index.ts
 
       - name: Lint
-        run: deno lint src/ tests/
+        run: deno lint services/restexec/src/ services/restexec/tests/
 
       - name: Format check
-        run: deno fmt --check src/ tests/
+        run: deno fmt --check services/restexec/src/ services/restexec/tests/
 
       - name: Type check
-        run: deno check src/index.ts
+        run: deno check services/restexec/src/index.ts
 
-  test:
+  test-restexec:
     name: Test
     runs-on: ubuntu-latest
 
@@ -58,7 +58,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        run: deno cache src/index.ts
+        run: deno cache services/restexec/src/index.ts
 
       - name: Create test directories
         run: |

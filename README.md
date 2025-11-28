@@ -65,38 +65,31 @@ graph TB
 ```
 restexec/
 ├── services/                  # サービスディレクトリ
-│   ├── restexec/              # メインのコード実行サービス
-│   │   ├── src/               # ソースコード
-│   │   │   ├── app.ts         # Oak アプリケーション設定
-│   │   │   ├── index.ts       # エントリーポイント
-│   │   │   ├── config.ts      # 設定管理
-│   │   │   ├── executor.ts    # コード実行エンジン
-│   │   │   ├── middleware/
-│   │   │   ├── routes/
-│   │   │   ├── types/
-│   │   │   └── utils/
-│   │   ├── tests/             # テストスイート
-│   │   ├── deps.ts            # 外部ライブラリ依存関係
-│   │   ├── Dockerfile         # Docker イメージ定義
-│   │   ├── deno.json          # Deno 設定
-│   │   └── import_map.json    # Import マップ
-│   └── mcp-gateway/           # MCP Gateway サービス（開発中）
-│       ├── src/
-│       │   ├── main.ts
-│       │   ├── mcp/
+│   └── restexec/              # メインのコード実行サービス
+│       ├── src/               # ソースコード
+│       │   ├── app.ts         # Oak アプリケーション設定
+│       │   ├── index.ts       # エントリーポイント
+│       │   ├── config.ts      # 設定管理
+│       │   ├── executor.ts    # コード実行エンジン
+│       │   ├── middleware/
 │       │   ├── routes/
+│       │   ├── types/
 │       │   └── utils/
-│       └── tests/
+│       ├── tests/             # テストスイート
+│       ├── deps.ts            # 外部ライブラリ依存関係
+│       ├── Dockerfile         # Docker イメージ定義
+│       ├── deno.json          # Deno 設定
+│       └── import_map.json    # Import マップ
 ├── example/                   # サンプルコードとユーティリティ
 │   ├── workspace/             # 実行可能スクリプト
 │   │   ├── hello-world.ts
 │   │   ├── with-import.ts
 │   │   └── async-example.ts
 │   └── tools/                 # 共有ユーティリティライブラリ
-│       ├── utils/
-│       │   ├── math.ts
-│       │   └── string.ts
-│       └── mcp/               # MCP クライアントラッパー（開発中）
+│       └── utils/
+│           ├── math.ts
+│           └── string.ts
+│       
 ├── specs/                     # 仕様書
 │   ├── API.md
 │   ├── SystemArchitecture.md
