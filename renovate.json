@@ -24,7 +24,7 @@
     },
     {
       "description": "Deno dependencies in restexec service",
-      "matchFileNames": ["services/restexec/deno.json", "services/restexec/deps.ts"],
+      "matchFileNames": ["services/restexec/deno.json", "services/restexec/deps.ts", "services/restexec/import_map.json"],
       "groupName": "restexec dependencies",
       "semanticCommitType": "chore",
       "semanticCommitScope": "restexec"
