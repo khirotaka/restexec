@@ -32,7 +32,7 @@ This allows developers to interact with Claude in their preferred language for b
 
 **This is a navigation guide and quick reference.**
 
-For complete specifications, always refer to the detailed documentation in `docs/` and `specs/`. This document provides:
+For complete specifications, always refer to the detailed documentation in `services/restexec/docs/` and `services/restexec/specs/`. This document provides:
 
 - **Quick summaries** of core concepts
 - **Minimal templates** for common tasks
@@ -45,7 +45,22 @@ When you need detailed information, read the linked documentation files.
 
 ## 🎯 Project Overview
 
-**restexec** is a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+This repository is a **monorepo** containing the **restexec** service, a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+
+### Monorepo Structure
+
+```
+restexec/                   # Project root (monorepo)
+├── services/
+│   └── restexec/          # restexec service
+│       ├── src/
+│       ├── tests/
+│       ├── specs/
+│       └── ...
+├── .github/               # CI/CD configuration (monorepo-wide)
+├── .claude/               # Claude Code configuration (monorepo-wide)
+└── compose.yaml           # Docker Compose configuration (monorepo-wide)
+```
 
 ### Three Core Concepts
 
@@ -301,7 +316,7 @@ WORKSPACE_DIR=/tmp/restexec-workspace deno task test
 
 **Run specific test file**:
 ```bash
-deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/integration/workspace.test.ts
+deno test --allow-read --allow-write --allow-net --allow-env --allow-run services/restexec/tests/integration/workspace.test.ts
 ```
 
 **Complete guide**: [specs/Test.md](specs/Test.md)
@@ -423,7 +438,7 @@ docker compose run --rm restexec deno task test
 ```
 
 **Why this happens**:
-- Integration tests (e.g., `tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
+- Integration tests (e.g., `services/restexec/tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
 - Default is `/workspace` (configured for Docker)
 - Local machines may not have this directory or permissions
 
@@ -532,7 +547,7 @@ For detailed architecture questions, read:
 1. [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - High-level design
 2. [specs/Sequence.md](specs/Sequence.md) - Execution flow
 3. [specs/Security.md](specs/Security.md) - Security model
-4. Relevant source files in `src/`
+4. Relevant source files in `services/restexec/src/`
 
 ---
 
@@ -549,7 +564,7 @@ This project includes specialized sub-agents that proactively assist with specif
 **Automatic Triggers**:
 - API changes in `routes/`
 - Parameter additions in `middleware/validation.ts`
-- Core logic modifications in `src/utils/`
+- Core logic modifications in `services/restexec/src/utils/`
 
 **Manual Invocation**:
 ```
@@ -558,7 +573,7 @@ doc-sync-checker エージェントで最近の変更を確認して
 
 **What it does**:
 - Analyzes `git diff` to identify changed files
-- Maps changes to relevant spec files (specs/API.md, specs/Security.md, etc.)
+- Maps changes to relevant spec files (specs/API.md, services/restexec/specs/Security.md, etc.)
 - Detects discrepancies between code and documentation
 - Provides concrete update proposals with line numbers
 - Prioritizes updates (Critical/Medium/Low)
@@ -577,9 +592,9 @@ doc-sync-checker エージェントで最近の変更を確認して
 
 **Automatic Triggers**:
 - Dockerfile or compose.yaml changes
-- Execution logic modifications in `src/utils/executor.ts`
+- Execution logic modifications in `services/restexec/src/utils/executor.ts`
 - Dependency additions/updates in `deps.ts`
-- Configuration changes in `src/config.ts`
+- Configuration changes in `services/restexec/src/config.ts`
 
 **Manual Invocation**:
 ```
@@ -591,7 +606,7 @@ security-auditor エージェントでセキュリティ監査をして
 - Scans for OWASP Top 10 vulnerabilities (injection, XSS, path traversal, etc.)
 - Checks dependency security (version pinning, trusted CDNs)
 - Validates execution limits (timeout, buffer size, file size)
-- Ensures consistency with specs/Security.md
+- Ensures consistency with services/restexec/specs/Security.md
 - Provides CVSS-based risk scores
 
 **Example Use Cases**:
@@ -655,10 +670,10 @@ To modify agent behavior, edit these Markdown files (YAML frontmatter + system p
 Run these checks before committing any changes:
 ```bash
 # Lint code
-deno lint src/ tests/
+deno lint services/restexec/src/ services/restexec/tests/
 
 # Check formatting
-deno fmt --check src/ tests/
+deno fmt --check services/restexec/src/ services/restexec/tests/
 
 # Run all tests
 deno task test
@@ -668,12 +683,12 @@ All checks must pass without errors or warnings.
 
 **Auto-fix formatting issues**:
 ```bash
-deno fmt src/ tests/
+deno fmt services/restexec/src/ services/restexec/tests/
 ```
 
 ### For New Features
 
-1. Read relevant specs in `specs/`
+1. Read relevant specs in `services/restexec/specs/`
 2. Update specifications if needed
 3. Implement with error handling
 4. Add comprehensive tests
