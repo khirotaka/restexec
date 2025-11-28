@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'specs/**'
+      - 'services/restexec/specs/**'
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
@@ -13,7 +13,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'specs/**'
+      - 'services/restexec/specs/**'
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
@@ -22,6 +22,9 @@ jobs:
   lint-and-typecheck:
     name: Lint and Type Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/restexec
 
     steps:
       - name: Checkout code
@@ -47,6 +50,9 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/restexec
 
     steps:
       - name: Checkout code
@@ -77,6 +83,6 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: coverage-report
-          path: coverage/
+          path: services/restexec/coverage/
           retention-days: 7
           if-no-files-found: ignore

@@ -32,7 +32,7 @@ This allows developers to interact with Claude in their preferred language for b
 
 **This is a navigation guide and quick reference.**
 
-For complete specifications, always refer to the detailed documentation in `docs/` and `specs/`. This document provides:
+For complete specifications, always refer to the detailed documentation in `services/restexec/docs/` and `services/restexec/specs/`. This document provides:
 
 - **Quick summaries** of core concepts
 - **Minimal templates** for common tasks
@@ -45,7 +45,22 @@ When you need detailed information, read the linked documentation files.
 
 ## 🎯 Project Overview
 
-**restexec** is a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+This repository is a **monorepo** containing the **restexec** service, a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+
+### Monorepo Structure
+
+```
+restexec/                   # Project root (monorepo)
+├── services/
+│   └── restexec/          # restexec service
+│       ├── src/
+│       ├── tests/
+│       ├── specs/
+│       └── ...
+├── .github/               # CI/CD configuration (monorepo-wide)
+├── .claude/               # Claude Code configuration (monorepo-wide)
+└── compose.yaml           # Docker Compose configuration (monorepo-wide)
+```
 
 ### Three Core Concepts
 
@@ -78,7 +93,7 @@ When you need detailed information, read the linked documentation files.
 - Testing untrusted code
 - LLM-powered code generation/execution
 
-**Full details**: [README.md](README.md), [specs/SystemArchitecture.md](specs/SystemArchitecture.md)
+**Full details**: [services/restexec/README.md](services/restexec/README.md), [services/restexec/specs/API.md](services/restexec/specs/API.md)
 
 ---
 
@@ -184,7 +199,7 @@ curl -X POST http://localhost:3000/execute \
 - ⏱️ Default timeout: 5 seconds
 - 🔐 Environment variables are process-isolated and temporary
 
-**Complete guide**: [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
+**Complete guide**: [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
 
 ---
 
@@ -223,7 +238,7 @@ curl -X POST http://localhost:3000/execute \
 
 **Recommended libraries**: es-toolkit, date-fns, zod, lodash-es, mathjs
 
-**Complete guide**: [specs/Libraries.md](specs/Libraries.md)
+**Complete guide**: [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
 
 ---
 
@@ -266,7 +281,7 @@ curl -X POST http://localhost:3000/execute \
 PUT /workspace → (POST /lint) → POST /execute
 ```
 
-**Complete specs**: [specs/API.md](specs/API.md), [specs/LintAPI.md](specs/LintAPI.md), [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md)
+**Complete specs**: [services/restexec/specs/API.md](services/restexec/specs/API.md), [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md), [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md)
 
 ---
 
@@ -301,10 +316,10 @@ WORKSPACE_DIR=/tmp/restexec-workspace deno task test
 
 **Run specific test file**:
 ```bash
-deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/integration/workspace.test.ts
+deno test --allow-read --allow-write --allow-net --allow-env --allow-run services/restexec/tests/integration/workspace.test.ts
 ```
 
-**Complete guide**: [specs/Test.md](specs/Test.md)
+**Complete guide**: [services/restexec/specs/Test.md](services/restexec/specs/Test.md)
 
 ---
 
@@ -367,7 +382,7 @@ docker compose up -d
 2. Ensure code only accesses `/workspace` and `/tools`
 3. Configure permissions via environment variables if needed
 
-**Details**: [specs/Security.md](specs/Security.md)
+**Details**: [services/restexec/specs/Security.md](services/restexec/specs/Security.md)
 
 ---
 
@@ -423,7 +438,7 @@ docker compose run --rm restexec deno task test
 ```
 
 **Why this happens**:
-- Integration tests (e.g., `tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
+- Integration tests (e.g., `services/restexec/tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
 - Default is `/workspace` (configured for Docker)
 - Local machines may not have this directory or permissions
 
@@ -437,7 +452,7 @@ export TOOLS_DIR=/tmp/restexec-tools
 deno task test
 ```
 
-**See**: Line 78-87 in [tests/integration/workspace.test.ts](tests/integration/workspace.test.ts)
+**See**: Line 78-87 in [services/restexec/tests/integration/workspace.test.ts](services/restexec/tests/integration/workspace.test.ts)
 
 ---
 
@@ -469,43 +484,43 @@ cat compose.yaml
 ### Essential Documentation
 
 **For Development**:
-- [docs/workspace-code-guide.md](docs/workspace-code-guide.md) - Complete guide to writing workspace code
-- [specs/Security.md](specs/Security.md) - Security model and permissions
-- [specs/Libraries.md](specs/Libraries.md) - External library management
+- [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md) - Complete guide to writing workspace code
+- [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model and permissions
+- [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md) - External library management
 
 **API Specifications**:
-- [specs/API.md](specs/API.md) - POST /execute endpoint
-- [specs/LintAPI.md](specs/LintAPI.md) - POST /lint endpoint
-- [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
+- [services/restexec/specs/API.md](services/restexec/specs/API.md) - POST /execute endpoint
+- [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md) - POST /lint endpoint
+- [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
 
 **Architecture**:
-- [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - System design
-- [specs/Sequence.md](specs/Sequence.md) - Execution flow diagrams
-- [specs/CodeExecution.md](specs/CodeExecution.md) - Execution details
+- [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - System design
+- [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow diagrams
+- [services/restexec/specs/CodeExecution.md](services/restexec/specs/CodeExecution.md) - Execution details
 
 **Operations**:
-- [README.md](README.md) - Quick start guide
-- [DOCKER.md](DOCKER.md) - Docker setup
-- [specs/Deployment.md](specs/Deployment.md) - Deployment guide
-- [specs/Configuration.md](specs/Configuration.md) - Environment variables
-- [specs/Test.md](specs/Test.md) - Testing strategy
+- [services/restexec/README.md](services/restexec/README.md) - Quick start guide
+- [services/restexec/DOCKER.md](services/restexec/DOCKER.md) - Docker setup
+- [services/restexec/specs/Deployment.md](services/restexec/specs/Deployment.md) - Deployment guide
+- [services/restexec/specs/Configuration.md](services/restexec/specs/Configuration.md) - Environment variables
+- [services/restexec/specs/Test.md](services/restexec/specs/Test.md) - Testing strategy
 
 **Other Specs**:
-- [specs/FileSystem.md](specs/FileSystem.md) - File system structure
-- [specs/Logging.md](specs/Logging.md) - Logging configuration
-- [specs/Performance.md](specs/Performance.md) - Performance benchmarks
-- [specs/Regulation.md](specs/Regulation.md) - Execution regulations
+- [services/restexec/specs/FileSystem.md](services/restexec/specs/FileSystem.md) - File system structure
+- [services/restexec/specs/Logging.md](services/restexec/specs/Logging.md) - Logging configuration
+- [services/restexec/specs/Performance.md](services/restexec/specs/Performance.md) - Performance benchmarks
+- [services/restexec/specs/Regulation.md](services/restexec/specs/Regulation.md) - Execution regulations
 
 ### Working Examples
 
 **Code Examples**:
-- [example/workspace/hello-world.ts](example/workspace/hello-world.ts) - Simple example
-- [example/workspace/with-import.ts](example/workspace/with-import.ts) - Import example
-- [example/workspace/async-example.ts](example/workspace/async-example.ts) - Async example
+- [services/restexec/example/workspace/hello-world.ts](services/restexec/example/workspace/hello-world.ts) - Simple example
+- [services/restexec/example/workspace/with-import.ts](services/restexec/example/workspace/with-import.ts) - Import example
+- [services/restexec/example/workspace/async-example.ts](services/restexec/example/workspace/async-example.ts) - Async example
 
 **Utility Examples**:
-- [example/tools/utils/math.ts](example/tools/utils/math.ts) - Math utilities
-- [example/tools/utils/string.ts](example/tools/utils/string.ts) - String utilities
+- [services/restexec/example/tools/utils/math.ts](services/restexec/example/tools/utils/math.ts) - Math utilities
+- [services/restexec/example/tools/utils/string.ts](services/restexec/example/tools/utils/string.ts) - String utilities
 
 ---
 
@@ -520,19 +535,19 @@ cat compose.yaml
 
 ### When User Asks About...
 
-- **"How do I write code?"** → Use template + link to [docs/workspace-code-guide.md](docs/workspace-code-guide.md)
-- **"How do I add a library?"** → 4-step process + link to [specs/Libraries.md](specs/Libraries.md)
-- **"What APIs are available?"** → Quick reference + link to [specs/API.md](specs/API.md)
+- **"How do I write code?"** → Use template + link to [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
+- **"How do I add a library?"** → 4-step process + link to [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
+- **"What APIs are available?"** → Quick reference + link to [services/restexec/specs/API.md](services/restexec/specs/API.md)
 - **"Why is my code not working?"** → Check [Troubleshooting](#-troubleshooting) section
 - **"How do I run tests?"** → See [Task: Run Tests](#task-run-tests) section
 
 ### Architecture Questions
 
 For detailed architecture questions, read:
-1. [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - High-level design
-2. [specs/Sequence.md](specs/Sequence.md) - Execution flow
-3. [specs/Security.md](specs/Security.md) - Security model
-4. Relevant source files in `src/`
+1. [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - High-level design
+2. [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow
+3. [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model
+4. Relevant source files in `services/restexec/src/`
 
 ---
 
@@ -549,7 +564,7 @@ This project includes specialized sub-agents that proactively assist with specif
 **Automatic Triggers**:
 - API changes in `routes/`
 - Parameter additions in `middleware/validation.ts`
-- Core logic modifications in `src/utils/`
+- Core logic modifications in `services/restexec/src/utils/`
 
 **Manual Invocation**:
 ```
@@ -558,7 +573,7 @@ doc-sync-checker エージェントで最近の変更を確認して
 
 **What it does**:
 - Analyzes `git diff` to identify changed files
-- Maps changes to relevant spec files (specs/API.md, specs/Security.md, etc.)
+- Maps changes to relevant spec files (specs/API.md, services/restexec/specs/Security.md, etc.)
 - Detects discrepancies between code and documentation
 - Provides concrete update proposals with line numbers
 - Prioritizes updates (Critical/Medium/Low)
@@ -577,9 +592,9 @@ doc-sync-checker エージェントで最近の変更を確認して
 
 **Automatic Triggers**:
 - Dockerfile or compose.yaml changes
-- Execution logic modifications in `src/utils/executor.ts`
+- Execution logic modifications in `services/restexec/src/utils/executor.ts`
 - Dependency additions/updates in `deps.ts`
-- Configuration changes in `src/config.ts`
+- Configuration changes in `services/restexec/src/config.ts`
 
 **Manual Invocation**:
 ```
@@ -591,7 +606,7 @@ security-auditor エージェントでセキュリティ監査をして
 - Scans for OWASP Top 10 vulnerabilities (injection, XSS, path traversal, etc.)
 - Checks dependency security (version pinning, trusted CDNs)
 - Validates execution limits (timeout, buffer size, file size)
-- Ensures consistency with specs/Security.md
+- Ensures consistency with services/restexec/specs/Security.md
 - Provides CVSS-based risk scores
 
 **Example Use Cases**:
@@ -655,10 +670,10 @@ To modify agent behavior, edit these Markdown files (YAML frontmatter + system p
 Run these checks before committing any changes:
 ```bash
 # Lint code
-deno lint src/ tests/
+deno lint services/restexec/src/ services/restexec/tests/
 
 # Check formatting
-deno fmt --check src/ tests/
+deno fmt --check services/restexec/src/ services/restexec/tests/
 
 # Run all tests
 deno task test
@@ -668,12 +683,12 @@ All checks must pass without errors or warnings.
 
 **Auto-fix formatting issues**:
 ```bash
-deno fmt src/ tests/
+deno fmt services/restexec/src/ services/restexec/tests/
 ```
 
 ### For New Features
 
-1. Read relevant specs in `specs/`
+1. Read relevant specs in `services/restexec/specs/`
 2. Update specifications if needed
 3. Implement with error handling
 4. Add comprehensive tests
@@ -692,4 +707,4 @@ deno fmt src/ tests/
 
 *This is a navigation guide. For complete information, see the linked documentation files.*
 
-*Last updated: 2025-11-14*
+*Last updated: 2025-11-28*
