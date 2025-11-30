@@ -204,6 +204,7 @@ func (m *ClientManager) Close() error {
 	}
 
 	// 2. Terminate processes gracefully
+	errCh := make(chan error, len(m.processes))
 	for name, cmd := range m.processes {
 		if cmd.Process != nil {
 			wg.Add(1)
@@ -224,7 +225,7 @@ func (m *ClientManager) Close() error {
 				case <-time.After(5 * time.Second):
 					// If process doesn't exit after 5 seconds, kill it
 					if err := c.Process.Kill(); err != nil {
-						errs = append(errs, fmt.Errorf("failed to kill process %s: %w", n, err))
+						errCh <- fmt.Errorf("failed to kill process %s: %w", n, err)
 					}
 					slog.Warn("Process killed after timeout", "server", n)
 				case err := <-done:
@@ -239,6 +240,12 @@ func (m *ClientManager) Close() error {
 	}
 
 	wg.Wait()
+	close(errCh)
+
+	// Collect errors from channel
+	for err := range errCh {
+		errs = append(errs, err)
+	}
 
 	if len(errs) > 0 {
 		return fmt.Errorf("errors closing sessions or processes: %v", errs)
