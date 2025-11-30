@@ -204,4 +204,39 @@ servers:
 		_, ok = result["result"]
 		require.True(t, ok, "response should contain 'result' field")
 	})
+	t.Run("Validation Error - Invalid Server Name", func(t *testing.T) {
+		reqBody := map[string]any{
+			"server":   "invalid@server", // 不正な文字を含む
+			"toolName": "calculate-bmi",
+			"input":    map[string]any{},
+		}
+		jsonBody, _ := json.Marshal(reqBody)
+
+		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		var result map[string]any
+		json.NewDecoder(resp.Body).Decode(&result)
+		assert.False(t, result["success"].(bool))
+		assert.Equal(t, "VALIDATION_ERROR", result["error"].(map[string]any)["code"])
+	})
+
+	t.Run("Tool Not Found", func(t *testing.T) {
+		reqBody := map[string]any{
+			"server":   "test-server",
+			"toolName": "non-existent-tool",
+			"input":    map[string]any{},
+		}
+		jsonBody, _ := json.Marshal(reqBody)
+
+		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		t.Log(resp.Status)
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
 }

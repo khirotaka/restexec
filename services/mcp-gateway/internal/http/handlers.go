@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,14 @@ import (
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/validator"
 	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/pkg/errors"
 )
+
+// isUnknownToolError checks if the error is from an unknown tool call
+// The MCP SDK returns an error with the message pattern:
+// "calling "tools/call": unknown tool "toolName""
+func isUnknownToolError(err error) bool {
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "unknown tool")
+}
 
 type Handler struct {
 	clientManager  *mcp.ClientManager
@@ -104,7 +113,7 @@ func (h *Handler) CallTool(c *gin.Context) {
 		} else if errors.Is(err, mcpErrors.ErrServerNotRunning) {
 			status = http.StatusServiceUnavailable
 			code = mcpErrors.ErrCodeServerNotRunning
-		} else if errors.Is(err, mcpErrors.ErrToolNotFound) {
+		} else if isUnknownToolError(err) {
 			status = http.StatusNotFound
 			code = mcpErrors.ErrCodeToolNotFound
 		}
