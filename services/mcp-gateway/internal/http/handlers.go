@@ -59,15 +59,18 @@ func (h *Handler) CallTool(c *gin.Context) {
 	}
 
 	// Call tool
-	// tool info からタイムアウト時間を取得
-	var timeout = 30 * time.Second
+	// tool info からタイムアウト時間を取得 (デフォルト: 30s)
+	var timeout time.Duration
 
 	toolInfo := h.clientManager.GetTools()
 	for _, tool := range toolInfo {
 		if tool.Name == req.ToolName {
-			timeout = time.Duration(tool.Timeout) * time.Second
+			timeout = time.Duration(tool.Timeout) * time.Millisecond
 			break
 		}
+	}
+	if timeout == 0 {
+		timeout = 30 * time.Second
 	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
