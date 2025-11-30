@@ -58,7 +58,6 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	for _, e := range cfg.Envs {
 		env = append(env, fmt.Sprintf("%s=%s", e.Name, e.Value))
 	}
-	slog.Info("config-envs", "env", cfg.Envs)
 
 	// Create command
 	cmd := exec.CommandContext(ctx, cfg.Command, cfg.Args...)
