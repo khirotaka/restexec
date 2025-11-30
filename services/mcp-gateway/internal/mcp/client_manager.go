@@ -96,8 +96,7 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 
 	// Cache tools
 	if err := m.cacheTools(ctx, cfg.Name, session, cfg.Timeout); err != nil {
-		slog.Error("Failed to cache tools", "server", cfg.Name, "error", err)
-		// Continue even if caching fails
+		return fmt.Errorf("failed to cache tools: %w", err)
 	}
 
 	// Monitor connection
