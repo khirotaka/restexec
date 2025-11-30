@@ -97,7 +97,9 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 		// Clean up process if Connect failed
 		// The process may have been started by CommandTransport
 		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				slog.Warn("Failed to kill process during cleanup", "server", cfg.Name, "error", err)
+			}
 		}
 		// Remove from process map to prevent resource leak
 		delete(m.processes, cfg.Name)
@@ -111,9 +113,13 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	// Cache tools
 	if err := m.cacheTools(ctx, cfg.Name, session, cfg.Timeout); err != nil {
 		// Clean up session and process if tool caching failed
-		_ = session.Close()
+		if err := session.Close(); err != nil {
+			slog.Warn("Failed to close session during cleanup", "server", cfg.Name, "error", err)
+		}
 		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				slog.Warn("Failed to kill process during cleanup", "server", cfg.Name, "error", err)
+			}
 		}
 		delete(m.sessions, cfg.Name)
 		delete(m.processes, cfg.Name)
