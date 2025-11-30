@@ -1,0 +1,36 @@
+# MCP Gateway Configuration File
+#
+# このファイルは MCP サーバーの設定を定義します。
+# 実際に使用する MCP サーバーに応じて、このファイルをコピー・編集してください。
+#
+# 使い方:
+#   1. このファイルを config.yaml にコピー
+#      cp config/config.example.yaml config/config.yaml
+#   2. 実際の MCP サーバー情報を記述
+#   3. Docker Compose で起動
+
+servers:
+  # サンプル設定（デモンストレーション用）
+  # MCP Gateway テストサーバー - calculate-bmi と fetch-weather ツールを提供
+  - name: sample-mcp-server
+    command: ./app/sample-mcp-server
+    # args:                          # コマンドライン引数（オプション）
+    #   - --port
+    #   - "8000"
+    # envs:                          # 環境変数（オプション）
+    #   - name: API_KEY
+    #     value: ${API_KEY}          # 環境変数展開をサポート
+    # timeout: 30000                 # タイムアウト（ミリ秒、オプション、デフォルト: 30000）
+
+  # その他のサーバー設定例
+  # - name: production-server
+  #   command: /usr/local/bin/my-mcp-server
+  #   args:
+  #     - --config
+  #     - /etc/my-mcp-server/config.yaml
+  #   envs:
+  #     - name: LOG_LEVEL
+  #       value: DEBUG
+  #     - name: API_KEY
+  #       value: ${MY_API_KEY}
+  #   timeout: 60000
