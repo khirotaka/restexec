@@ -16,12 +16,14 @@ import (
 type Handler struct {
 	clientManager  *mcp.ClientManager
 	processManager *mcp.ProcessManager
+	startTime      time.Time
 }
 
 func NewHandler(cm *mcp.ClientManager, pm *mcp.ProcessManager) *Handler {
 	return &Handler{
 		clientManager:  cm,
 		processManager: pm,
+		startTime:      time.Now(),
 	}
 }
 
@@ -127,9 +129,7 @@ func (h *Handler) Health(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  status,
-		"uptime":  time.Since(startTime).Seconds(), // Need to define startTime
+		"uptime":  time.Since(h.startTime).Seconds(),
 		"servers": statuses,
 	})
 }
-
-var startTime = time.Now()
