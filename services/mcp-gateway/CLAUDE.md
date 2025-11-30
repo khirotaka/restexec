@@ -93,7 +93,7 @@ servers:
 1. ✅ `name` は各サーバーで一意
 2. ✅ `command` は実行可能なパス
 3. ✅ `args` と `env` はオプション
-4. ❌ 環境変数のキーに `DENO_*` などの予約語は使わない
+4. ❌ 環境変数のキーにシステム予約語は使わない（例: `PATH`, `HOME`, `USER` など）
 
 **完全ガイド**: [specs/Configuration.md](specs/Configuration.md)
 

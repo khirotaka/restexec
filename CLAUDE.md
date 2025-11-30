@@ -67,6 +67,7 @@ restexec/                          # モノレポルート
 │       └── security-auditor.md
 ├── compose.yaml                   # Docker Compose (全サービス)
 ├── CLAUDE.md                      # このファイル（モノレポガイド）
+├── AGENTS.md                      # 他のAIエージェント向け統合ガイド
 └── README.md                      # プロジェクト概要
 ```
 
@@ -369,8 +370,9 @@ git commit -m "docs: update CLAUDE.md for monorepo structure"
 
 - [README.md](README.md) - プロジェクト概要とクイックスタート
 - [CLAUDE.md](CLAUDE.md) - このファイル（AI アシスタント向けガイド）
+- [AGENTS.md](AGENTS.md) - 他のAIエージェント向け統合ガイド
 - [compose.yaml](compose.yaml) - Docker Compose 設定
-- [.github/workflows/](. github/workflows/) - CI/CD ワークフロー
+- [.github/workflows/](.github/workflows/) - CI/CD ワークフロー
 
 ### Service-Level Documentation
 

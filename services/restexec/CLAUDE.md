@@ -62,7 +62,7 @@ restexec は、REST API 経由で TypeScript コードを安全に実行する�
 - 信頼できないコードのテスト
 - LLM 駆動のコード生成・実行
 
-**完全な詳細**: [README.md](README.md), [specs/API.md](specs/API.md)
+**完全な詳細**: [README.md](./README.md), [specs/API.md](./specs/API.md)
 
 ---
 

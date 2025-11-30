@@ -1,6 +1,6 @@
 # AGENTS.md - AI Assistant Guide
 
-このドキュメントは、AI アシスタント（Gemini, Codex など）がこの **モノレポプロジェクト** を効率的にナビゲートし、開発を支援するための包括的なガイドです。
+このドキュメントは、AI アシスタントがこの **モノレポプロジェクト** を効率的にナビゲートし、開発を支援するための包括的なガイドです。
 
 ---
 
@@ -166,6 +166,8 @@ docker compose up -d
 
 - **Monorepo Root**:
     - [`README.md`](README.md): プロジェクト概要
+    - [`CLAUDE.md`](CLAUDE.md): Claude向けモノレポガイド
+    - [`AGENTS.md`](AGENTS.md): このファイル (AIエージェント向け統合ガイド)
     - [`compose.yaml`](compose.yaml): Docker Compose 設定
 - **restexec**:
     - [`services/restexec/specs/`](services/restexec/specs/): 詳細仕様書
