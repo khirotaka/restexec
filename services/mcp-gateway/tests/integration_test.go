@@ -30,18 +30,28 @@ func TestIntegration(t *testing.T) {
 	testServerBin := filepath.Join(testServerDir, "test_server_bin")
 
 	// Clean up previous build if exists
-	os.Remove(testServerBin)
+	if err := os.Remove(testServerBin); err != nil {
+		t.Fatal(err)
+	}
 
 	cmd := exec.Command("go", "build", "-o", testServerBin)
 	cmd.Dir = testServerDir
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build test server: %s", string(output))
-	defer os.Remove(testServerBin)
+	defer func() {
+		if err := os.Remove(testServerBin); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// 2. Create temporary config
 	configFile, err := os.CreateTemp("", "config-*.yaml")
 	require.NoError(t, err)
-	defer os.Remove(configFile.Name())
+	defer func() {
+		if err := os.Remove(configFile.Name()); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	configContent := fmt.Sprintf(`
 servers:
@@ -54,7 +64,9 @@ servers:
 
 	_, err = configFile.WriteString(configContent)
 	require.NoError(t, err)
-	configFile.Close()
+	if err := configFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// 3. Start Gateway
 	cfg, err := config.LoadConfig(configFile.Name())
@@ -68,7 +80,11 @@ servers:
 
 	err = clientManager.Initialize(ctx, cfg.Servers)
 	require.NoError(t, err)
-	defer clientManager.Close()
+	defer func() {
+		if err := clientManager.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	handler := internalHttp.NewHandler(clientManager, processManager)
 	gin.SetMode(gin.TestMode)
@@ -95,7 +111,11 @@ servers:
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 100*time.Millisecond, "Server did not start in time")
 
@@ -105,7 +125,11 @@ servers:
 	t.Run("List Tools", func(t *testing.T) {
 		resp, err := http.Get(baseURL + "/mcp/tools")
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -154,7 +178,11 @@ servers:
 
 		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
