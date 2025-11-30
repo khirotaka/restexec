@@ -270,7 +270,7 @@ mcp-gateway/
 
 MCP Gateway は以下のセキュリティ対策を実装しています：
 
-- **入力バリデーション**: Zod によるスキーマバリデーション
+- **入力バリデーション**: go-playground/validator によるスキーマバリデーション
 - **リクエストサイズ制限**: 100KB までの入力制限
 - **オブジェクト深度制限**: 最大 10 階層までのネスト
 - **プロセス分離**: MCP サーバーは独立したプロセスとして実行
@@ -309,7 +309,7 @@ servers:
 
 MCP Gateway は以下のコンポーネントで構成されています：
 
-- **HTTP Server**: Oak フレームワークによる HTTP サーバー
+- **HTTP Server**: Gin フレームワークによる HTTP サーバー
 - **Client Manager**: MCP クライアントの管理とツールキャッシング
 - **Process Manager**: MCP サーバープロセスの起動・監視・クラッシュ検出
 - **Config Loader**: YAML 設定ファイルの読み込み
