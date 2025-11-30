@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strings"
 )
 
 const (
@@ -19,25 +18,27 @@ var (
 	dangerousKeys = []string{"__proto__", "constructor", "prototype"}
 )
 
-func containsDangerousKeys(obj any) bool {
+func findDangerousKey(obj any) string {
 	switch v := obj.(type) {
 	case map[string]any:
 		for key, val := range v {
 			// キー名自体をチェック
 			if slices.Contains(dangerousKeys, key) {
-				return true
+				return key
 			}
 			// 値を再帰的にチェック
-			if containsDangerousKeys(val) {
-				return true
+			if found := findDangerousKey(val); found != "" {
+				return found
 			}
 		}
 	case []any:
-		if slices.ContainsFunc(v, containsDangerousKeys) {
-			return true
+		for _, item := range v {
+			if found := findDangerousKey(item); found != "" {
+				return found
+			}
 		}
 	}
-	return false
+	return ""
 }
 
 // ValidateRequest validates the MCP tool call request parameters
@@ -74,8 +75,8 @@ func validateInput(input any) error {
 		return errors.New("input must be a JSON object")
 	}
 
-	if containsDangerousKeys(inputMap) {
-		return errors.New("input contains forbidden keys")
+	if dangerousKey := findDangerousKey(inputMap); dangerousKey != "" {
+		return fmt.Errorf("input contains forbidden key: %s", dangerousKey)
 	}
 
 	// Check size
@@ -85,14 +86,6 @@ func validateInput(input any) error {
 	}
 	if len(jsonBytes) > maxInputSize {
 		return fmt.Errorf("input exceeds maximum size (%d bytes)", maxInputSize)
-	}
-
-	// Check for dangerous keys (Prototype Pollution)
-	jsonStr := string(jsonBytes)
-	for _, key := range dangerousKeys {
-		if strings.Contains(jsonStr, key) {
-			return fmt.Errorf("input contains forbidden key: %s", key)
-		}
 	}
 
 	// Check nesting depth
