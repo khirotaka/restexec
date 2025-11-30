@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -72,11 +73,16 @@ func (h *Handler) CallTool(c *gin.Context) {
 	var timeout time.Duration
 
 	toolInfo := h.clientManager.GetTools()
+	found := false
 	for _, tool := range toolInfo {
 		if tool.Name == req.ToolName {
 			timeout = time.Duration(tool.Timeout) * time.Millisecond
+			found = true
 			break
 		}
+	}
+	if !found {
+		slog.Warn("Tool not found in cache, using default timeout", "toolName", req.ToolName)
 	}
 	if timeout == 0 {
 		timeout = 30 * time.Second
