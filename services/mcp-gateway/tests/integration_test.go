@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -96,10 +98,20 @@ servers:
 	// We can't easily get the port back if we use ":0".
 	// So we'll pick a port that is likely free, or just use a fixed one for this test.
 	// For better reliability, we could modify StartServer, but let's try fixed port 3002 first.
-	port := "3002"
+	// Create listener with port 0 to get random available port
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("Failed to close listener: %v", err)
+		}
+	}()
+
 	serverErrCh := make(chan error, 1)
+	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+
 	go func() {
-		if err := internalHttp.StartServer(router, port); err != nil {
+		if err := http.Serve(listener, router); err != nil {
 			serverErrCh <- err
 		}
 	}()
