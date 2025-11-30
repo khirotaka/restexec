@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/cmd/mcp-gateway/pkg/errors"
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/mcp"
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/validator"
+	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/pkg/errors"
 )
 
 type Handler struct {
