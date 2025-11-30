@@ -1,7 +1,7 @@
 package http
 
 import (
-	"fmt"
+	"log/slog"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,6 +9,6 @@ import (
 // StartServer starts the HTTP server on the specified port
 func StartServer(router *gin.Engine, port string) error {
 	addr := ":" + port
-	fmt.Printf("Starting server on %s\n", addr)
+	slog.Info("Staring server", "address", addr)
 	return router.Run(addr)
 }
