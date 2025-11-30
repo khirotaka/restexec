@@ -56,10 +56,10 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 
 func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConfig) error {
 	// Prepare environment variables
-	var saveEnvVars = []string{"PATH", "HOME", "USER", "LANG", "LC_ALL", "TZ"}
+	var safeEnvVars = []string{"PATH", "HOME", "USER", "LANG", "LC_ALL", "TZ", "TMPDIR"}
 	// ホワイトリストの環境変数のみ継承
 	env := make([]string, 0)
-	for _, key := range saveEnvVars {
+	for _, key := range safeEnvVars {
 		if val := os.Getenv(key); val != "" {
 			env = append(env, fmt.Sprintf("%s=%s", key, val))
 		}
