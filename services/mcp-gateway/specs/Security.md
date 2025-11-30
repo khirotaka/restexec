@@ -94,7 +94,30 @@ const (
 
 var dangerousKeys = []string{"__proto__", "constructor", "prototype"}
 
-func sanitizeInput(input any) (map[string]any, error) {
+func findDangerousKey(v any) string {
+    switch val := v.(type) {
+    case map[string]any:
+        for k, sub := range val {
+            for _, dk := range dangerousKeys {
+                if k == dk {
+                    return dk
+                }
+            }
+            if found := findDangerousKey(sub); found != "" {
+                return found
+            }
+        }
+    case []any:
+        for _, item := range val {
+            if found := findDangerousKey(item); found != "" {
+                return found
+            }
+        }
+    }
+    return ""
+}
+
+func validateInput(input any) (map[string]any, error) {
 	// 型チェック
 	inputMap, ok := input.(map[string]any)
 	if !ok {
@@ -106,20 +129,16 @@ func sanitizeInput(input any) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal input: %w", err)
 	}
-
 	if len(jsonBytes) > maxInputSize {
 		return nil, fmt.Errorf("input exceeds maximum size (%d bytes)", maxInputSize)
 	}
 
 	// Prototype Pollution 対策
-	jsonStr := string(jsonBytes)
-	for _, key := range dangerousKeys {
-		if strings.Contains(jsonStr, key) {
-			return nil, fmt.Errorf("input contains forbidden key: %s", key)
-		}
+	if found := findDangerousKey(input); found != "" {
+		return nil, fmt.Errorf("input contains forbidden key: %s", found)
 	}
 
-	// ネストの深さチェック
+	// ネスト深さチェック
 	depth := getObjectDepth(input, 0)
 	if depth > maxNestDepth {
 		return nil, fmt.Errorf("input nesting exceeds maximum depth (%d)", maxNestDepth)
