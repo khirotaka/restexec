@@ -54,9 +54,10 @@ func main() {
 		port = "3001"
 	}
 
+	serverManager := http.NewServerManager(router, port)
 	serverErr := make(chan error, 1)
 	go func() {
-		if err := http.StartServer(router, port); err != nil {
+		if err := serverManager.Start(); err != nil {
 			slog.Error("Server failed", "error", err)
 			serverErr <- err
 		}
@@ -68,6 +69,9 @@ func main() {
 	select {
 	case <-quit:
 		slog.Info("Shutting down server...")
+		if err := serverManager.Shutdown(); err != nil {
+			slog.Error("Failed to shutdown server", "error", err)
+		}
 	case err := <-serverErr:
 		slog.Error("Server startup failed", "error", err)
 		os.Exit(1)
