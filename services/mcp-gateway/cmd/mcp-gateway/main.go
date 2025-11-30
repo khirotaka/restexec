@@ -41,7 +41,6 @@ func main() {
 	slog.Info("Connecting to MCP servers...")
 	if err := clientManager.Initialize(ctx, cfg.Servers); err != nil {
 		slog.Error("Failed to initialize MCP clients", "error", err)
-		cancel()
 	}
 	slog.Info("Connected to MCP servers")
 
@@ -55,18 +54,24 @@ func main() {
 		port = "3001"
 	}
 
+	serverErr := make(chan error, 1)
 	go func() {
 		if err := http.StartServer(router, port); err != nil {
 			slog.Error("Server failed", "error", err)
-			cancel()
+			serverErr <- err
 		}
 	}()
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	slog.Info("Shutting down server...")
+	select {
+	case <-quit:
+		slog.Info("Shutting down server...")
+	case err := <-serverErr:
+		slog.Error("Server startup failed", "error", err)
+		os.Exit(1)
+	}
 
 	// Cleanup
 	if err := clientManager.Close(); err != nil {
