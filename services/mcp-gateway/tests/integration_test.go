@@ -47,7 +47,7 @@ func TestIntegration(t *testing.T) {
 servers:
   - name: test-server
     command: %s
-    env:
+    envs:
       - name: TEST_ENV
         value: test_value
 `, testServerBin)
@@ -112,7 +112,7 @@ servers:
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 
-		var result map[string]interface{}
+		var result map[string]any
 		err = json.Unmarshal(body, &result)
 		require.NoError(t, err)
 
@@ -121,14 +121,14 @@ servers:
 		require.True(t, ok, "response should contain 'success' field")
 		assert.True(t, success)
 
-		tools, ok := result["tools"].([]interface{})
+		tools, ok := result["tools"].([]any)
 		require.True(t, ok, "response should contain 'tools' array")
 		assert.NotEmpty(t, tools)
 
 		// Check if "calculate-bmi" exists (from the test server)
 		found := false
 		for _, tool := range tools {
-			toolMap, ok := tool.(map[string]interface{})
+			toolMap, ok := tool.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -142,10 +142,10 @@ servers:
 
 	// Test: Call Tool
 	t.Run("Call Tool", func(t *testing.T) {
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"server":   "test-server",
 			"toolName": "calculate-bmi",
-			"input": map[string]interface{}{
+			"input": map[string]any{
 				"height_m":  1.75,
 				"weight_kg": 70.0,
 			},
@@ -164,7 +164,7 @@ servers:
 		}
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var result map[string]interface{}
+		var result map[string]any
 		err = json.Unmarshal(body, &result)
 		require.NoError(t, err)
 

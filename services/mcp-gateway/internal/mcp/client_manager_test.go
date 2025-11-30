@@ -117,7 +117,7 @@ func TestClientManager_ConcurrentGetTools(t *testing.T) {
 	// Concurrent reads should not cause data race
 	done := make(chan bool, 10)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			_ = cm.GetTools()
 			done <- true
@@ -125,7 +125,7 @@ func TestClientManager_ConcurrentGetTools(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }
