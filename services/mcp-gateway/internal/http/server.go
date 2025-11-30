@@ -9,6 +9,6 @@ import (
 // StartServer starts the HTTP server on the specified port
 func StartServer(router *gin.Engine, port string) error {
 	addr := ":" + port
-	slog.Info("Staring server", "address", addr)
+	slog.Info("Starting server", "address", addr)
 	return router.Run(addr)
 }
