@@ -214,12 +214,18 @@ servers:
 
 		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
 		var result map[string]any
-		json.NewDecoder(resp.Body).Decode(&result)
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Errorf("Failed to decode response body: %v", err)
+		}
 		assert.False(t, result["success"].(bool))
 		assert.Equal(t, "VALIDATION_ERROR", result["error"].(map[string]any)["code"])
 	})
@@ -234,7 +240,11 @@ servers:
 
 		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("Failed to close response body: %v", err)
+			}
+		}()
 
 		t.Log(resp.Status)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
