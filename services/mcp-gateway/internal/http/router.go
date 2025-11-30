@@ -1,6 +1,8 @@
 package http
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,6 +14,11 @@ func SetupRouter(handler *Handler) *gin.Engine {
 	// Middleware
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		const maxBodySize = 100 * 1024 // 100KB
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodySize)
+		c.Next()
+	})
 
 	// Routes
 	r.POST("/mcp/call", handler.CallTool)
