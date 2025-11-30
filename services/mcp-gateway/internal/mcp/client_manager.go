@@ -226,8 +226,12 @@ func (m *ClientManager) Close() error {
 					// If process doesn't exit after 5 seconds, kill it
 					if err := c.Process.Kill(); err != nil {
 						errCh <- fmt.Errorf("failed to kill process %s: %w", n, err)
+						slog.Warn("Failed to kill process", "server", n, "error", err)
+					} else {
+						slog.Warn("Process killed after timeout", "server", n)
+						// Wait for the killed process to actually terminate
+						<-done
 					}
-					slog.Warn("Process killed after timeout", "server", n)
 				case err := <-done:
 					if err != nil {
 						slog.Debug("Process exited with error", "server", n, "error", err)
