@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/config"
 	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/pkg/errors"
@@ -16,6 +18,7 @@ import (
 // ClientManager manages multiple MCP clients
 type ClientManager struct {
 	sessions       map[string]*mcp.ClientSession
+	processes      map[string]*exec.Cmd
 	processManager *ProcessManager
 	toolsCache     map[string]ToolInfo
 	mu             sync.RWMutex
@@ -35,6 +38,7 @@ type ToolInfo struct {
 func NewClientManager(pm *ProcessManager) *ClientManager {
 	return &ClientManager{
 		sessions:       make(map[string]*mcp.ClientSession),
+		processes:      make(map[string]*exec.Cmd),
 		processManager: pm,
 		toolsCache:     make(map[string]ToolInfo),
 	}
@@ -69,8 +73,11 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	}
 
 	// Create command
-	cmd := exec.CommandContext(ctx, cfg.Command, cfg.Args...)
+	cmd := exec.Command(cfg.Command, cfg.Args...)
 	cmd.Env = env
+
+	// Store process reference for shutdown
+	m.processes[cfg.Name] = cmd
 
 	// Create transport
 	transport := &mcp.CommandTransport{
@@ -184,14 +191,47 @@ func (m *ClientManager) Close() error {
 	defer m.mu.Unlock()
 
 	var errs []error
+
+	// 1. Close sessions
 	for name, session := range m.sessions {
 		if err := session.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to close session %s: %w", name, err))
 		}
 	}
 
+	// 2. Terminate processes gracefully
+	for name, cmd := range m.processes {
+		if cmd.Process != nil {
+			// First, send SIGTERM
+			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				slog.Warn("Failed to send SIGTERM", "server", name, "error", err)
+			}
+
+			// Wait for process to exit with timeout
+			done := make(chan error, 1)
+			go func() {
+				done <- cmd.Wait()
+			}()
+
+			select {
+			case <-time.After(5 * time.Second):
+				// If process doesn't exit after 5 seconds, kill it
+				if err := cmd.Process.Kill(); err != nil {
+					errs = append(errs, fmt.Errorf("failed to kill process %s: %w", name, err))
+				}
+				slog.Warn("Process killed after timeout", "server", name)
+			case err := <-done:
+				if err != nil {
+					slog.Debug("Process exited with error", "server", name, "error", err)
+				} else {
+					slog.Info("Process exited gracefully", "server", name)
+				}
+			}
+		}
+	}
+
 	if len(errs) > 0 {
-		return fmt.Errorf("errors closing sessions: %v", errs)
+		return fmt.Errorf("errors closing sessions or processes: %v", errs)
 	}
 	return nil
 }
