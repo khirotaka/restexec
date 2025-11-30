@@ -45,6 +45,13 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
+	// Set default timeout if not specified
+	for i := range config.Servers {
+		if config.Servers[i].Timeout == 0 {
+			config.Servers[i].Timeout = 30000 // 30秒をデフォルトに
+		}
+	}
+
 	// Validate config
 	validate := validator.New()
 	if err := validate.Struct(&config); err != nil {
