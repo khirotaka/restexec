@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -17,6 +18,27 @@ var (
 	namePattern   = regexp.MustCompile(`^[a-zA-Z0-9-_]+$`)
 	dangerousKeys = []string{"__proto__", "constructor", "prototype"}
 )
+
+func containsDangerousKeys(obj any) bool {
+	switch v := obj.(type) {
+	case map[string]any:
+		for key, val := range v {
+			// キー名自体をチェック
+			if slices.Contains(dangerousKeys, key) {
+				return true
+			}
+			// 値を再帰的にチェック
+			if containsDangerousKeys(val) {
+				return true
+			}
+		}
+	case []any:
+		if slices.ContainsFunc(v, containsDangerousKeys) {
+			return true
+		}
+	}
+	return false
+}
 
 // ValidateRequest validates the MCP tool call request parameters
 func ValidateRequest(server, toolName string, input any) error {
@@ -50,6 +72,10 @@ func validateInput(input any) error {
 	inputMap, ok := input.(map[string]any)
 	if !ok {
 		return errors.New("input must be a JSON object")
+	}
+
+	if containsDangerousKeys(inputMap) {
+		return errors.New("input contains forbidden keys")
 	}
 
 	// Check size
