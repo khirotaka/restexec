@@ -24,6 +24,7 @@ type ClientManager struct {
 
 // ToolInfo represents cached tool information
 type ToolInfo struct {
+	Timeout      int    `json:"timeout"`
 	Name         string `json:"name"`
 	Description  string `json:"description"`
 	Server       string `json:"server"`
@@ -94,7 +95,7 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	m.processManager.SetStatus(cfg.Name, StatusAvailable)
 
 	// Cache tools
-	if err := m.cacheTools(ctx, cfg.Name, session); err != nil {
+	if err := m.cacheTools(ctx, cfg.Name, session, cfg.Timeout); err != nil {
 		slog.Error("Failed to cache tools", "server", cfg.Name, "error", err)
 		// Continue even if caching fails
 	}
@@ -115,7 +116,7 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	return nil
 }
 
-func (m *ClientManager) cacheTools(ctx context.Context, serverName string, session *mcp.ClientSession) error {
+func (m *ClientManager) cacheTools(ctx context.Context, serverName string, session *mcp.ClientSession, timeout int) error {
 	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 	if err != nil {
 		return err
@@ -123,6 +124,7 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 
 	for _, tool := range result.Tools {
 		m.toolsCache[tool.Name] = ToolInfo{
+			Timeout:      timeout,
 			Name:         tool.Name,
 			Description:  tool.Description,
 			Server:       serverName,
