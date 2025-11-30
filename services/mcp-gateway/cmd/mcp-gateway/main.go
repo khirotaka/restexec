@@ -35,6 +35,8 @@ func main() {
 	clientManager := mcp.NewClientManager(processManager)
 
 	// Connect to MCP servers
+	// Note: This context only controls the connection establishment timeout.
+	// MCP server processes themselves will continue to run.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
