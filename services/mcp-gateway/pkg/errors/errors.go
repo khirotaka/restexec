@@ -1,5 +1,7 @@
 package errors
 
+import "errors"
+
 type ErrorCode string
 
 const (
@@ -11,4 +13,9 @@ const (
 	ErrCodeServerCrashed    ErrorCode = "SERVER_CRASHED"
 	ErrCodeToolExecution    ErrorCode = "TOOL_EXECUTION_ERROR"
 	ErrCodeInternal         ErrorCode = "INTERNAL_ERROR"
+)
+
+var (
+	ErrServerNotFound   = errors.New("server not found")
+	ErrServerNotRunning = errors.New("server not running")
 )

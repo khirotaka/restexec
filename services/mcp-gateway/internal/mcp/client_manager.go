@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/config"
+	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/pkg/errors"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -131,12 +132,12 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 	m.mu.RUnlock()
 
 	if !ok {
-		return nil, errors.New("server not found")
+		return nil, mcpErrors.ErrServerNotFound
 	}
 
 	// Check status
 	if status := m.processManager.GetStatus(server); status != StatusAvailable {
-		return nil, fmt.Errorf("server is %s", status)
+		return nil, mcpErrors.ErrServerNotRunning
 	}
 
 	// Convert input to map[string]any

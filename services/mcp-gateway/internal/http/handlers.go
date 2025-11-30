@@ -85,10 +85,10 @@ func (h *Handler) CallTool(c *gin.Context) {
 		status := http.StatusInternalServerError
 		code := mcpErrors.ErrCodeToolExecution
 
-		if err.Error() == "server not found" {
+		if errors.Is(err, mcpErrors.ErrServerNotFound) {
 			status = http.StatusNotFound
 			code = mcpErrors.ErrCodeServerNotFound
-		} else if err.Error() == "server is unavailable" || err.Error() == "server is crashed" {
+		} else if errors.Is(err, mcpErrors.ErrServerNotRunning) {
 			status = http.StatusServiceUnavailable
 			code = mcpErrors.ErrCodeServerNotRunning
 		}
