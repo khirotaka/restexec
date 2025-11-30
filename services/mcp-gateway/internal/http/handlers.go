@@ -101,6 +101,9 @@ func (h *Handler) CallTool(c *gin.Context) {
 		} else if errors.Is(err, mcpErrors.ErrServerNotRunning) {
 			status = http.StatusServiceUnavailable
 			code = mcpErrors.ErrCodeServerNotRunning
+		} else if errors.Is(err, mcpErrors.ErrToolNotFound) {
+			status = http.StatusNotFound
+			code = mcpErrors.ErrCodeToolNotFound
 		}
 
 		c.JSON(status, gin.H{

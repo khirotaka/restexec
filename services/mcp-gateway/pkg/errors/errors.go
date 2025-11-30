@@ -18,4 +18,5 @@ const (
 var (
 	ErrServerNotFound   = errors.New("server not found")
 	ErrServerNotRunning = errors.New("server not running")
+	ErrToolNotFound     = errors.New("tool not found")
 )
