@@ -93,9 +93,14 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	// Monitor connection
 	go func() {
 		// Wait blocks until the session is closed
-		_ = session.Wait()
-		slog.Info("MCP Client disconnected", "server", cfg.Name)
-		m.processManager.SetStatus(cfg.Name, StatusUnavailable)
+		err := session.Wait()
+		if err != nil {
+			slog.Error("MCP Client disconnected", "server", cfg.Name, "error", err)
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+		} else {
+			slog.Info("MCP Client disconnected", "server", cfg.Name)
+			m.processManager.SetStatus(cfg.Name, StatusUnavailable)
+		}
 	}()
 
 	return nil
