@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -152,7 +151,7 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 	// Convert input to map[string]any
 	inputMap, ok := input.(map[string]any)
 	if !ok {
-		return nil, errors.New("input must be a map")
+		return nil, fmt.Errorf("input must be a map, got %T", input)
 	}
 
 	// Call tool
