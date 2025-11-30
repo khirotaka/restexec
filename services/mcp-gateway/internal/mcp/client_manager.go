@@ -23,10 +23,11 @@ type ClientManager struct {
 
 // ToolInfo represents cached tool information
 type ToolInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Server      string `json:"server"`
-	InputSchema any    `json:"inputSchema"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Server       string `json:"server"`
+	InputSchema  any    `json:"inputSchema"`
+	OutputSchema any    `json:"outputSchema"`
 }
 
 // NewClientManager creates a new ClientManager
@@ -57,6 +58,7 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	for _, e := range cfg.Envs {
 		env = append(env, fmt.Sprintf("%s=%s", e.Name, e.Value))
 	}
+	slog.Info("config-envs", "env", cfg.Envs)
 
 	// Create command
 	cmd := exec.CommandContext(ctx, cfg.Command, cfg.Args...)
@@ -108,10 +110,11 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 
 	for _, tool := range result.Tools {
 		m.toolsCache[tool.Name] = ToolInfo{
-			Name:        tool.Name,
-			Description: tool.Description,
-			Server:      serverName,
-			InputSchema: tool.InputSchema,
+			Name:         tool.Name,
+			Description:  tool.Description,
+			Server:       serverName,
+			InputSchema:  tool.InputSchema,
+			OutputSchema: tool.OutputSchema,
 		}
 	}
 	return nil
