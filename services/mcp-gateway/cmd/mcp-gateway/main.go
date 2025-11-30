@@ -41,7 +41,7 @@ func main() {
 	slog.Info("Connecting to MCP servers...")
 	if err := clientManager.Initialize(ctx, cfg.Servers); err != nil {
 		slog.Error("Failed to initialize MCP clients", "error", err)
-		os.Exit(1)
+		cancel()
 	}
 	slog.Info("Connected to MCP servers")
 
@@ -58,7 +58,7 @@ func main() {
 	go func() {
 		if err := http.StartServer(router, port); err != nil {
 			slog.Error("Server failed", "error", err)
-			os.Exit(1)
+			cancel()
 		}
 	}()
 
