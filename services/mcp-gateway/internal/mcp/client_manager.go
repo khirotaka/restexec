@@ -94,6 +94,13 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	// Connect
 	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
+		// Clean up process if Connect failed
+		// The process may have been started by CommandTransport
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		// Remove from process map to prevent resource leak
+		delete(m.processes, cfg.Name)
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 
@@ -103,6 +110,14 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 
 	// Cache tools
 	if err := m.cacheTools(ctx, cfg.Name, session, cfg.Timeout); err != nil {
+		// Clean up session and process if tool caching failed
+		_ = session.Close()
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		delete(m.sessions, cfg.Name)
+		delete(m.processes, cfg.Name)
+		m.processManager.SetStatus(cfg.Name, StatusUnavailable)
 		return fmt.Errorf("failed to cache tools: %w", err)
 	}
 
