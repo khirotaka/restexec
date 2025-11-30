@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"sync"
 
@@ -54,7 +53,7 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 
 func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConfig) error {
 	// Prepare environment variables
-	env := os.Environ()
+	env := make([]string, 0)
 	for _, e := range cfg.Envs {
 		env = append(env, fmt.Sprintf("%s=%s", e.Name, e.Value))
 	}
