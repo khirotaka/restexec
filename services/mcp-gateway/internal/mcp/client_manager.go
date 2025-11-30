@@ -77,6 +77,7 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	cmd.Env = env
 
 	// Store process reference for shutdown
+	// Note: cmd.Process will be non-nil only after Connect() starts the process
 	m.processes[cfg.Name] = cmd
 
 	// Create transport
@@ -190,7 +191,10 @@ func (m *ClientManager) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var errs []error
+	var (
+		wg   sync.WaitGroup
+		errs []error
+	)
 
 	// 1. Close sessions
 	for name, session := range m.sessions {
@@ -202,33 +206,39 @@ func (m *ClientManager) Close() error {
 	// 2. Terminate processes gracefully
 	for name, cmd := range m.processes {
 		if cmd.Process != nil {
-			// First, send SIGTERM
-			if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
-				slog.Warn("Failed to send SIGTERM", "server", name, "error", err)
-			}
-
-			// Wait for process to exit with timeout
-			done := make(chan error, 1)
-			go func() {
-				done <- cmd.Wait()
-			}()
-
-			select {
-			case <-time.After(5 * time.Second):
-				// If process doesn't exit after 5 seconds, kill it
-				if err := cmd.Process.Kill(); err != nil {
-					errs = append(errs, fmt.Errorf("failed to kill process %s: %w", name, err))
+			wg.Add(1)
+			go func(n string, c *exec.Cmd) {
+				defer wg.Done()
+				// First, send SIGTERM
+				if err := c.Process.Signal(syscall.SIGTERM); err != nil {
+					slog.Warn("Failed to send SIGTERM", "server", n, "error", err)
 				}
-				slog.Warn("Process killed after timeout", "server", name)
-			case err := <-done:
-				if err != nil {
-					slog.Debug("Process exited with error", "server", name, "error", err)
-				} else {
-					slog.Info("Process exited gracefully", "server", name)
+
+				// Wait for process to exit with timeout
+				done := make(chan error, 1)
+				go func() {
+					done <- c.Wait()
+				}()
+
+				select {
+				case <-time.After(5 * time.Second):
+					// If process doesn't exit after 5 seconds, kill it
+					if err := c.Process.Kill(); err != nil {
+						errs = append(errs, fmt.Errorf("failed to kill process %s: %w", n, err))
+					}
+					slog.Warn("Process killed after timeout", "server", n)
+				case err := <-done:
+					if err != nil {
+						slog.Debug("Process exited with error", "server", n, "error", err)
+					} else {
+						slog.Info("Process exited gracefully", "server", n)
+					}
 				}
-			}
+			}(name, cmd)
 		}
 	}
+
+	wg.Wait()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("errors closing sessions or processes: %v", errs)
