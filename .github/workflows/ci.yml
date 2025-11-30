@@ -18,6 +18,9 @@ on:
       - '.gitignore'
       - 'LICENSE'
 
+env:
+  GO_VERSION: '1.25'
+
 jobs:
   lint-and-typecheck:
     name: Lint and Type Check
@@ -84,5 +87,57 @@ jobs:
         with:
           name: coverage-report
           path: services/restexec/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  mcp-gateway-lint:
+    name: MCP Gateway - Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/mcp-gateway
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: services/mcp-gateway
+
+  mcp-gateway-test:
+    name: MCP Gateway - Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/mcp-gateway
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mcp-gateway-coverage
+          path: services/mcp-gateway/coverage.out
           retention-days: 7
           if-no-files-found: ignore
