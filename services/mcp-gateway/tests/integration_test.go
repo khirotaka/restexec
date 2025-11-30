@@ -30,8 +30,8 @@ func TestIntegration(t *testing.T) {
 	testServerBin := filepath.Join(testServerDir, "test_server_bin")
 
 	// Clean up previous build if exists
-	if err := os.Remove(testServerBin); err != nil {
-		t.Fatal(err)
+	if err := os.Remove(testServerBin); err != nil && !os.IsNotExist(err) {
+		t.Errorf("Failed to clean up test server: %v", err)
 	}
 
 	cmd := exec.Command("go", "build", "-o", testServerBin)
@@ -39,8 +39,8 @@ func TestIntegration(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build test server: %s", string(output))
 	defer func() {
-		if err := os.Remove(testServerBin); err != nil {
-			t.Fatal(err)
+		if err := os.Remove(testServerBin); err != nil && !os.IsNotExist(err) {
+			t.Errorf("Failed to clean up test server: %v", err)
 		}
 	}()
 
@@ -48,8 +48,8 @@ func TestIntegration(t *testing.T) {
 	configFile, err := os.CreateTemp("", "config-*.yaml")
 	require.NoError(t, err)
 	defer func() {
-		if err := os.Remove(configFile.Name()); err != nil {
-			t.Fatal(err)
+		if err := os.Remove(configFile.Name()); err != nil && !os.IsNotExist(err) {
+			t.Errorf("Failed to clean up config file: %v", err)
 		}
 	}()
 
@@ -65,7 +65,7 @@ servers:
 	_, err = configFile.WriteString(configContent)
 	require.NoError(t, err)
 	if err := configFile.Close(); err != nil {
-		t.Fatal(err)
+		t.Errorf("Failed to close config file: %v", err)
 	}
 
 	// 3. Start Gateway
@@ -81,8 +81,8 @@ servers:
 	err = clientManager.Initialize(ctx, cfg.Servers)
 	require.NoError(t, err)
 	defer func() {
-		if err := clientManager.Close(); err != nil {
-			t.Fatal(err)
+		if err := clientManager.Close(); err != nil && !os.IsNotExist(err) {
+			t.Errorf("Failed to clean up client manager: %v", err)
 		}
 	}()
 
@@ -113,7 +113,7 @@ servers:
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				t.Fatal(err)
+				t.Errorf("Failed to close response body: %v", err)
 			}
 		}()
 		return resp.StatusCode == http.StatusOK
@@ -127,7 +127,7 @@ servers:
 		require.NoError(t, err)
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				t.Fatal(err)
+				t.Errorf("Failed to close response body: %v", err)
 			}
 		}()
 
@@ -180,7 +180,7 @@ servers:
 		require.NoError(t, err)
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				t.Fatal(err)
+				t.Errorf("Failed to close response body: %v", err)
 			}
 		}()
 
