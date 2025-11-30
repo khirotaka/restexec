@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide
 
-This document helps AI assistants (like Claude) navigate the **restexec** project efficiently.
+このドキュメントは、AI アシスタント（Claude, Gemini など）がこの **モノレポプロジェクト** を効率的にナビゲートするのを支援します。
 
 ---
 
@@ -30,636 +30,207 @@ This allows developers to interact with Claude in their preferred language for b
 
 ## 📖 Purpose of This Document
 
-**This is a navigation guide and quick reference.**
+**これはナビゲーションガイドです。**
 
-For complete specifications, always refer to the detailed documentation in `services/restexec/docs/` and `services/restexec/specs/`. This document provides:
-
-- **Quick summaries** of core concepts
-- **Minimal templates** for common tasks
-- **Pointers** to detailed documentation
-- **Troubleshooting** for common issues
-
-When you need detailed information, read the linked documentation files.
+このドキュメントは、モノレポ全体の構造を理解し、各サービスの開発を始めるための出発点を提供します。各サービス固有の詳細情報については、サービスごとの CLAUDE.md を参照してください。
 
 ---
 
-## 🎯 Project Overview
+## 🎯 Monorepo Overview
 
-This repository is a **monorepo** containing the **restexec** service, a REST API service that safely executes TypeScript code via HTTP using Deno's sandboxed runtime.
+このリポジトリは **モノレポ構造** を採用しており、複数の関連サービスを含んでいます。
 
-### Monorepo Structure
+### Repository Structure
 
 ```
-restexec/                   # Project root (monorepo)
-├── services/
-│   └── restexec/          # restexec service
-│       ├── src/
-│       ├── tests/
+restexec/                          # モノレポルート
+├── services/                      # サービスディレクトリ
+│   ├── restexec/                  # REST API経由でTypeScriptコードを実行
+│   │   ├── src/
+│   │   ├── tests/
+│   │   ├── specs/
+│   │   ├── CLAUDE.md              # restexec 開発ガイド ⭐
+│   │   └── README.md
+│   └── mcp-gateway/               # MCPサーバーへのHTTPゲートウェイ
+│       ├── cmd/
+│       ├── internal/
 │       ├── specs/
-│       └── ...
-├── .github/               # CI/CD configuration (monorepo-wide)
-├── .claude/               # Claude Code configuration (monorepo-wide)
-└── compose.yaml           # Docker Compose configuration (monorepo-wide)
+│       ├── CLAUDE.md              # mcp-gateway 開発ガイド ⭐
+│       └── README.md
+├── .github/                       # CI/CD configuration
+│   └── workflows/
+│       ├── claude-code-review.yml # Claude Code Review
+│       └── claude.yml             # Claude Code Integration
+├── .claude/                       # Claude Code configuration
+│   └── agents/                    # Sub-agents
+│       ├── doc-sync-checker.md
+│       └── security-auditor.md
+├── compose.yaml                   # Docker Compose (全サービス)
+├── CLAUDE.md                      # このファイル（モノレポガイド）
+└── README.md                      # プロジェクト概要
 ```
 
-### Three Core Concepts
+### Services
 
-1. **Execution Model**: Code files in `/workspace/*.ts` are executed as **scripts** (not modules)
-   - Results must be printed to stdout: `console.log(JSON.stringify(result))`
-   - Each execution runs in an isolated Deno child process
+#### 1. **restexec** - TypeScript Code Execution Service
 
-2. **Three API Endpoints**:
-   - `PUT /workspace` - Save TypeScript code
-   - `POST /lint` - Check code quality with `deno lint`
-   - `POST /execute` - Execute code and return results
+REST API 経由で TypeScript コードを安全に実行するサービス。Deno の sandboxed runtime を使用。
 
-3. **Security-First Design**: Deno's explicit permission system
-   - Read: `/workspace`, `/tools` only
-   - Write/Network/Subprocess: Disabled by default
-   - Timeout: 5 seconds (max 300 seconds)
+**技術スタック**: Deno, TypeScript, Oak Framework
 
-### Key Features
+**開発を始める**: [`services/restexec/CLAUDE.md`](services/restexec/CLAUDE.md) ⭐
 
-- **Secure sandboxing** with Deno's permission system
-- **External library support** via pre-cached dependencies (`deps.ts`)
-- **Markdown code extraction** for LLM-generated responses
-- **Resource limits** (timeout, buffer size, file size)
+**詳細**: [`services/restexec/README.md`](services/restexec/README.md)
 
-### Target Use Cases
+#### 2. **mcp-gateway** - MCP Gateway Service
 
-- Code education platforms
-- API automation and workflows
-- Data processing with isolation
-- Testing untrusted code
-- LLM-powered code generation/execution
+Model Context Protocol (MCP) サーバーへの HTTP アクセスを提供するゲートウェイサービス。
 
-**Full details**: [services/restexec/README.md](services/restexec/README.md), [services/restexec/specs/API.md](services/restexec/specs/API.md)
+**技術スタック**: Go, Gin, MCP SDK
+
+**開発を始める**: [`services/mcp-gateway/CLAUDE.md`](services/mcp-gateway/CLAUDE.md) ⭐
+
+**詳細**: [`services/mcp-gateway/README.md`](services/mcp-gateway/README.md)
 
 ---
 
-## 🚀 Quick Reference by Task
+## 🚀 Getting Started
 
-### Task: Write Workspace Code
+### モノレポでの開発を始める
 
-**Minimal Template** (async function):
-
-```typescript
-async function main() {
-  const result = {
-    message: "Processing complete",
-    status: "success"
-  };
-
-  // REQUIRED: Output as JSON
-  console.log(JSON.stringify(result));
-}
-
-// REQUIRED: Execute with error handling
-main().catch((error) => {
-  console.error(JSON.stringify({
-    success: false,
-    error: error.message,
-  }));
-  Deno.exit(1);
-});
-```
-
-**Critical Requirements**:
-1. ✅ Output with `console.log(JSON.stringify(result))`
-2. ✅ Call the main function (don't just define it)
-3. ✅ Handle errors with `.catch()` and `Deno.exit(1)`
-4. ❌ Don't use `export default` or `return` values
-5. ❌ Don't use `process.exit()` (Node.js API)
-
-**Using External Utilities**:
-
-```typescript
-import { add } from 'utils/math.ts';
-import { capitalize } from 'utils/string.ts';
-
-async function main() {
-  const result = {
-    sum: add(10, 20),
-    text: capitalize('hello'),
-    status: 'success'
-  };
-  console.log(JSON.stringify(result));
-}
-
-main().catch((error) => {
-  console.error(JSON.stringify({ success: false, error: error.message }));
-  Deno.exit(1);
-});
-```
-
-**Using Environment Variables**:
-
-```typescript
-async function main() {
-  // Get environment variables
-  const apiKey = Deno.env.get('API_KEY');
-  const debugMode = Deno.env.get('DEBUG_MODE');
-
-  const result = {
-    apiKey: apiKey,
-    debugEnabled: debugMode === 'true',
-    status: 'success'
-  };
-  console.log(JSON.stringify(result));
-}
-
-main().catch((error) => {
-  console.error(JSON.stringify({ success: false, error: error.message }));
-  Deno.exit(1);
-});
-```
-
-**API Request with Environment Variables**:
-```bash
-curl -X POST http://localhost:3000/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "codeId":"my-script",
-    "env": {
-      "API_KEY": "secret-123",
-      "DEBUG_MODE": "true"
-    }
-  }'
-```
-
-**Environment Variable Constraints**:
-- **Key format**: Uppercase letters, numbers, underscores only (`/^[A-Z0-9_]+$/`)
-- **Max count**: 50 variables
-- **Max size**: 10KB total (all keys and values)
-- **Forbidden keys**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `HOSTNAME`, `TMPDIR`, `TEMP`, `TMP`, `DENO_*`
-
-**Security Constraints**:
-- ✅ Read from `/workspace` and `/tools`
-- ❌ No write, network, or subprocess access (by default)
-- ⏱️ Default timeout: 5 seconds
-- 🔐 Environment variables are process-isolated and temporary
-
-**Complete guide**: [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
-
----
-
-### Task: Add External Libraries
-
-**4-Step Process**:
-
-1. **Add to `deps.ts`** with exact version:
-   ```typescript
-   // deps.ts
-   export * from "https://esm.sh/es-toolkit@1.27.0";
-   export * from "https://esm.sh/date-fns@3.0.0";
-   ```
-
-2. **Update `import_map.json`** (optional, for convenience):
-   ```json
-   {
-     "imports": {
-       "es-toolkit": "https://esm.sh/es-toolkit@1.27.0",
-       "date-fns": "https://esm.sh/date-fns@3.0.0"
-     }
-   }
-   ```
-
-3. **Rebuild container**:
+1. **リポジトリをクローン**:
    ```bash
-   docker compose build
+   git clone <repository-url>
+   cd restexec
    ```
 
-4. **Restart container**:
+2. **開発したいサービスを選択**:
+   - **restexec を開発する**: [`services/restexec/CLAUDE.md`](services/restexec/CLAUDE.md) を参照
+   - **mcp-gateway を開発する**: [`services/mcp-gateway/CLAUDE.md`](services/mcp-gateway/CLAUDE.md) を参照
+
+3. **Docker Compose で全サービスを起動**:
    ```bash
    docker compose up -d
    ```
+   
+   - restexec: `http://localhost:3000`
+   - mcp-gateway: `http://localhost:3001`
 
-**Why**: Execution uses `--cached-only` flag. All libraries must be cached at build time.
+### 特定のサービスのみを起動
 
-**Recommended libraries**: es-toolkit, date-fns, zod, lodash-es, mathjs
-
-**Complete guide**: [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
-
----
-
-### Task: Understand the API
-
-**PUT /workspace** - Save code:
-```json
-// Request
-{"codeId": "my-script", "code": "console.log(JSON.stringify({msg: 'hi'}));"}
-
-// Response
-{"success": true, "result": {"codeId": "my-script", "filePath": "/workspace/my-script.ts", "size": 56}}
-```
-
-**POST /lint** - Check code quality:
-```json
-// Request
-{"codeId": "my-script", "timeout": 5000}
-
-// Response
-{"success": true, "result": {"diagnostics": [...], "errors": [], "checkedFiles": [...]}}
-```
-
-**POST /execute** - Run code:
-```json
-// Request
-{"codeId": "my-script", "timeout": 5000}
-
-// Response
-{"success": true, "result": {/* your code's output */}, "executionTime": 234}
-```
-
-**GET /health** - Server status:
-```json
-{"status": "ok", "uptime": 12345, "memoryUsage": {...}}
-```
-
-**Typical workflow**:
-```
-PUT /workspace → (POST /lint) → POST /execute
-```
-
-**Complete specs**: [services/restexec/specs/API.md](services/restexec/specs/API.md), [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md), [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md)
-
----
-
-### Task: Run Tests
-
-**Basic command**:
 ```bash
-deno task test
+# restexec のみ
+docker compose up -d restexec
+
+# mcp-gateway のみ
+docker compose up -d mcp-gateway
 ```
-
-**⚠️ Important for local development**:
-
-Tests write to `/workspace` directory. If this fails:
-
-**Solution 1**: Create `/workspace` with proper permissions:
-```bash
-sudo mkdir -p /workspace
-sudo chmod 777 /workspace
-deno task test
-```
-
-**Solution 2**: Use a temporary directory (recommended for local dev):
-```bash
-mkdir -p /tmp/restexec-workspace
-WORKSPACE_DIR=/tmp/restexec-workspace deno task test
-```
-
-**Why this happens**:
-- Integration tests save files to `config.workspaceDir` (defaults to `/workspace`)
-- Local machines may not have `/workspace` or lack write permissions
-- Docker container has this directory pre-configured
-
-**Run specific test file**:
-```bash
-deno test --allow-read --allow-write --allow-net --allow-env --allow-run services/restexec/tests/integration/workspace.test.ts
-```
-
-**Complete guide**: [services/restexec/specs/Test.md](services/restexec/specs/Test.md)
-
----
-
-## 🔧 Troubleshooting
-
-### Problem: Code execution returns `null`
-
-**Symptoms**: `result` field is `null` despite code running
-
-**Common causes**:
-1. Missing `console.log(JSON.stringify(result))`
-2. Function defined but not called
-3. Using `return` instead of `console.log`
-
-**Solution**: Use the template from [Write Workspace Code](#task-write-workspace-code) above.
-
----
-
-### Problem: "Module not found" error
-
-**Symptoms**: Error importing external library
-
-**Common causes**:
-1. Library not in `deps.ts`
-2. Container not rebuilt
-3. Wrong import path
-
-**Solution**:
-```bash
-# 1. Add to deps.ts
-# 2. Rebuild
-docker compose build
-# 3. Restart
-docker compose up -d
-```
-
----
-
-### Problem: Timeout errors
-
-**Symptoms**: `TimeoutError: Execution timed out after Xms`
-
-**Common causes**: Infinite loops, long operations, timeout too low
-
-**Solution**:
-1. Review code for infinite loops
-2. Increase timeout: `{"timeout": 30000}`
-3. Optimize async operations
-
----
-
-### Problem: Permission denied errors
-
-**Symptoms**: Errors about missing permissions (read/write/net)
-
-**Common causes**: Code accessing forbidden resources
-
-**Solution**:
-1. Check [Security Model](#-project-overview) above
-2. Ensure code only accesses `/workspace` and `/tools`
-3. Configure permissions via environment variables if needed
-
-**Details**: [services/restexec/specs/Security.md](services/restexec/specs/Security.md)
-
----
-
-### Problem: File not found (404)
-
-**Symptoms**: `FileNotFoundError: Code file not found`
-
-**Common causes**: File not saved, wrong codeId
-
-**Solution**:
-```bash
-# 1. Save first
-curl -X PUT http://localhost:3000/workspace \
-  -H "Content-Type: application/json" \
-  -d '{"codeId":"my-script","code":"..."}'
-
-# 2. Then execute (use same codeId, no .ts extension)
-curl -X POST http://localhost:3000/execute \
-  -H "Content-Type: application/json" \
-  -d '{"codeId":"my-script"}'
-```
-
----
-
-### Problem: `deno task test` fails
-
-**Symptoms**: Test errors like "Permission denied" or "No such file or directory" when running tests
-
-**Common causes**:
-- `/workspace` directory doesn't exist
-- No write permissions to `/workspace`
-- Running tests on local machine (not in Docker)
-
-**Solution** (choose one):
-
-**Option 1** - Create `/workspace` directory:
-```bash
-sudo mkdir -p /workspace
-sudo chmod 777 /workspace
-deno task test
-```
-
-**Option 2** - Use temporary directory (recommended):
-```bash
-# Set WORKSPACE_DIR to a writable location
-mkdir -p /tmp/restexec-workspace
-WORKSPACE_DIR=/tmp/restexec-workspace deno task test
-```
-
-**Option 3** - Use Docker for tests:
-```bash
-docker compose run --rm restexec deno task test
-```
-
-**Why this happens**:
-- Integration tests (e.g., `services/restexec/tests/integration/workspace.test.ts`) write files to `config.workspaceDir`
-- Default is `/workspace` (configured for Docker)
-- Local machines may not have this directory or permissions
-
-**Environment variables**:
-```bash
-# Override workspace directory for tests
-export WORKSPACE_DIR=/tmp/restexec-workspace
-export TOOLS_DIR=/tmp/restexec-tools
-
-# Then run tests
-deno task test
-```
-
-**See**: Line 78-87 in [services/restexec/tests/integration/workspace.test.ts](services/restexec/tests/integration/workspace.test.ts)
-
----
-
-### Problem: Container won't start
-
-**Symptoms**: Docker container exits or won't start
-
-**Common causes**: Port in use, build errors, config issues
-
-**Solution**:
-```bash
-# 1. Check logs
-docker compose logs
-
-# 2. Verify port 3000 available
-lsof -i :3000
-
-# 3. Rebuild from scratch
-docker compose build --no-cache
-
-# 4. Check environment variables
-cat compose.yaml
-```
-
----
-
-## 📚 Documentation Map
-
-### Essential Documentation
-
-**For Development**:
-- [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md) - Complete guide to writing workspace code
-- [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model and permissions
-- [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md) - External library management
-
-**API Specifications**:
-- [services/restexec/specs/API.md](services/restexec/specs/API.md) - POST /execute endpoint
-- [services/restexec/specs/LintAPI.md](services/restexec/specs/LintAPI.md) - POST /lint endpoint
-- [services/restexec/specs/WorkspaceSaveAPI.md](services/restexec/specs/WorkspaceSaveAPI.md) - PUT /workspace endpoint
-
-**Architecture**:
-- [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - System design
-- [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow diagrams
-- [services/restexec/specs/CodeExecution.md](services/restexec/specs/CodeExecution.md) - Execution details
-
-**Operations**:
-- [services/restexec/README.md](services/restexec/README.md) - Quick start guide
-- [services/restexec/DOCKER.md](services/restexec/DOCKER.md) - Docker setup
-- [services/restexec/specs/Deployment.md](services/restexec/specs/Deployment.md) - Deployment guide
-- [services/restexec/specs/Configuration.md](services/restexec/specs/Configuration.md) - Environment variables
-- [services/restexec/specs/Test.md](services/restexec/specs/Test.md) - Testing strategy
-
-**Other Specs**:
-- [services/restexec/specs/FileSystem.md](services/restexec/specs/FileSystem.md) - File system structure
-- [services/restexec/specs/Logging.md](services/restexec/specs/Logging.md) - Logging configuration
-- [services/restexec/specs/Performance.md](services/restexec/specs/Performance.md) - Performance benchmarks
-- [services/restexec/specs/Regulation.md](services/restexec/specs/Regulation.md) - Execution regulations
-
-### Working Examples
-
-**Code Examples**:
-- [services/restexec/example/workspace/hello-world.ts](services/restexec/example/workspace/hello-world.ts) - Simple example
-- [services/restexec/example/workspace/with-import.ts](services/restexec/example/workspace/with-import.ts) - Import example
-- [services/restexec/example/workspace/async-example.ts](services/restexec/example/workspace/async-example.ts) - Async example
-
-**Utility Examples**:
-- [services/restexec/example/tools/utils/math.ts](services/restexec/example/tools/utils/math.ts) - Math utilities
-- [services/restexec/example/tools/utils/string.ts](services/restexec/example/tools/utils/string.ts) - String utilities
-
----
-
-## 🔑 Key Points for AI Assistants
-
-### When Writing Workspace Code
-
-1. **Always use the template** from this document
-2. **Always output with** `console.log(JSON.stringify(result))`
-3. **Always call the function** (don't just define it)
-4. **Never use** `export default` or Node.js APIs
-
-### When User Asks About...
-
-- **"How do I write code?"** → Use template + link to [services/restexec/docs/workspace-code-guide.md](services/restexec/docs/workspace-code-guide.md)
-- **"How do I add a library?"** → 4-step process + link to [services/restexec/specs/Libraries.md](services/restexec/specs/Libraries.md)
-- **"What APIs are available?"** → Quick reference + link to [services/restexec/specs/API.md](services/restexec/specs/API.md)
-- **"Why is my code not working?"** → Check [Troubleshooting](#-troubleshooting) section
-- **"How do I run tests?"** → See [Task: Run Tests](#task-run-tests) section
-
-### Architecture Questions
-
-For detailed architecture questions, read:
-1. [services/restexec/specs/SystemArchitecture.md](services/restexec/specs/SystemArchitecture.md) - High-level design
-2. [services/restexec/specs/Sequence.md](services/restexec/specs/Sequence.md) - Execution flow
-3. [services/restexec/specs/Security.md](services/restexec/specs/Security.md) - Security model
-4. Relevant source files in `services/restexec/src/`
 
 ---
 
 ## 🤖 Claude Code Sub-Agents
 
-This project includes specialized sub-agents that proactively assist with specific tasks. These agents are automatically invoked when relevant changes are detected or can be manually called.
+このプロジェクトには、特定のタスクを積極的に支援する専門化されたサブエージェントが含まれています。
 
 ### Available Sub-Agents
 
 #### 1. **doc-sync-checker** - Documentation Synchronization Checker
 
-**Purpose**: Detects specification documentation update gaps when code changes.
+**目的**: コード変更時に仕様書ドキュメントの更新漏れを検出
 
-**Automatic Triggers**:
-- API changes in `routes/`
-- Parameter additions in `middleware/validation.ts`
-- Core logic modifications in `services/restexec/src/utils/`
+**自動トリガー**:
+- API 変更（`routes/`）
+- バリデーション変更（`middleware/validation.ts`）
+- コアロジック変更（`utils/`）
 
-**Manual Invocation**:
+**手動起動**:
 ```
 doc-sync-checker エージェントで最近の変更を確認して
 ```
 
-**What it does**:
-- Analyzes `git diff` to identify changed files
-- Maps changes to relevant spec files (specs/API.md, services/restexec/specs/Security.md, etc.)
-- Detects discrepancies between code and documentation
-- Provides concrete update proposals with line numbers
-- Prioritizes updates (Critical/Medium/Low)
-
-**Example Use Cases**:
-- After adding a new API parameter
-- After modifying response formats
-- Before creating a pull request
-- When updating execution logic
-
----
+**実行内容**:
+- `git diff` を分析して変更ファイルを特定
+- 関連する仕様書（`specs/API.md`, `specs/Security.md` など）とのマッピング
+- コードとドキュメントの不整合を検出
+- 具体的な更新提案を行番号付きで提供
+- 優先度付け（Critical/Medium/Low）
 
 #### 2. **security-auditor** - Security Audit Agent
 
-**Purpose**: Monitors Deno permission settings and detects security risks proactively.
+**目的**: セキュリティリスクを積極的に監視・検出
 
-**Automatic Triggers**:
-- Dockerfile or compose.yaml changes
-- Execution logic modifications in `services/restexec/src/utils/executor.ts`
-- Dependency additions/updates in `deps.ts`
-- Configuration changes in `services/restexec/src/config.ts`
+**自動トリガー**:
+- Dockerfile または compose.yaml の変更
+- 実行ロジックの変更（`executor.ts`, `main.go`）
+- 依存関係の追加・更新（`deps.ts`, `go.mod`）
+- 設定ファイルの変更（`config.ts`, `config.yaml`）
 
-**Manual Invocation**:
+**手動起動**:
 ```
 security-auditor エージェントでセキュリティ監査をして
 ```
 
-**What it does**:
-- Monitors `--allow-*` flag changes and validates necessity
-- Scans for OWASP Top 10 vulnerabilities (injection, XSS, path traversal, etc.)
-- Checks dependency security (version pinning, trusted CDNs)
-- Validates execution limits (timeout, buffer size, file size)
-- Ensures consistency with services/restexec/specs/Security.md
-- Provides CVSS-based risk scores
+**実行内容**:
+- パーミッション設定の変更監視（`--allow-*` フラグ）
+- OWASP Top 10 脆弱性スキャン
+- 依存関係のセキュリティチェック
+- 実行制限の検証（timeout, buffer size など）
+- CVSS ベースのリスクスコア提供
 
-**Example Use Cases**:
-- Before adding new Deno permissions
-- After updating dependencies
-- When modifying input validation logic
-- Regular security audits before releases
+### Sub-Agents の動作
 
----
+**自動起動**:
+- Claude Code がタスクとファイル変更に基づいて適切なエージェントを自動選択
+- 説明に `PROACTIVELY` を含むエージェントは明示的なリクエストなしで呼び出される
 
-### How Sub-Agents Work
+**手動起動**:
+- リクエストにエージェント名を含める
+- 例: "security-auditor エージェントを実行して"
 
-**Automatic Invocation**:
-- Claude Code automatically selects the appropriate agent based on your task and file changes
-- Agents with `PROACTIVELY` in their description are called without explicit request
-- No manual intervention needed for routine checks
-
-**Manual Invocation**:
-- Use the agent name in your request to Claude Code
-- Example: "security-auditor エージェントを実行して"
-- Useful for targeted checks or when automatic triggering doesn't occur
-
-**Agent Capabilities**:
-- Each agent has access to specific tools: Read, Grep, Glob, Bash
-- Agents use Sonnet model for balanced performance
-- Independent context windows prevent interference
-- Detailed reports with actionable recommendations
-
-### Best Practices
-
-1. **After Making Changes**: Wait for agents to run automatically and review their reports
-2. **Before Commits**: Manually invoke doc-sync-checker to ensure documentation is updated
-3. **Before Releases**: Run security-auditor for comprehensive security review
-
-### Agent Configuration
-
-Sub-agents are defined in `.claude/agents/` directory:
-- `.claude/agents/doc-sync-checker.md`
-- `.claude/agents/security-auditor.md`
-
-To modify agent behavior, edit these Markdown files (YAML frontmatter + system prompt).
+**エージェント設定**:
+- 定義場所: `.claude/agents/` ディレクトリ
+- 動作をカスタマイズする場合は、Markdown ファイル（YAML frontmatter + system prompt）を編集
 
 ---
 
-## 🛠️ Technology Stack
+## 🔄 CI/CD Integration
 
-- **Runtime**: Deno 2.5.6
-- **Language**: TypeScript (strict mode)
-- **Web Framework**: Oak v17.1.6
-- **Container**: Alpine Linux + Docker
-- **Testing**: Deno's built-in test runner
-- **External Libraries**: Managed via `deps.ts` + esm.sh CDN
-- **AI Assistance**: Claude Code Sub-Agents (2 specialized agents)
+### Claude Code in GitHub Actions
+
+このリポジトリでは、GitHub Actions で Claude Code を活用しています。
+
+#### 1. **Claude Code Review** (`.github/workflows/claude-code-review.yml`)
+
+プルリクエストが作成・更新されたときに自動的にコードレビューを実施します。
+
+**実行タイミング**:
+- PR が opened, synchronized, ready_for_review, reopened
+
+**レビュー観点**:
+- 保守性と可読性
+- 設計とアーキテクチャの妥当性
+- コード品質とベストプラクティス
+- 潜在的なバグや問題
+- セキュリティ上の懸念点
+
+**フィードバック形式**:
+- インラインコメント（改善点・懸念事項のみ）
+- 結論を先に述べ、理由と具体的な修正案を提示
+- すべて日本語で記述
+
+#### 2. **Claude Code** (`.github/workflows/claude.yml`)
+
+Issue や PR のコメントで `@claude` をメンションすると、Claude が支援します。
+
+**トリガー**:
+- Issue コメントに `@claude` を含む
+- PR レビューコメントに `@claude` を含む
+- Issue タイトルまたは本文に `@claude` を含む
+
+**このCLAUDE.mdの役割**:
+- CI ワークフローで実行される Claude は、このファイルを参照してリポジトリ構造を理解
+- 各サービスの CLAUDE.md へのポインタとして機能
+- モノレポ全体の開発ワークフローを提供
 
 ---
 
@@ -667,44 +238,176 @@ To modify agent behavior, edit these Markdown files (YAML frontmatter + system p
 
 ### Before Committing
 
-Run these checks before committing any changes:
+コミット前に実施すべきチェック項目：
+
+#### For restexec service:
+
 ```bash
+cd services/restexec
+
 # Lint code
-deno lint services/restexec/src/ services/restexec/tests/
+deno lint src/ tests/
 
 # Check formatting
-deno fmt --check services/restexec/src/ services/restexec/tests/
+deno fmt --check src/ tests/
 
 # Run all tests
 deno task test
 ```
 
-All checks must pass without errors or warnings.
+#### For mcp-gateway service:
 
-**Auto-fix formatting issues**:
 ```bash
-deno fmt services/restexec/src/ services/restexec/tests/
+cd services/mcp-gateway
+
+# Format code
+go fmt ./...
+
+# Lint
+golangci-lint run
+
+# Run all tests
+go test ./...
 ```
 
 ### For New Features
 
-1. Read relevant specs in `services/restexec/specs/`
-2. Update specifications if needed
-3. Implement with error handling
-4. Add comprehensive tests
-5. Update this CLAUDE.md if it affects quick reference
-6. Update README.md if user-facing
+1. **仕様書を読む**: 該当サービスの `specs/` ディレクトリを確認
+2. **仕様書を更新**: 必要に応じて仕様書を更新
+3. **実装**: エラーハンドリングを含めて実装
+4. **テストを追加**: 包括的なテストを作成
+5. **ドキュメント更新**: 
+   - サービスの CLAUDE.md を更新（ユーザー向け情報の場合）
+   - サービスの README.md を更新（必要に応じて）
+6. **doc-sync-checker を実行**: ドキュメントの同期を確認
 
 ### For Bug Fixes
 
-1. Identify root cause
-2. Add test reproducing the bug
-3. Implement minimal fix
-4. Verify all tests pass
-5. Update troubleshooting section if broadly applicable
+1. **根本原因を特定**
+2. **バグを再現するテストを追加**
+3. **最小限の修正を実装**
+4. **すべてのテストが通ることを確認**
+5. **トラブルシューティングセクションを更新**（広く適用可能な場合）
+
+### Commit Message Convention
+
+[Conventional Commits](https://www.conventionalcommits.org/) に従ってください：
+
+- `feat:` - 新機能
+- `fix:` - バグ修正
+- `docs:` - ドキュメントのみの変更
+- `test:` - テストの追加・修正
+- `refactor:` - リファクタリング
+- `chore:` - ビルドプロセスやツールの変更
+
+**例**:
+```bash
+git commit -m "feat(restexec): add environment variable validation"
+git commit -m "fix(mcp-gateway): handle MCP server crash correctly"
+git commit -m "docs: update CLAUDE.md for monorepo structure"
+```
 
 ---
 
-*This is a navigation guide. For complete information, see the linked documentation files.*
+## 🔑 Key Points for AI Assistants
 
-*Last updated: 2025-11-28*
+### When User Asks About...
+
+- **「restexec の開発を始めたい」** → [`services/restexec/CLAUDE.md`](services/restexec/CLAUDE.md) を参照するように案内
+- **「mcp-gateway の開発を始めたい」** → [`services/mcp-gateway/CLAUDE.md`](services/mcp-gateway/CLAUDE.md) を参照するように案内
+- **「モノレポ全体の構造を知りたい」** → このドキュメントの [Monorepo Overview](#-monorepo-overview) を参照
+- **「CI/CD について」** → [CI/CD Integration](#-cicd-integration) を参照
+- **「コミット前にやることは？」** → [Development Workflow](#-development-workflow) を参照
+
+### Working with Multiple Services
+
+このモノレポで作業する際の注意点：
+
+1. **作業ディレクトリを意識する**: 各サービスは独立したディレクトリ構造を持つ
+2. **サービス固有のツールを使用**: 
+   - restexec: Deno コマンド
+   - mcp-gateway: Go コマンド
+3. **依存関係は別々に管理**: 
+   - restexec: `deps.ts`
+   - mcp-gateway: `go.mod`
+4. **ドキュメントは各サービス内を確認**: `services/<service>/specs/`
+
+### Navigation Tips
+
+- **トップレベルのこのファイル**: モノレポ全体の構造、CI/CD、開発ワークフロー
+- **サービスの CLAUDE.md**: サービス固有の開発ガイド、API リファレンス、トラブルシューティング
+- **サービスの README.md**: サービスの概要、クイックスタート
+- **サービスの specs/**: 詳細な仕様書
+
+---
+
+## 🛠️ Technology Stack
+
+### Monorepo Tools
+- **Docker Compose**: マルチサービスオーケストレーション
+- **Git**: バージョン管理
+
+### Service-Specific Technologies
+
+**restexec**:
+- Runtime: Deno 2.5.6
+- Language: TypeScript (strict mode)
+- Web Framework: Oak v17.1.6
+- Container: Alpine Linux + Docker
+
+**mcp-gateway**:
+- Language: Go 1.21+
+- Web Framework: Gin
+- MCP SDK: github.com/modelcontextprotocol/go-sdk
+- Validation: go-playground/validator
+
+---
+
+## 📚 Documentation Map
+
+### Monorepo-Level Documentation
+
+- [README.md](README.md) - プロジェクト概要とクイックスタート
+- [CLAUDE.md](CLAUDE.md) - このファイル（AI アシスタント向けガイド）
+- [compose.yaml](compose.yaml) - Docker Compose 設定
+- [.github/workflows/](. github/workflows/) - CI/CD ワークフロー
+
+### Service-Level Documentation
+
+**restexec**:
+- **開発ガイド**: [services/restexec/CLAUDE.md](services/restexec/CLAUDE.md) ⭐
+- **README**: [services/restexec/README.md](services/restexec/README.md)
+- **仕様書**: [services/restexec/specs/](services/restexec/specs/)
+
+**mcp-gateway**:
+- **開発ガイド**: [services/mcp-gateway/CLAUDE.md](services/mcp-gateway/CLAUDE.md) ⭐
+- **README**: [services/mcp-gateway/README.md](services/mcp-gateway/README.md)
+- **仕様書**: [services/mcp-gateway/specs/](services/mcp-gateway/specs/)
+
+---
+
+## 🆘 Getting Help
+
+### For Service-Specific Issues
+
+各サービスのトラブルシューティングセクションを参照：
+- restexec: [services/restexec/CLAUDE.md](services/restexec/CLAUDE.md)
+- mcp-gateway: [services/mcp-gateway/CLAUDE.md](services/mcp-gateway/CLAUDE.md)
+
+### For Monorepo-Level Issues
+
+1. Docker Compose の問題: `docker compose logs` でログを確認
+2. ポート競合: `lsof -i :3000` または `lsof -i :3001` で確認
+3. サービス間の連携問題: `compose.yaml` のネットワーク設定を確認
+
+### For CI/CD Issues
+
+1. GitHub Actions のログを確認
+2. Claude Code のフィードバックを確認
+3. ワークフローファイル（`.github/workflows/`）を確認
+
+---
+
+*このドキュメントはモノレポ全体のナビゲーションガイドです。各サービスの詳細情報は、サービスごとの CLAUDE.md を参照してください。*
+
+*Last updated: 2025-11-30*
