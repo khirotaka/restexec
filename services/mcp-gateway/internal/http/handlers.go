@@ -1,10 +1,14 @@
 package http
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/cmd/mcp-gateway/pkg/errors"
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/mcp"
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/validator"
 )
@@ -33,8 +37,8 @@ func (h *Handler) CallTool(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "VALIDATION_ERROR",
-				"message": "Invalid JSON body",
+				"code":    mcpErrors.ErrCodeValidation,
+				"message": err.Error(),
 			},
 		})
 		return
@@ -45,7 +49,7 @@ func (h *Handler) CallTool(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "VALIDATION_ERROR",
+				"code":    mcpErrors.ErrCodeValidation,
 				"message": err.Error(),
 			},
 		})
@@ -53,20 +57,38 @@ func (h *Handler) CallTool(c *gin.Context) {
 	}
 
 	// Call tool
-	// TODO: Get timeout from config or use default
-	ctx := c.Request.Context()
+	timeout := 30 * time.Second
+	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+	defer cancel()
+
 	result, err := h.clientManager.CallTool(ctx, req.Server, req.ToolName, req.Input)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			c.JSON(http.StatusGatewayTimeout, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    mcpErrors.ErrCodeTimeout,
+					"message": fmt.Sprintf("Tool execution timed out after %dms", timeout.Milliseconds()),
+					"details": gin.H{
+						"toolName":   req.ToolName,
+						"serverName": req.Server,
+						"timeout":    timeout.Milliseconds(),
+					},
+				},
+			})
+			return
+		}
+
 		// Map errors (simplified)
 		status := http.StatusInternalServerError
-		code := "TOOL_EXECUTION_ERROR"
+		code := mcpErrors.ErrCodeToolExecution
 
 		if err.Error() == "server not found" {
 			status = http.StatusNotFound
-			code = "SERVER_NOT_FOUND"
+			code = mcpErrors.ErrCodeServerNotFound
 		} else if err.Error() == "server is unavailable" || err.Error() == "server is crashed" {
 			status = http.StatusServiceUnavailable
-			code = "SERVER_NOT_RUNNING"
+			code = mcpErrors.ErrCodeServerNotRunning
 		}
 
 		c.JSON(status, gin.H{
