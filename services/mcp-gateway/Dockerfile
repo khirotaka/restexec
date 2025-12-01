@@ -20,6 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/mcp-gateway ./cmd
 # It includes ca-certificates by default, which is perfect for internet access
 FROM gcr.io/distroless/static-debian12:nonroot
 
+EXPOSE 3001
 WORKDIR /
 
 # Copy the binary from the builder stage
