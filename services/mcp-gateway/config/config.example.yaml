@@ -13,7 +13,7 @@ servers:
   # サンプル設定（デモンストレーション用）
   # MCP Gateway テストサーバー - calculate-bmi と fetch-weather ツールを提供
   - name: sample-mcp-server
-    command: ./app/sample-mcp-server
+    command: /app/sample-mcp-server
     # args:                          # コマンドライン引数（オプション）
     #   - --port
     #   - "8000"

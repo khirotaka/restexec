@@ -1,3 +1,4 @@
+# Exclude actual config (contains sensitive data, mounted at runtime)
 config/config.yaml
 config/*.local.yaml
 specs/
