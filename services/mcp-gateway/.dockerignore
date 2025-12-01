@@ -1,4 +1,5 @@
-config/
+config/config.yaml
+config/*.local.yaml
 specs/
 CLAUDE.md
 README.md
