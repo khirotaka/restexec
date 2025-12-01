@@ -1,0 +1,14 @@
+config/
+specs/
+CLAUDE.md
+README.md
+tests/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+.cache

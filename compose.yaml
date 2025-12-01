@@ -54,6 +54,7 @@ services:
       - HEALTH_CHECK_INTERVAL=${MCP_GATEWAY_HEALTH_CHECK_INTERVAL:-30000}
       - MCP_SERVER_RESTART_POLICY=${MCP_GATEWAY_RESTART_POLICY:-never}
       - DISABLE_VALIDATION=${MCP_GATEWAY_DISABLE_VALIDATION:-false}
+      - CONFIG_PATH=${MCP_GATEWAY_CONFIG_PATH:-/config/config.yaml}
     volumes:
       # Mount config file (required)
       - ./services/mcp-gateway/config/config.yaml:/config/config.yaml:ro
