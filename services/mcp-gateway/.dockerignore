@@ -1,0 +1,16 @@
+# Exclude actual config (contains sensitive data, mounted at runtime)
+config/config.yaml
+config/*.local.yaml
+specs/
+CLAUDE.md
+README.md
+tests/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+.cache

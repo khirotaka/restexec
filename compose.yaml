@@ -19,8 +19,6 @@ services:
       - DENO_ALLOW_NET=${DENO_ALLOW_NET:-}
       - DENO_ALLOW_RUN=${DENO_ALLOW_RUN:-false}
       - DENO_IMPORT_MAP=${DENO_IMPORT_MAP:-/workspace/import_map.json}
-    env_file:
-      - .env
     volumes:
       # Mount workspace and tools directories
       - ./services/restexec/example/workspace:/workspace
@@ -31,11 +29,40 @@ services:
       # - ./services/restexec/deno.json:/app/deno.json:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - restexec-network
+
+  mcp-gateway:
+    build:
+      context: ./services/mcp-gateway
+      dockerfile: Dockerfile
+    container_name: mcp-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=${MCP_GATEWAY_PORT:-3001}
+      - LOG_LEVEL=${MCP_GATEWAY_LOG_LEVEL:-INFO}
+      - MAX_TIMEOUT=${MCP_GATEWAY_MAX_TIMEOUT:-300000}
+      - HEALTH_CHECK_INTERVAL=${MCP_GATEWAY_HEALTH_CHECK_INTERVAL:-30000}
+      - MCP_SERVER_RESTART_POLICY=${MCP_GATEWAY_RESTART_POLICY:-never}
+      - DISABLE_VALIDATION=${MCP_GATEWAY_DISABLE_VALIDATION:-false}
+      - CONFIG_PATH=${MCP_GATEWAY_CONFIG_PATH:-/config/config.yaml}
+    volumes:
+      # Mount config file (required)
+      - ./services/mcp-gateway/config/config.yaml:/config/config.yaml:ro
+      - ./services/mcp-gateway/tests/test_server/sample-mcp-server:/app/sample-mcp-server
+      # For development: mount source code to enable changes without rebuilding
+      # Uncomment the following lines for development mode
+      # - ./services/mcp-gateway/internal:/app/internal:ro
+      # - ./services/mcp-gateway/cmd:/app/cmd:ro
+    restart: unless-stopped
+    # Healthcheck is disabled because distroless/static image doesn't include tools like wget or curl
+    # Monitor the service using application logs or external monitoring tools instead
     networks:
       - restexec-network
 

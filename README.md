@@ -54,7 +54,48 @@ Client → HTTP API → Client Manager → MCP Server Process → Tool Execution
 
 ## 🚀 クイックスタート
 
-### restexec サービス
+### Docker Compose で全サービスを起動
+
+```bash
+# 設定ファイルを準備
+cp services/mcp-gateway/config/config.example.yaml services/mcp-gateway/config/config.yaml
+
+# 全サービスを起動
+docker compose up -d
+
+# ログを確認
+docker compose logs -f
+
+# 停止
+docker compose down
+```
+
+#### MCP Gateway の起動準備
+
+MCP Gateway を使用する場合、設定ファイルを作成する必要があります：
+
+```bash
+# サンプル設定ファイルをコピー
+cp services/mcp-gateway/config/config.example.yaml services/mcp-gateway/config/config.yaml
+
+# config.yaml を編集して、使用する MCP サーバーを定義
+# デフォルトではテストサーバーが設定されています
+vim services/mcp-gateway/config/config.yaml
+```
+
+設定ファイルの詳細は [services/mcp-gateway/specs/Configuration.md](services/mcp-gateway/specs/Configuration.md) を参照してください。
+
+#### 特定のサービスのみを起動
+
+```bash
+# restexec のみ
+docker compose up -d restexec
+
+# mcp-gateway のみ
+docker compose up -d mcp-gateway
+```
+
+### restexec サービス（ローカル開発）
 
 ```bash
 # Docker Composeで起動
@@ -75,16 +116,19 @@ curl -X POST http://localhost:3000/execute \
 docker compose down
 ```
 
-### MCP Gateway サービス
+### MCP Gateway サービス（ローカル開発）
 
 ```bash
 # サービスディレクトリに移動
 cd services/mcp-gateway
 
+# 設定ファイルを準備
+cp config/config.example.yaml config/config.yaml
+
 # ビルド
 go build -o mcp-gateway ./cmd/mcp-gateway
 
-# 実行（設定ファイルが必要）
+# 実行
 ./mcp-gateway
 
 # または、開発モードで実行
@@ -100,9 +144,12 @@ curl http://localhost:3001/mcp/tools
 curl -X POST http://localhost:3001/mcp/call \
   -H "Content-Type: application/json" \
   -d '{
-    "server": "your-server",
-    "toolName": "your-tool",
-    "input": {}
+    "server": "test-server",
+    "toolName": "calculate-bmi",
+    "input": {
+      "height_m": 1.75,
+      "weight_kg": 70.0
+    }
   }'
 ```
 
