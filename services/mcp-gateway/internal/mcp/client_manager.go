@@ -47,13 +47,17 @@ func NewClientManager(pm *ProcessManager) *ClientManager {
 // Initialize connects to all configured MCP servers
 func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerConfig) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	for _, cfg := range configs {
 		if err := m.connectClient(ctx, cfg); err != nil {
+			// Cleanup already connected servers before returning error
+			m.mu.Unlock()
+			_ = m.Close()
 			return fmt.Errorf("failed to connect to server %s: %w", cfg.Name, err)
 		}
 	}
+
+	m.mu.Unlock()
 	return nil
 }
 
