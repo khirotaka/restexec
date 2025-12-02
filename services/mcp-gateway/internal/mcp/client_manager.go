@@ -143,6 +143,11 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 	return nil
 }
 
+// toolCacheKey generates a cache key for a tool to avoid collisions across servers
+func toolCacheKey(serverName, toolName string) string {
+	return fmt.Sprintf("%s:%s", serverName, toolName)
+}
+
 func (m *ClientManager) cacheTools(ctx context.Context, serverName string, session *mcp.ClientSession, timeout int) error {
 	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 	if err != nil {
@@ -151,7 +156,7 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 
 	for _, tool := range result.Tools {
 		// Use "server:toolName" as cache key to avoid collisions
-		cacheKey := fmt.Sprintf("%s:%s", serverName, tool.Name)
+		cacheKey := toolCacheKey(serverName, tool.Name)
 		m.toolsCache[cacheKey] = ToolInfo{
 			Timeout:      timeout,
 			Name:         tool.Name,
@@ -207,6 +212,17 @@ func (m *ClientManager) GetTools() []ToolInfo {
 		tools = append(tools, tool)
 	}
 	return tools
+}
+
+// GetToolInfo returns tool info for a specific server and tool name
+// Returns the ToolInfo and true if found, or an empty ToolInfo and false if not found
+func (m *ClientManager) GetToolInfo(server, toolName string) (ToolInfo, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	cacheKey := toolCacheKey(server, toolName)
+	tool, found := m.toolsCache[cacheKey]
+	return tool, found
 }
 
 // Close closes all sessions
