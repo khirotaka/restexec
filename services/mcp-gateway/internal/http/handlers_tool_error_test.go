@@ -30,7 +30,7 @@ func TestExtractErrorMessage_EmptyContent(t *testing.T) {
 
 	msg, isError := extractErrorMessage(result)
 	assert.True(t, isError)
-	assert.Equal(t, "Tool execution failed", msg)
+	assert.Equal(t, "Tool execution failed: no error details provided", msg)
 }
 
 func TestExtractErrorMessage_NonTextContent(t *testing.T) {
@@ -46,7 +46,7 @@ func TestExtractErrorMessage_NonTextContent(t *testing.T) {
 
 	msg, isError := extractErrorMessage(result)
 	assert.True(t, isError)
-	assert.Equal(t, "Tool execution failed", msg)
+	assert.Equal(t, "Tool execution failed: unexpected content type: *mcp.ImageContent", msg)
 }
 
 func TestExtractErrorMessage_IsErrorFalse(t *testing.T) {
@@ -84,5 +84,5 @@ func TestExtractErrorMessage_EmptyText(t *testing.T) {
 
 	msg, isError := extractErrorMessage(result)
 	assert.True(t, isError)
-	assert.Equal(t, "Tool execution failed", msg)
+	assert.Equal(t, "Tool execution failed: unexpected content type: *mcp.TextContent", msg)
 }
