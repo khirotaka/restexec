@@ -76,7 +76,7 @@ export function generateToolContent(tool: MCPTool): string {
     outputTypeDefinition = `export interface ${outputInterfaceName} ${jsonSchemaToTsType(tool.outputSchema)}\n\n`;
   }
   
-  return `import { callMCPTool } from "../../client.ts";
+  return `import { callMCPTool } from "/tools/mcp/client.ts";
 
 export interface ${inputInterfaceName} ${inputTypeDefinition}
 
