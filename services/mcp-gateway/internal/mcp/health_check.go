@@ -15,28 +15,42 @@ import (
 func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string) {
 	interval := time.Duration(m.processManager.healthCheckInterval) * time.Millisecond
 
-	// Cancel existing health check for this server
+	// Cancel existing health check for this server and wait for it to exit
 	m.mu.Lock()
 	if cancel, ok := m.healthCheckCancels[serverName]; ok {
 		slog.Debug("Cancelling existing health check", "server", serverName)
 		cancel()
+		if done, ok := m.healthCheckDone[serverName]; ok {
+			// Unlock to wait for goroutine to exit to avoid deadlock
+			m.mu.Unlock()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				slog.Warn("Timed out waiting for old health check to exit", "server", serverName)
+			}
+			m.mu.Lock()
+		}
 	}
 
-	// Initialize health check state
+	// Initialize health check state if needed (preserve existing state)
 	if m.healthCheckStates[serverName] == nil {
 		m.healthCheckStates[serverName] = &HealthCheckState{}
 	}
 	state := m.healthCheckStates[serverName]
 
 	healthCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
 	m.healthCheckCancels[serverName] = cancel
+	m.healthCheckDone[serverName] = done
 	m.mu.Unlock()
 
 	go func() {
 		defer func() {
 			m.mu.Lock()
 			delete(m.healthCheckCancels, serverName)
+			delete(m.healthCheckDone, serverName)
 			m.mu.Unlock()
+			close(done)
 			slog.Debug("Health check goroutine exited", "server", serverName)
 		}()
 
@@ -59,6 +73,9 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 				}
 
 				// Calculate ping timeout: interval/2, min 3s, max 10s
+				// Rationale: Timeout should be shorter than interval to allow multiple retries,
+				// but long enough to handle network latency. 3s min protects against too-short intervals,
+				// 10s max prevents excessively long waits.
 				pingTimeout := interval / 2
 				if pingTimeout < 3*time.Second {
 					pingTimeout = 3 * time.Second
@@ -68,26 +85,37 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 				}
 
 				// MCP ping with timeout
-				pingCtx, pingCancel := context.WithTimeout(context.Background(), pingTimeout)
+				pingCtx, pingCancel := context.WithTimeout(healthCtx, pingTimeout)
 				err := session.Ping(pingCtx, &mcp.PingParams{})
 				pingCancel()
 
+				state.mu.Lock()
 				state.lastCheckTime = time.Now()
 
 				if err != nil {
 					state.consecutiveFailures++
+					failures := state.consecutiveFailures
+					state.mu.Unlock()
+
 					slog.Warn("Health check failed - MCP ping failed",
 						"server", serverName,
-						"consecutive_failures", state.consecutiveFailures,
+						"consecutive_failures", failures,
 						"error", err)
 
 					// 3-strike rule: Only mark as crashed after 3 consecutive failures
-					if state.consecutiveFailures >= 3 {
-						m.processManager.SetStatus(serverName, StatusCrashed)
+					if failures >= 3 {
+						// Check if already restarting to prevent duplicate triggers
+						m.mu.RLock()
+						isRestarting := m.restarting[serverName]
+						m.mu.RUnlock()
 
-						// Trigger restart if policy allows
-						if m.processManager.onServerCrashed != nil {
-							m.processManager.onServerCrashed(serverName)
+						if !isRestarting {
+							m.processManager.SetStatus(serverName, StatusCrashed)
+
+							// Trigger restart if policy allows
+							if m.processManager.onServerCrashed != nil {
+								m.processManager.onServerCrashed(serverName)
+							}
 						}
 					}
 					// Continue checking instead of returning - allows recovery detection
@@ -101,6 +129,7 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 						state.consecutiveFailures = 0
 						m.processManager.ResetRestartAttempts(serverName)
 					}
+					state.mu.Unlock()
 				}
 			}
 		}
@@ -111,61 +140,80 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConfig) error {
 	// Set restarting flag to block API requests
 	m.mu.Lock()
+	if m.restarting[cfg.Name] {
+		m.mu.Unlock()
+		return fmt.Errorf("server %s is already restarting", cfg.Name)
+	}
 	m.restarting[cfg.Name] = true
 	m.mu.Unlock()
 
-	defer func() {
+	// Perform restart asynchronously to avoid blocking
+	go func() {
+		defer func() {
+			m.mu.Lock()
+			delete(m.restarting, cfg.Name)
+			m.mu.Unlock()
+		}()
+
+		// Check restart policy
+		if m.processManager.restartPolicy != "on-failure" {
+			slog.Info("Restart skipped due to policy", "server", cfg.Name, "policy", m.processManager.restartPolicy)
+			return
+		}
+
+		// Check max attempts
+		attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
+		if attempts > 3 {
+			slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", attempts)
+			return
+		}
+
+		// Calculate backoff
+		backoff := m.processManager.CalculateBackoff(attempts)
+		slog.Info("Restarting server", "server", cfg.Name, "attempt", attempts, "backoff", backoff)
+
+		// Wait for backoff
+		time.Sleep(backoff)
+
+		// Clean up old session and process
 		m.mu.Lock()
-		delete(m.restarting, cfg.Name)
-		m.mu.Unlock()
-	}()
-
-	// Check restart policy
-	if m.processManager.restartPolicy != "on-failure" {
-		slog.Info("Restart skipped due to policy", "server", cfg.Name, "policy", m.processManager.restartPolicy)
-		return nil
-	}
-
-	// Check max attempts
-	attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
-	if attempts > 3 {
-		slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", attempts)
-		return fmt.Errorf("max restart attempts (3) exceeded for server %s", cfg.Name)
-	}
-
-	// Calculate backoff
-	backoff := m.processManager.CalculateBackoff(attempts)
-	slog.Info("Restarting server", "server", cfg.Name, "attempt", attempts, "backoff", backoff)
-
-	// Wait for backoff
-	time.Sleep(backoff)
-
-	// Clean up old session and process
-	m.mu.Lock()
-	if oldSession, ok := m.sessions[cfg.Name]; ok {
-		if err := oldSession.Close(); err != nil {
-			slog.Warn("Failed to close old session during restart", "server", cfg.Name, "error", err)
-		}
-		delete(m.sessions, cfg.Name)
-	}
-	if oldCmd, ok := m.processes[cfg.Name]; ok {
-		if oldCmd.Process != nil {
-			if err := oldCmd.Process.Kill(); err != nil {
-				slog.Warn("Failed to kill old process during restart", "server", cfg.Name, "error", err)
+		if oldSession, ok := m.sessions[cfg.Name]; ok {
+			if err := oldSession.Close(); err != nil {
+				slog.Warn("Failed to close old session during restart", "server", cfg.Name, "error", err)
 			}
+			delete(m.sessions, cfg.Name)
 		}
-		delete(m.processes, cfg.Name)
-	}
-	m.mu.Unlock()
+		if oldCmd, ok := m.processes[cfg.Name]; ok {
+			if oldCmd.Process != nil {
+				if err := oldCmd.Process.Kill(); err != nil {
+					slog.Warn("Failed to kill old process during restart", "server", cfg.Name, "error", err)
+				}
+			}
+			delete(m.processes, cfg.Name)
+		}
+		m.mu.Unlock()
 
-	// Attempt reconnection
-	if err := m.connectClient(ctx, cfg); err != nil {
-		return err
-	}
+		// Attempt reconnection
+		// Create a new context for the connection since the original might be cancelled or short-lived
+		connCtx := context.Background()
+		if err := m.connectClient(connCtx, cfg); err != nil {
+			slog.Error("Failed to reconnect server", "server", cfg.Name, "error", err)
 
-	// Restart health check after successful reconnection
-	m.StartHealthCheck(ctx, cfg.Name)
-	slog.Info("Server restarted successfully", "server", cfg.Name, "attempt", attempts)
+			// Cancel any existing health check
+			m.mu.Lock()
+			if cancel, ok := m.healthCheckCancels[cfg.Name]; ok {
+				cancel()
+			}
+			m.mu.Unlock()
+
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+			return
+		}
+
+		// Restart health check after successful reconnection
+		m.StartHealthCheck(connCtx, cfg.Name)
+		slog.Info("Server restarted successfully", "server", cfg.Name, "attempt", attempts)
+	}()
 
 	return nil
 }

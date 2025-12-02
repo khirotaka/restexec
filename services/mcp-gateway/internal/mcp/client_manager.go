@@ -15,14 +15,24 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// MCPSession defines the interface for MCP client sessions to enable mocking
+type MCPSession interface {
+	Ping(ctx context.Context, params *mcp.PingParams) error
+	CallTool(ctx context.Context, params *mcp.CallToolParams) (*mcp.CallToolResult, error)
+	ListTools(ctx context.Context, params *mcp.ListToolsParams) (*mcp.ListToolsResult, error)
+	Close() error
+	Wait() error
+}
+
 // ClientManager manages multiple MCP clients
 type ClientManager struct {
-	sessions           map[string]*mcp.ClientSession
+	sessions           map[string]MCPSession
 	processes          map[string]*exec.Cmd
 	processManager     *ProcessManager
 	toolsCache         map[string]ToolInfo
 	configs            []config.ServerConfig         // Store configs for restart capability
 	healthCheckCancels map[string]context.CancelFunc // Cancel functions for health checks
+	healthCheckDone    map[string]chan struct{}      // Channels to signal health check termination
 	healthCheckStates  map[string]*HealthCheckState  // Track consecutive failures
 	restarting         map[string]bool               // Track servers being restarted
 	mu                 sync.RWMutex
@@ -30,6 +40,7 @@ type ClientManager struct {
 
 // HealthCheckState tracks health check failures for a server
 type HealthCheckState struct {
+	mu                  sync.Mutex
 	consecutiveFailures int
 	lastCheckTime       time.Time
 }
@@ -47,11 +58,12 @@ type ToolInfo struct {
 // NewClientManager creates a new ClientManager
 func NewClientManager(pm *ProcessManager) *ClientManager {
 	return &ClientManager{
-		sessions:           make(map[string]*mcp.ClientSession),
+		sessions:           make(map[string]MCPSession),
 		processes:          make(map[string]*exec.Cmd),
 		processManager:     pm,
 		toolsCache:         make(map[string]ToolInfo),
 		healthCheckCancels: make(map[string]context.CancelFunc),
+		healthCheckDone:    make(map[string]chan struct{}),
 		healthCheckStates:  make(map[string]*HealthCheckState),
 		restarting:         make(map[string]bool),
 	}
@@ -80,7 +92,7 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 	for _, cfg := range configs {
 		if err := m.connectClient(ctx, cfg); err != nil {
 			// Cleanup already connected servers before returning error
-			// Unlock before calling Close() to avoid holding the lock during cleanup
+			// Unlock before calling Close() to avoid deadlock
 			m.mu.Unlock()
 			if closeErr := m.Close(); closeErr != nil {
 				slog.Warn("Failed to cleanup clients during initialization failure", "error", closeErr)
@@ -195,7 +207,7 @@ func toolCacheKey(serverName, toolName string) string {
 	return fmt.Sprintf("%s:%s", serverName, toolName)
 }
 
-func (m *ClientManager) cacheTools(ctx context.Context, serverName string, session *mcp.ClientSession, timeout int) error {
+func (m *ClientManager) cacheTools(ctx context.Context, serverName string, session MCPSession, timeout int) error {
 	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 	if err != nil {
 		return err
@@ -223,7 +235,7 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 	// Check if server is restarting
 	if m.restarting[server] {
 		m.mu.RUnlock()
-		return nil, fmt.Errorf("server %s is currently restarting, please retry", server)
+		return nil, fmt.Errorf("server %s is currently restarting, please retry after 10 seconds", server)
 	}
 
 	session, ok := m.sessions[server]
@@ -286,17 +298,46 @@ func (m *ClientManager) GetToolInfo(server, toolName string) (ToolInfo, bool) {
 func (m *ClientManager) Close() error {
 	m.mu.Lock()
 
-	// Cancel all health checks first to prevent goroutine leaks
-	for serverName, cancel := range m.healthCheckCancels {
-		slog.Debug("Cancelling health check", "server", serverName)
-		cancel()
+	// Collect cancels and done channels
+	cancels := make([]context.CancelFunc, 0, len(m.healthCheckCancels))
+	for _, cancel := range m.healthCheckCancels {
+		cancels = append(cancels, cancel)
 	}
+	dones := make([]chan struct{}, 0, len(m.healthCheckDone))
+	for _, done := range m.healthCheckDone {
+		dones = append(dones, done)
+	}
+
+	// Clear maps
 	m.healthCheckCancels = make(map[string]context.CancelFunc)
+	m.healthCheckDone = make(map[string]chan struct{})
 
 	m.mu.Unlock()
 
-	// Give goroutines time to exit
-	time.Sleep(100 * time.Millisecond)
+	// Cancel all health checks
+	for _, cancel := range cancels {
+		cancel()
+	}
+
+	// Wait for health check goroutines to exit
+	done := make(chan struct{})
+	go func() {
+		// Wait for all done channels to be closed
+		for _, d := range dones {
+			<-d
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		slog.Debug("All health checks stopped")
+	case <-time.After(5 * time.Second):
+		slog.Warn("Timeout waiting for health checks to stop")
+	}
+
+	// Give goroutines time to exit (extra buffer if needed, though we waited on done)
+	// time.Sleep(100 * time.Millisecond) // Not strictly needed if we waited on done
 
 	m.mu.Lock()
 	defer m.mu.Unlock()

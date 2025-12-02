@@ -93,11 +93,13 @@ func (p *ProcessManager) ResetRestartAttempts(serverName string) {
 	p.restartAttempts[serverName] = 0
 }
 
-// CalculateBackoff returns exponential backoff duration: 1s, 2s, 4s
+// CalculateBackoff returns exponential backoff duration
+// attempt 1: 1s, attempt 2: 2s, attempt 3: 4s, attempt 4+: 4s (max)
 func (p *ProcessManager) CalculateBackoff(attempt int) time.Duration {
 	if attempt <= 0 {
 		return time.Second
 	}
+	// Cap at 3 to ensure max backoff is 4s
 	if attempt > 3 {
 		attempt = 3
 	}

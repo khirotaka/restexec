@@ -59,7 +59,12 @@ func LoadConfig(path string) (*Config, error) {
 	if config.HealthCheckInterval == 0 {
 		if intervalStr := os.Getenv("HEALTH_CHECK_INTERVAL"); intervalStr != "" {
 			if interval, err := strconv.Atoi(intervalStr); err == nil {
+				if interval < 5000 || interval > 300000 { // 5s to 5min
+					return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL: %d (must be between 5000 and 300000)", interval)
+				}
 				config.HealthCheckInterval = interval
+			} else {
+				return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL format: %s", intervalStr)
 			}
 		}
 		if config.HealthCheckInterval == 0 {
@@ -68,6 +73,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	// Load restart policy from environment variable
+	// Precedence: YAML > Env > Default
 	if config.RestartPolicy == "" {
 		config.RestartPolicy = os.Getenv("MCP_SERVER_RESTART_POLICY")
 		if config.RestartPolicy == "" {
