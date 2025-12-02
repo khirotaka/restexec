@@ -402,10 +402,12 @@ func stopMCPClient(
 
 ```go
 type ToolInfo struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Server      string                 `json:"server"` // どの MCP Server が提供しているか
-	InputSchema map[string]any `json:"inputSchema"`
+	Timeout      int                    `json:"timeout"`             // Tool に設定されたタイムアウト（ミリ秒）
+	Name         string                 `json:"name"`                // Tool 名
+	Description  string                 `json:"description"`         // Tool の説明
+	Server       string                 `json:"server"`              // どの MCP Server が提供しているか
+	InputSchema  map[string]any         `json:"inputSchema"`         // Tool の入力スキーマ（JSON Schema）
+	OutputSchema map[string]any         `json:"outputSchema"`        // Tool の出力スキーマ（JSON Schema）- MCP Server が提供
 }
 
 // キャッシュ
@@ -415,10 +417,12 @@ var toolsCacheMutex sync.RWMutex
 // 例
 toolsCacheMutex.Lock()
 toolsCache["calculate-bmi"] = ToolInfo{
-	Name:        "calculate-bmi",
-	Description: "Calculate Body Mass Index",
-	Server:      "health-server",
-	InputSchema: map[string]any{ /* ... */ },
+	Timeout:      30000,
+	Name:         "calculate-bmi",
+	Description:  "Calculate Body Mass Index",
+	Server:       "health-server",
+	InputSchema:  map[string]any{ /* ... */ },
+	OutputSchema: map[string]any{ /* ... */ },
 }
 toolsCacheMutex.Unlock()
 ```
@@ -641,7 +645,7 @@ func mapJSONRPCErrorToHTTP(jsonrpcError JSONRPCError) HTTPError {
 
 1. タイムアウトを検知
 2. `TimeoutError` を throw
-3. HTTP レスポンスで `TIMEOUT_ERROR` (408) を返却
+3. HTTP レスポンスで `TIMEOUT_ERROR` (504) を返却
 4. MCP Server プロセスは維持（次のリクエストに備える）
 
 **注意事項**:

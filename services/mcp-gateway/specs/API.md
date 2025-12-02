@@ -354,9 +354,9 @@ curl -X POST http://localhost:3001/mcp/call \
 | `tools[].name`        | string  | Tool 名                            |
 | `tools[].description` | string  | Tool の説明                        |
 | `tools[].server`      | string  | Tool を提供する MCP Server 名      |
-| `tools[].inputSchema` | object  | Tool の入力スキーマ（JSON Schema） |
-| `tools[].outputSchema` | object | Tool の出力スキーマ（JSON Schema、MCP Server から返された値の形式） |
-| `tools[].timeout` | number | このツールに設定されたタイムアウト（ミリ秒）。デフォルト: 30000（30秒） |
+| `tools[].inputSchema` | object  | **必須**。Tool の入力スキーマ（JSON Schema）。Tool に渡す必須パラメータと型を定義します。JSON Schema は [MCP 仕様 Version 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) に準拠しています。 |
+| `tools[].outputSchema` | object | **必須**。Tool の出力スキーマ（JSON Schema）。MCP Server から返される値の形式を定義します。JSON Schema は [MCP 仕様 Version 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) に準拠しています。 |
+| `tools[].timeout` | number | **必須**。このツールに設定されたタイムアウト（ミリ秒）。`config.yaml` の `servers[].timeout` から取得。デフォルト: 30000（30秒）。詳細は [Configuration.md](Configuration.md) を参照。 |
 
 ### 使用例
 

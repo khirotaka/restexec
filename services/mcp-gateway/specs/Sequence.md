@@ -54,7 +54,7 @@ sequenceDiagram
         deactivate MCP
         alt Timeout
             MCPMgr-->>HTTP: TimeoutError
-            HTTP-->>Client: 408 Request Timeout
+            HTTP-->>Client: 504 Gateway Timeout
         end
         alt JSON-RPC Error
             MCPMgr->>MCPMgr: Map error to HTTP
@@ -104,7 +104,7 @@ stateDiagram-v2
     WaitResponse --> ProcessJSONRPCError: JSON-RPC error
     WaitResponse --> ProcessSuccess: Tool result received
 
-    ProcessTimeout --> ReturnError408: Cancel request
+    ProcessTimeout --> ReturnError504: Cancel request
 
     ProcessJSONRPCError --> MapError: Map to HTTP error
     MapError --> ReturnError400: -32600, -32602
@@ -117,9 +117,9 @@ stateDiagram-v2
 
     ReturnError400 --> [*]: 400 Bad Request
     ReturnError404 --> [*]: 404 Not Found
-    ReturnError408 --> [*]: 408 Request Timeout
     ReturnError500 --> [*]: 500 Internal Error
     ReturnError503 --> [*]: 503 Service Unavailable
+    ReturnError504 --> [*]: 504 Gateway Timeout
     ReturnSuccess --> [*]: 200 OK
 
     note right of ValidateRequest
@@ -313,7 +313,7 @@ sequenceDiagram
     Note over MCPMgr: JSON-RPC Cancel Request<br/>is NOT sent (initial implementation)
 
     MCPMgr-->>HTTP: TimeoutError
-    HTTP-->>Client: 408 Request Timeout<br/>{error: {code: "TIMEOUT_ERROR", ...}}
+    HTTP-->>Client: 504 Gateway Timeout<br/>{error: {code: "TIMEOUT_ERROR", ...}}
 
     Note over MCP: Tool continues executing<br/>(until completion or crash)
     MCP->>Process: stdout: {"result": {...}}
@@ -429,7 +429,7 @@ sequenceDiagram
 
 **失敗時の動作**:
 
-- タイムアウト → `TIMEOUT_ERROR` (408)
+- タイムアウト → `TIMEOUT_ERROR` (504)
 - JSON-RPC エラー → エラーコードに応じて 400/404/500
 
 **注意**
