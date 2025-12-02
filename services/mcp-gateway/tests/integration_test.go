@@ -261,4 +261,44 @@ servers:
 		t.Log(resp.Status)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
+
+	t.Run("Tool Error - Invalid Input", func(t *testing.T) {
+		reqBody := map[string]any{
+			"server":   "test-server",
+			"toolName": "fetch-weather",
+			"input": map[string]any{
+				"city": "InvalidCity", // Not in allowed list
+			},
+		}
+		jsonBody, _ := json.Marshal(reqBody)
+
+		resp, err := http.Post(baseURL+"/mcp/call", "application/json", bytes.NewBuffer(jsonBody))
+		require.NoError(t, err)
+		defer func() {
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+		}()
+
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+
+		// Should return 500 with TOOL_EXECUTION_ERROR
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+
+		var result map[string]any
+		err = json.Unmarshal(body, &result)
+		require.NoError(t, err)
+
+		// Verify error response structure
+		assert.False(t, result["success"].(bool))
+
+		errorObj := result["error"].(map[string]any)
+		assert.Equal(t, "TOOL_EXECUTION_ERROR", errorObj["code"])
+		assert.Equal(t, "Invalid city.", errorObj["message"])
+
+		details := errorObj["details"].(map[string]any)
+		assert.Equal(t, "fetch-weather", details["toolName"])
+		assert.Equal(t, "test-server", details["serverName"])
+	})
 }
