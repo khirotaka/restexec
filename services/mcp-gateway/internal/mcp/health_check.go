@@ -217,7 +217,7 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		}
 
 		// Restart health check after successful reconnection
-		m.StartHealthCheck(connCtx, cfg.Name)
+		m.StartHealthCheck(ctx, cfg.Name)
 		slog.Info("Server restarted successfully", "server", cfg.Name, "attempt", attempts)
 	}()
 
