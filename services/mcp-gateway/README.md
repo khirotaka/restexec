@@ -8,7 +8,8 @@ MCP Gateway は以下の機能を提供します：
 
 - **複数 MCP サーバーの管理**: 設定ファイルで定義された複数の MCP サーバーを起動・監視
 - **HTTP API**: REST API 経由で MCP ツールを呼び出し
-- **プロセス監視**: MCP サーバーのヘルスチェックとクラッシュ検出
+- **ヘルスチェック**: MCP プロトコル ping による定期的な稼働確認
+- **自動再起動**: クラッシュ検出時の自動再起動（最大3回、指数バックオフ）
 - **セキュリティ**: 入力バリデーション、リクエストサイズ制限、オブジェクト深度制限
 - **ツールリスト取得**: 利用可能なツール一覧の取得とキャッシング
 
@@ -136,6 +137,10 @@ export LOG_LEVEL=DEBUG
 
 # ヘルスチェック間隔（デフォルト: 30000ms）
 export HEALTH_CHECK_INTERVAL=30000
+
+# MCP サーバー再起動ポリシー（デフォルト: never）
+# "never": 再起動しない、"on-failure": 最大3回まで指数バックオフで再起動
+export MCP_SERVER_RESTART_POLICY=never
 
 # 設定ファイルパス（デフォルト: ./config/config.yaml）
 export CONFIG_PATH=./config/config.yaml
@@ -282,13 +287,14 @@ MCP Gateway は以下のセキュリティ対策を実装しています：
 
 ### 環境変数
 
-| 環境変数               | デフォルト値         | 説明                                              |
-| ---------------------- | -------------------- | ------------------------------------------------- |
-| `PORT`                 | `3001`               | HTTP サーバーのポート番号                         |
-| `LOG_LEVEL`            | `INFO`               | ログレベル (`DEBUG`, `INFO`, `WARN`, `ERROR`)     |
-| `CONFIG_PATH`          | `./config/config.yaml` | 設定ファイルのパス                                |
-| `HEALTH_CHECK_INTERVAL` | `30000`             | ヘルスチェック間隔（ミリ秒）                      |
-| `DISABLE_VALIDATION`   | `false`              | バリデーション無効化（開発用のみ、本番環境では使用不可） |
+| 環境変数                    | デフォルト値           | 説明                                                                  |
+| --------------------------- | ---------------------- | --------------------------------------------------------------------- |
+| `PORT`                      | `3001`                 | HTTP サーバーのポート番号                                             |
+| `LOG_LEVEL`                 | `INFO`                 | ログレベル (`DEBUG`, `INFO`, `WARN`, `ERROR`)                         |
+| `CONFIG_PATH`               | `./config/config.yaml` | 設定ファイルのパス                                                    |
+| `HEALTH_CHECK_INTERVAL`     | `30000`                | MCP Server へのヘルスチェック間隔（ミリ秒、MCP ping 使用）           |
+| `MCP_SERVER_RESTART_POLICY` | `never`                | クラッシュ時の再起動ポリシー (`never`: 再起動しない, `on-failure`: 最大3回再起動、指数バックオフ 1s/2s/4s) |
+| `DISABLE_VALIDATION`        | `false`                | バリデーション無効化（開発用のみ、本番環境では使用不可）              |
 
 詳細は [specs/Configuration.md](specs/Configuration.md) を参照してください。
 

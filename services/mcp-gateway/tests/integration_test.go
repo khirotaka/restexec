@@ -74,7 +74,7 @@ servers:
 	cfg, err := config.LoadConfig(configFile.Name())
 	require.NoError(t, err)
 
-	processManager := mcp.NewProcessManager()
+	processManager := mcp.NewProcessManager(30000, "never")
 	clientManager := mcp.NewClientManager(processManager)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

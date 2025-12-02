@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewClientManager(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	assert.NotNil(t, cm)
@@ -19,7 +19,7 @@ func TestNewClientManager(t *testing.T) {
 }
 
 func TestClientManager_GetTools_Empty(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	tools := cm.GetTools()
@@ -29,7 +29,7 @@ func TestClientManager_GetTools_Empty(t *testing.T) {
 }
 
 func TestClientManager_GetTools_ReturnsSlice(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	// GetTools should always return a slice, not nil
@@ -43,7 +43,7 @@ func TestClientManager_GetTools_ReturnsSlice(t *testing.T) {
 }
 
 func TestClientManager_CallTool_ServerNotFound(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func TestClientManager_CallTool_ServerNotFound(t *testing.T) {
 }
 
 func TestClientManager_CallTool_InputNotMap(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()
@@ -70,7 +70,7 @@ func TestClientManager_CallTool_InputNotMap(t *testing.T) {
 }
 
 func TestClientManager_CallTool_InputAsArray(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()
@@ -85,7 +85,7 @@ func TestClientManager_CallTool_InputAsArray(t *testing.T) {
 }
 
 func TestClientManager_CallTool_InputAsNumber(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()
@@ -100,7 +100,7 @@ func TestClientManager_CallTool_InputAsNumber(t *testing.T) {
 }
 
 func TestClientManager_Close_EmptyManager(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	// Close on empty manager should succeed
@@ -111,7 +111,7 @@ func TestClientManager_Close_EmptyManager(t *testing.T) {
 
 // TestClientManager_ConcurrentGetTools tests concurrent access to GetTools
 func TestClientManager_ConcurrentGetTools(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	// Concurrent reads should not cause data race
@@ -132,7 +132,7 @@ func TestClientManager_ConcurrentGetTools(t *testing.T) {
 
 // TestClientManager_GetToolsReturnsNewSlice tests that GetTools returns a new slice each time
 func TestClientManager_GetToolsReturnsNewSlice(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	tools1 := cm.GetTools()
@@ -146,7 +146,7 @@ func TestClientManager_GetToolsReturnsNewSlice(t *testing.T) {
 
 // TestClientManager_CallTool_ValidInputMapIsRequired tests that valid map input is required
 func TestClientManager_CallTool_ValidInputMap(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	pm.SetStatus("test-server", StatusAvailable)
 	cm := NewClientManager(pm)
 
@@ -169,7 +169,7 @@ func TestClientManager_CallTool_ValidInputMap(t *testing.T) {
 
 // TestClientManager_CallTool_ServerNotFoundMessage tests the exact error message
 func TestClientManager_CallTool_ServerNotFoundErrorMessage(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()
@@ -181,7 +181,7 @@ func TestClientManager_CallTool_ServerNotFoundErrorMessage(t *testing.T) {
 
 // TestClientManager_CallTool_InputValidationOrder tests that server check comes before input validation
 func TestClientManager_CallTool_ServerCheckBeforeInputValidation(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	cm := NewClientManager(pm)
 
 	ctx := context.Background()

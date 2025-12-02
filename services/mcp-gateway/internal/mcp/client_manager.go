@@ -17,11 +17,21 @@ import (
 
 // ClientManager manages multiple MCP clients
 type ClientManager struct {
-	sessions       map[string]*mcp.ClientSession
-	processes      map[string]*exec.Cmd
-	processManager *ProcessManager
-	toolsCache     map[string]ToolInfo
-	mu             sync.RWMutex
+	sessions           map[string]*mcp.ClientSession
+	processes          map[string]*exec.Cmd
+	processManager     *ProcessManager
+	toolsCache         map[string]ToolInfo
+	configs            []config.ServerConfig         // Store configs for restart capability
+	healthCheckCancels map[string]context.CancelFunc // Cancel functions for health checks
+	healthCheckStates  map[string]*HealthCheckState  // Track consecutive failures
+	restarting         map[string]bool               // Track servers being restarted
+	mu                 sync.RWMutex
+}
+
+// HealthCheckState tracks health check failures for a server
+type HealthCheckState struct {
+	consecutiveFailures int
+	lastCheckTime       time.Time
 }
 
 // ToolInfo represents cached tool information
@@ -37,15 +47,34 @@ type ToolInfo struct {
 // NewClientManager creates a new ClientManager
 func NewClientManager(pm *ProcessManager) *ClientManager {
 	return &ClientManager{
-		sessions:       make(map[string]*mcp.ClientSession),
-		processes:      make(map[string]*exec.Cmd),
-		processManager: pm,
-		toolsCache:     make(map[string]ToolInfo),
+		sessions:           make(map[string]*mcp.ClientSession),
+		processes:          make(map[string]*exec.Cmd),
+		processManager:     pm,
+		toolsCache:         make(map[string]ToolInfo),
+		healthCheckCancels: make(map[string]context.CancelFunc),
+		healthCheckStates:  make(map[string]*HealthCheckState),
+		restarting:         make(map[string]bool),
 	}
 }
 
 // Initialize connects to all configured MCP servers
 func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerConfig) error {
+	// Store configs for restart capability
+	m.configs = configs
+
+	// Set up restart handler
+	m.processManager.SetOnServerCrashed(func(serverName string) {
+		// Find config for this server
+		for _, cfg := range m.configs {
+			if cfg.Name == serverName {
+				if err := m.RestartServer(ctx, cfg); err != nil {
+					slog.Error("Failed to restart server", "server", serverName, "error", err)
+				}
+				return
+			}
+		}
+	})
+
 	m.mu.Lock()
 
 	for _, cfg := range configs {
@@ -61,6 +90,12 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 	}
 
 	m.mu.Unlock()
+
+	// Start health checks AFTER releasing lock to prevent deadlock
+	for _, cfg := range configs {
+		m.StartHealthCheck(ctx, cfg.Name)
+	}
+
 	return nil
 }
 
@@ -141,6 +176,11 @@ func (m *ClientManager) connectClient(ctx context.Context, cfg config.ServerConf
 		if err != nil {
 			slog.Error("MCP Client disconnected", "server", cfg.Name, "error", err)
 			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+
+			// Trigger restart handler if configured
+			if m.processManager.onServerCrashed != nil {
+				m.processManager.onServerCrashed(cfg.Name)
+			}
 		} else {
 			slog.Info("MCP Client disconnected", "server", cfg.Name)
 			m.processManager.SetStatus(cfg.Name, StatusUnavailable)
@@ -179,6 +219,13 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 // CallTool calls a tool on the specified server
 func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, input any) (any, error) {
 	m.mu.RLock()
+
+	// Check if server is restarting
+	if m.restarting[server] {
+		m.mu.RUnlock()
+		return nil, fmt.Errorf("server %s is currently restarting, please retry", server)
+	}
+
 	session, ok := m.sessions[server]
 	m.mu.RUnlock()
 
@@ -237,6 +284,20 @@ func (m *ClientManager) GetToolInfo(server, toolName string) (ToolInfo, bool) {
 
 // Close closes all sessions
 func (m *ClientManager) Close() error {
+	m.mu.Lock()
+
+	// Cancel all health checks first to prevent goroutine leaks
+	for serverName, cancel := range m.healthCheckCancels {
+		slog.Debug("Cancelling health check", "server", serverName)
+		cancel()
+	}
+	m.healthCheckCancels = make(map[string]context.CancelFunc)
+
+	m.mu.Unlock()
+
+	// Give goroutines time to exit
+	time.Sleep(100 * time.Millisecond)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
