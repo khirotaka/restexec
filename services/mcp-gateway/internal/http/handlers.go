@@ -115,7 +115,7 @@ func (h *Handler) CallTool(c *gin.Context) {
 	if toolInfo, found := h.clientManager.GetToolInfo(req.Server, req.ToolName); found {
 		timeout = time.Duration(toolInfo.Timeout) * time.Millisecond
 	} else {
-		slog.Info("Tool not found in cache, using default timeout", "toolName", req.ToolName, "server", req.Server)
+		slog.Warn("Tool not found in cache, using default timeout", "toolName", req.ToolName, "server", req.Server)
 	}
 	if timeout == 0 {
 		timeout = 30 * time.Second
