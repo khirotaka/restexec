@@ -1,4 +1,3 @@
-
 const DEFAULT_GATEWAY_URL = Deno.env.get('MCP_GATEWAY_URL') ?? 'http://localhost:3001';
 
 export interface MCPResponse<T> {
@@ -48,5 +47,24 @@ export async function callMCPTool<T>(
 
   // If result is undefined but success is true, we might return undefined or throw.
   // Assuming result is present on success for tools that return data.
-  return data.result as T;
+  const rawResult = data.result as unknown;
+
+  // Prefer structuredContent if present (handles double-encoded JSON responses).
+  if (typeof rawResult === 'string') {
+    try {
+      const parsed = JSON.parse(rawResult) as { structuredContent?: unknown };
+      if (parsed && typeof parsed === 'object' && 'structuredContent' in parsed) {
+        return parsed.structuredContent as T;
+      }
+      return parsed as T;
+    } catch {
+      return rawResult as unknown as T;
+    }
+  }
+
+  if (rawResult && typeof rawResult === 'object' && 'structuredContent' in (rawResult as Record<string, unknown>)) {
+    return (rawResult as { structuredContent: unknown }).structuredContent as T;
+  }
+
+  return rawResult as T;
 }
