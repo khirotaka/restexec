@@ -93,7 +93,10 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 				state.lastCheckTime = time.Now()
 
 				if err != nil {
-					state.consecutiveFailures++
+					// Only increment if below threshold to prevent endless growth
+					if state.consecutiveFailures < 3 {
+						state.consecutiveFailures++
+					}
 					failures := state.consecutiveFailures
 					state.mu.Unlock()
 
@@ -161,12 +164,13 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 			return
 		}
 
-		// Check max attempts
-		attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
-		if attempts > 3 {
-			slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", attempts)
+		// Check max attempts (before incrementing to ensure we don't exceed 3)
+		currentAttempts := m.processManager.GetRestartAttempts(cfg.Name)
+		if currentAttempts >= 3 {
+			slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", currentAttempts)
 			return
 		}
+		attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
 
 		// Calculate backoff
 		backoff := m.processManager.CalculateBackoff(attempts)
@@ -194,8 +198,10 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		m.mu.Unlock()
 
 		// Attempt reconnection
-		// Create a new context for the connection since the original might be cancelled or short-lived
-		connCtx := context.Background()
+		// Use context.WithTimeout to ensure reconnection respects parent context cancellation
+		// This allows proper shutdown handling during application termination
+		connCtx, connCancel := context.WithTimeout(ctx, 30*time.Second)
+		defer connCancel()
 		if err := m.connectClient(connCtx, cfg); err != nil {
 			slog.Error("Failed to reconnect server", "server", cfg.Name, "error", err)
 
