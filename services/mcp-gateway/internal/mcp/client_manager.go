@@ -53,7 +53,9 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 			// Cleanup already connected servers before returning error
 			// Unlock before calling Close() to avoid holding the lock during cleanup
 			m.mu.Unlock()
-			_ = m.Close()
+			if closeErr := m.Close(); closeErr != nil {
+				slog.Warn("Failed to cleanup clients during initialization failure", "error", closeErr)
+			}
 			return fmt.Errorf("failed to connect to server %s: %w", cfg.Name, err)
 		}
 	}
