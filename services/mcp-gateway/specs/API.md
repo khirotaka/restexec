@@ -94,7 +94,7 @@
 | `VALIDATION_ERROR`     | 400            | リクエストパラメータのバリデーションエラー     |
 | `SERVER_NOT_FOUND`     | 404            | 指定された MCP Server が存在しない             |
 | `TOOL_NOT_FOUND`       | 404            | 指定された Tool が存在しない                   |
-| `TIMEOUT_ERROR`        | 408            | Tool 呼び出しがタイムアウト                    |
+| `TIMEOUT_ERROR`        | 504            | Tool 呼び出しがタイムアウト                    |
 | `SERVER_NOT_RUNNING`   | 503            | MCP Server が起動していない、または停止中      |
 | `SERVER_CRASHED`       | 502            | MCP Server がクラッシュした                    |
 | `TOOL_EXECUTION_ERROR` | 500            | Tool 実行中のエラー（MCP Server からのエラー） |
@@ -354,7 +354,9 @@ curl -X POST http://localhost:3001/mcp/call \
 | `tools[].name`        | string  | Tool 名                            |
 | `tools[].description` | string  | Tool の説明                        |
 | `tools[].server`      | string  | Tool を提供する MCP Server 名      |
-| `tools[].inputSchema` | object  | Tool の入力スキーマ（JSON Schema） |
+| `tools[].inputSchema` | object  | **必須**。Tool の入力スキーマ（JSON Schema）。Tool に渡す必須パラメータと型を定義します。JSON Schema は [MCP 仕様 Version 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) に準拠しています。 |
+| `tools[].outputSchema` | object | **必須**。Tool の出力スキーマ（JSON Schema）。MCP Server から返される値の形式を定義します。JSON Schema は [MCP 仕様 Version 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) に準拠しています。 |
+| `tools[].timeout` | number | **必須**。このツールに設定されたタイムアウト（ミリ秒）。`config.yaml` の `servers[].timeout` から取得。デフォルト: 30000（30秒）。詳細は [Configuration.md](Configuration.md) を参照。 |
 
 ### 使用例
 
@@ -381,7 +383,15 @@ curl -X GET http://localhost:3001/mcp/tools
           "height_m": { "type": "number", "description": "Height in meters" }
         },
         "required": ["weight_kg", "height_m"]
-      }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "bmi": { "type": "number", "description": "Body Mass Index値" },
+          "category": { "type": "string", "description": "BMIカテゴリ（normal, overweight, obese など）" }
+        }
+      },
+      "timeout": 30000
     }
   ]
 }
@@ -509,10 +519,10 @@ curl -X GET http://localhost:3001/health
 | 200 OK                    | 成功                 | Tool 呼び出し成功、Tools リスト取得成功、ヘルスチェック |
 | 400 Bad Request           | バリデーションエラー | パラメータ不正、形式エラー                              |
 | 404 Not Found             | リソース未検出       | Tool が存在しない                                       |
-| 408 Request Timeout       | タイムアウト         | Tool 呼び出しがタイムアウト                             |
 | 500 Internal Server Error | サーバー内部エラー   | Tool 実行エラー、内部エラー                             |
 | 502 Bad Gateway           | ゲートウェイエラー   | MCP Server がクラッシュ                                 |
 | 503 Service Unavailable   | サービス利用不可     | MCP Server が起動していない                             |
+| 504 Gateway Timeout       | タイムアウト         | Tool 呼び出しがタイムアウト                             |
 
 ---
 
@@ -529,7 +539,7 @@ curl -X GET http://localhost:3001/health
 ### タイムアウト処理
 
 - Tool 呼び出しのタイムアウトは config.yaml または環境変数で設定
-- タイムアウト時は `TIMEOUT_ERROR` (408) を返し、Tool 呼び出しをキャンセル
+- タイムアウト時は `TIMEOUT_ERROR` (504) を返し、Tool 呼び出しをキャンセル
 - MCP Server プロセスは維持される（次のリクエストに備える）
 
 ### エラーメッセージの抽象化
