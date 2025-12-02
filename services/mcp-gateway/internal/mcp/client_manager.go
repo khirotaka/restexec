@@ -51,6 +51,7 @@ func (m *ClientManager) Initialize(ctx context.Context, configs []config.ServerC
 	for _, cfg := range configs {
 		if err := m.connectClient(ctx, cfg); err != nil {
 			// Cleanup already connected servers before returning error
+			// Unlock before calling Close() to avoid holding the lock during cleanup
 			m.mu.Unlock()
 			_ = m.Close()
 			return fmt.Errorf("failed to connect to server %s: %w", cfg.Name, err)

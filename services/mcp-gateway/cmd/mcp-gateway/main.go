@@ -43,7 +43,9 @@ func main() {
 	slog.Info("Connecting to MCP servers...")
 	if err := clientManager.Initialize(ctx, cfg.Servers); err != nil {
 		slog.Error("Failed to initialize MCP clients", "error", err)
-		_ = clientManager.Close()
+		if closeErr := clientManager.Close(); closeErr != nil {
+			slog.Error("Failed to cleanup clients during shutdown", "error", closeErr)
+		}
 		os.Exit(1)
 	}
 	slog.Info("Connected to MCP servers")
@@ -78,7 +80,9 @@ func main() {
 		}
 	case err := <-serverErr:
 		slog.Error("Server startup failed", "error", err)
-		_ = clientManager.Close()
+		if closeErr := clientManager.Close(); closeErr != nil {
+			slog.Error("Failed to cleanup clients during shutdown", "error", closeErr)
+		}
 		os.Exit(1)
 	}
 
