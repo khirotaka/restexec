@@ -150,7 +150,9 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 	}
 
 	for _, tool := range result.Tools {
-		m.toolsCache[tool.Name] = ToolInfo{
+		// Use "server:toolName" as cache key to avoid collisions
+		cacheKey := fmt.Sprintf("%s:%s", serverName, tool.Name)
+		m.toolsCache[cacheKey] = ToolInfo{
 			Timeout:      timeout,
 			Name:         tool.Name,
 			Description:  tool.Description,
