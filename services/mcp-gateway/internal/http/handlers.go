@@ -13,6 +13,7 @@ import (
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/mcp"
 	"github.com/khirotaka/restexec/services/mcp-gateway/internal/validator"
 	mcpErrors "github.com/khirotaka/restexec/services/mcp-gateway/pkg/errors"
+	mcpSDK "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // isUnknownToolError checks if the error is from an unknown tool call
@@ -21,6 +22,31 @@ import (
 func isUnknownToolError(err error) bool {
 	errMsg := err.Error()
 	return strings.Contains(errMsg, "unknown tool")
+}
+
+// extractErrorMessage extracts error message from CallToolResult Content.
+// Returns the error message and true if result is an error, empty string and false otherwise.
+func extractErrorMessage(result any) (string, bool) {
+	// Type assert to MCP CallToolResult
+	toolResult, ok := result.(*mcpSDK.CallToolResult)
+	if !ok {
+		return "", false
+	}
+
+	// Check if this is a tool error
+	if !toolResult.IsError {
+		return "", false
+	}
+
+	// Extract text from first content item
+	if len(toolResult.Content) > 0 {
+		if textContent, ok := toolResult.Content[0].(*mcpSDK.TextContent); ok && textContent.Text != "" {
+			return textContent.Text, true
+		}
+	}
+
+	// Fallback if Content is empty or not TextContent
+	return "Tool execution failed", true
 }
 
 type Handler struct {
@@ -112,6 +138,9 @@ func (h *Handler) CallTool(c *gin.Context) {
 		} else if errors.Is(err, mcpErrors.ErrServerNotRunning) {
 			status = http.StatusServiceUnavailable
 			code = mcpErrors.ErrCodeServerNotRunning
+		} else if errors.Is(err, mcpErrors.ErrServerCrashed) {
+			status = http.StatusBadGateway
+			code = mcpErrors.ErrCodeServerCrashed
 		} else if isUnknownToolError(err) {
 			status = http.StatusNotFound
 			code = mcpErrors.ErrCodeToolNotFound
@@ -127,6 +156,23 @@ func (h *Handler) CallTool(c *gin.Context) {
 		return
 	}
 
+	// Check if tool returned an error (MCP-level tool error)
+	if errMsg, isToolError := extractErrorMessage(result); isToolError {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    mcpErrors.ErrCodeToolExecution,
+				"message": errMsg,
+				"details": gin.H{
+					"toolName":   req.ToolName,
+					"serverName": req.Server,
+				},
+			},
+		})
+		return
+	}
+
+	// Success case
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"result":  result,

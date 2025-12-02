@@ -187,7 +187,10 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 	}
 
 	// Check status
-	if status := m.processManager.GetStatus(server); status != StatusAvailable {
+	status := m.processManager.GetStatus(server)
+	if status == StatusCrashed {
+		return nil, mcpErrors.ErrServerCrashed
+	} else if status != StatusAvailable {
 		return nil, mcpErrors.ErrServerNotRunning
 	}
 
