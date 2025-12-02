@@ -30,6 +30,10 @@ func extractErrorMessage(result any) (string, bool) {
 	// Type assert to MCP CallToolResult
 	toolResult, ok := result.(*mcpSDK.CallToolResult)
 	if !ok {
+		slog.Warn("Unexpected result type from CallTool",
+			"type", fmt.Sprintf("%T", result),
+			"expected", "*mcpSDK.CallToolResult",
+		)
 		return "", false
 	}
 
@@ -40,13 +44,23 @@ func extractErrorMessage(result any) (string, bool) {
 
 	// Extract text from first content item
 	if len(toolResult.Content) > 0 {
-		if textContent, ok := toolResult.Content[0].(*mcpSDK.TextContent); ok && textContent.Text != "" {
-			return textContent.Text, true
+		for _, content := range toolResult.Content {
+			// TODO: Handle non-text content types
+			// - AudioContent: Return base64-encoded data or URL
+			// - ImageContent: Return base64-encoded data or URL
+			// For now, we only extract text content and treat other types as unexpected
+			if textContent, ok := content.(*mcpSDK.TextContent); ok && textContent.Text != "" {
+				return textContent.Text, true
+			}
 		}
 	}
 
 	// Fallback if Content is empty or not TextContent
-	return "Tool execution failed", true
+	if len(toolResult.Content) == 0 {
+		return "Tool execution failed: no error details provided", true
+	}
+
+	return fmt.Sprintf("Tool execution failed: unexpected content type: %T", toolResult.Content[0]), true
 }
 
 type Handler struct {
@@ -101,7 +115,7 @@ func (h *Handler) CallTool(c *gin.Context) {
 	if toolInfo, found := h.clientManager.GetToolInfo(req.Server, req.ToolName); found {
 		timeout = time.Duration(toolInfo.Timeout) * time.Millisecond
 	} else {
-		slog.Warn("Tool not found in cache, using default timeout", "toolName", req.ToolName, "server", req.Server)
+		slog.Info("Tool not found in cache, using default timeout", "toolName", req.ToolName, "server", req.Server)
 	}
 	if timeout == 0 {
 		timeout = 30 * time.Second
