@@ -13,6 +13,7 @@ const (
 	StatusAvailable   ServerStatus = "available"
 	StatusUnavailable ServerStatus = "unavailable"
 	StatusCrashed     ServerStatus = "crashed"
+	StatusRestarting  ServerStatus = "restarting"
 )
 
 // ProcessManager manages the status of MCP server processes

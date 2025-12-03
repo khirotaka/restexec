@@ -117,7 +117,7 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 						isRestarting := m.restarting[serverName]
 						m.mu.RUnlock()
 
-						if !isRestarting {
+						if !isRestarting && m.processManager.GetStatus(serverName) != StatusRestarting {
 							m.processManager.SetStatus(serverName, StatusCrashed)
 
 							// Trigger restart if policy allows
@@ -146,14 +146,13 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 
 // RestartServer attempts to restart a crashed server
 func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConfig) error {
-	// Set restarting flag to block API requests
-	m.mu.Lock()
-	if m.restarting[cfg.Name] {
-		m.mu.Unlock()
+	// Check if already restarting
+	if m.processManager.GetStatus(cfg.Name) == StatusRestarting {
 		return fmt.Errorf("server %s is already restarting", cfg.Name)
 	}
-	m.restarting[cfg.Name] = true
-	m.mu.Unlock()
+
+	// Set status to restarting immediately to prevent duplicate restarts
+	m.processManager.SetStatus(cfg.Name, StatusRestarting)
 
 	// Perform restart asynchronously to avoid blocking
 	go func() {
@@ -166,6 +165,13 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		// Check restart policy
 		if m.processManager.restartPolicy != "on-failure" {
 			slog.Info("Restart skipped due to policy", "server", cfg.Name, "policy", m.processManager.restartPolicy)
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+			// Cancel health check to prevent busy loop
+			m.mu.Lock()
+			if cancel, ok := m.healthCheckCancels[cfg.Name]; ok {
+				cancel()
+			}
+			m.mu.Unlock()
 			return
 		}
 
@@ -173,6 +179,13 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		currentAttempts := m.processManager.GetRestartAttempts(cfg.Name)
 		if currentAttempts >= 3 {
 			slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", currentAttempts)
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+			// Cancel health check to prevent busy loop
+			m.mu.Lock()
+			if cancel, ok := m.healthCheckCancels[cfg.Name]; ok {
+				cancel()
+			}
+			m.mu.Unlock()
 			return
 		}
 		attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
@@ -183,6 +196,11 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 
 		// Wait for backoff
 		time.Sleep(backoff)
+
+		// Set restarting flag to block API requests
+		m.mu.Lock()
+		m.restarting[cfg.Name] = true
+		m.mu.Unlock()
 
 		// Clean up old session and process
 		m.mu.Lock()
@@ -215,6 +233,7 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 			}
 			m.mu.Unlock()
 
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
 			return
 		}
 
