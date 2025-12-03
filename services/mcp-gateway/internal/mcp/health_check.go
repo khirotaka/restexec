@@ -89,15 +89,12 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 				err := session.Ping(pingCtx, &mcp.PingParams{})
 				pingCancel()
 
-				// Read restarting flag before acquiring state lock to prevent race condition
-				m.mu.RLock()
-				isRestarting := m.restarting[serverName]
-				m.mu.RUnlock()
-
 				state.mu.Lock()
 				state.lastCheckTime = time.Now()
 
 				if err != nil {
+					// Check if restarting before incrementing failures
+					isRestarting := m.processManager.GetStatus(serverName) == StatusRestarting
 					// Only increment if below threshold and not currently restarting
 					if !isRestarting && state.consecutiveFailures < 3 {
 						state.consecutiveFailures++
@@ -113,9 +110,8 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 					// 3-strike rule: Only mark as crashed after 3 consecutive failures
 					if failures >= 3 {
 						// Check if already restarting to prevent duplicate triggers
-						m.mu.RLock()
-						isRestarting := m.restarting[serverName]
-						m.mu.RUnlock()
+						// Reuse isRestarting from above check
+						isRestarting = m.processManager.GetStatus(serverName) == StatusRestarting
 
 						if !isRestarting {
 							m.processManager.SetStatus(serverName, StatusCrashed)
@@ -146,35 +142,33 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 
 // RestartServer attempts to restart a crashed server
 func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConfig) error {
-	// Set restarting flag to block API requests
-	m.mu.Lock()
-	if m.restarting[cfg.Name] {
-		m.mu.Unlock()
-		return fmt.Errorf("server %s is already restarting", cfg.Name)
+	// Check restart policy before attempting restart
+	if m.processManager.restartPolicy != "on-failure" {
+		slog.Info("Restart skipped due to policy", "server", cfg.Name, "policy", m.processManager.restartPolicy)
+		// Status remains as set by caller (should be StatusCrashed)
+		return fmt.Errorf("restart policy does not allow restart")
 	}
-	m.restarting[cfg.Name] = true
-	m.mu.Unlock()
+
+	// Check max attempts before attempting restart
+	currentAttempts := m.processManager.GetRestartAttempts(cfg.Name)
+	if currentAttempts >= 3 {
+		slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", currentAttempts)
+		// Status remains as set by caller (should be StatusCrashed)
+		return fmt.Errorf("max restart attempts reached")
+	}
+
+	// Use atomic CAS to prevent TOCTOU race condition
+	// Only transition from StatusCrashed to StatusRestarting
+	if !m.processManager.CompareAndSwapStatus(cfg.Name, StatusCrashed, StatusRestarting) {
+		currentStatus := m.processManager.GetStatus(cfg.Name)
+		if currentStatus == StatusRestarting {
+			return fmt.Errorf("server %s is already restarting", cfg.Name)
+		}
+		return fmt.Errorf("server %s is not in crashed state (current: %s)", cfg.Name, currentStatus)
+	}
 
 	// Perform restart asynchronously to avoid blocking
 	go func() {
-		defer func() {
-			m.mu.Lock()
-			delete(m.restarting, cfg.Name)
-			m.mu.Unlock()
-		}()
-
-		// Check restart policy
-		if m.processManager.restartPolicy != "on-failure" {
-			slog.Info("Restart skipped due to policy", "server", cfg.Name, "policy", m.processManager.restartPolicy)
-			return
-		}
-
-		// Check max attempts (before incrementing to ensure we don't exceed 3)
-		currentAttempts := m.processManager.GetRestartAttempts(cfg.Name)
-		if currentAttempts >= 3 {
-			slog.Error("Max restart attempts reached", "server", cfg.Name, "attempts", currentAttempts)
-			return
-		}
 		attempts := m.processManager.IncrementRestartAttempts(cfg.Name)
 
 		// Calculate backoff
@@ -215,6 +209,7 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 			}
 			m.mu.Unlock()
 
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
 			return
 		}
 

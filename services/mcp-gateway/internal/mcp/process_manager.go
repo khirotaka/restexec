@@ -13,6 +13,7 @@ const (
 	StatusAvailable   ServerStatus = "available"
 	StatusUnavailable ServerStatus = "unavailable"
 	StatusCrashed     ServerStatus = "crashed"
+	StatusRestarting  ServerStatus = "restarting"
 )
 
 // ProcessManager manages the status of MCP server processes
@@ -54,6 +55,24 @@ func (p *ProcessManager) SetStatus(serverName string, status ServerStatus) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.statuses[serverName] = status
+}
+
+// CompareAndSwapStatus atomically updates the status only if the current status matches expected
+// Returns true if the swap was successful, false otherwise
+func (p *ProcessManager) CompareAndSwapStatus(serverName string, expected, new ServerStatus) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	current, ok := p.statuses[serverName]
+	if !ok {
+		current = StatusUnavailable
+	}
+
+	if current == expected {
+		p.statuses[serverName] = new
+		return true
+	}
+	return false
 }
 
 // GetAllStatuses returns a map of all server statuses

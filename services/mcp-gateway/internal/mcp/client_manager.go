@@ -34,7 +34,6 @@ type ClientManager struct {
 	healthCheckCancels map[string]context.CancelFunc // Cancel functions for health checks
 	healthCheckDone    map[string]chan struct{}      // Channels to signal health check termination
 	healthCheckStates  map[string]*HealthCheckState  // Track consecutive failures
-	restarting         map[string]bool               // Track servers being restarted
 	mu                 sync.RWMutex
 }
 
@@ -65,7 +64,6 @@ func NewClientManager(pm *ProcessManager) *ClientManager {
 		healthCheckCancels: make(map[string]context.CancelFunc),
 		healthCheckDone:    make(map[string]chan struct{}),
 		healthCheckStates:  make(map[string]*HealthCheckState),
-		restarting:         make(map[string]bool),
 	}
 }
 
@@ -231,13 +229,6 @@ func (m *ClientManager) cacheTools(ctx context.Context, serverName string, sessi
 // CallTool calls a tool on the specified server
 func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, input any) (any, error) {
 	m.mu.RLock()
-
-	// Check if server is restarting
-	if m.restarting[server] {
-		m.mu.RUnlock()
-		return nil, fmt.Errorf("server %s is currently restarting, please retry after 10 seconds", server)
-	}
-
 	session, ok := m.sessions[server]
 	m.mu.RUnlock()
 
@@ -247,7 +238,9 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 
 	// Check status
 	status := m.processManager.GetStatus(server)
-	if status == StatusCrashed {
+	if status == StatusRestarting {
+		return nil, fmt.Errorf("server %s is currently restarting, please retry shortly", server)
+	} else if status == StatusCrashed {
 		return nil, mcpErrors.ErrServerCrashed
 	} else if status != StatusAvailable {
 		return nil, mcpErrors.ErrServerNotRunning

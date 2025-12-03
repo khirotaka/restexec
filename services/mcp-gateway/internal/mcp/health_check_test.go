@@ -184,6 +184,9 @@ func TestRestartServer_MaxAttemptsExceeded(t *testing.T) {
 
 	cfg := config.ServerConfig{Name: "test-server"}
 
+	// Set initial status to Crashed (as would be set by health check)
+	pm.SetStatus("test-server", StatusCrashed)
+
 	// Simulate 3 previous attempts (max is 3)
 	pm.IncrementRestartAttempts("test-server")
 	pm.IncrementRestartAttempts("test-server")
@@ -191,26 +194,19 @@ func TestRestartServer_MaxAttemptsExceeded(t *testing.T) {
 
 	err := cm.RestartServer(context.Background(), cfg)
 
-	// RestartServer returns immediately (nil), but executes asynchronously in a goroutine
-	assert.Nil(t, err)
+	// RestartServer returns error immediately because max attempts reached
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "max restart attempts reached")
 
-	// Use Eventually pattern to wait for goroutine completion with retries
-	// This is more robust than fixed time.Sleep in resource-constrained environments
-	assert.Eventually(t, func() bool {
-		cm.mu.Lock()
-		isRestarting := cm.restarting["test-server"]
-		cm.mu.Unlock()
-		// Goroutine should complete and clear the restarting flag
-		return !isRestarting
-	}, 1*time.Second, 50*time.Millisecond, "goroutine should complete and clear restarting flag")
+	// Status should remain Crashed (not modified by RestartServer)
+	assert.Equal(t, StatusCrashed, pm.GetStatus("test-server"))
 
 	// Verify that restart attempts counter was NOT incremented
-	// (because the max attempts check at L173-177 prevented the increment at L178)
+	// (because the max attempts check prevented the increment)
 	assert.Equal(t, 3, pm.GetRestartAttempts("test-server"))
 
 	// Note: We cannot directly verify that connectClient was NOT called without additional
-	// mocking infrastructure, but the unchanged counter and cleared restarting flag
-	// confirm the goroutine exited early as expected.
+	// mocking infrastructure, but the unchanged counter and status confirm early exit.
 }
 
 func TestRestartServer_PolicyNever(t *testing.T) {
@@ -219,10 +215,17 @@ func TestRestartServer_PolicyNever(t *testing.T) {
 
 	cfg := config.ServerConfig{Name: "test-server"}
 
+	// Set initial status to Crashed (as would be set by health check)
+	pm.SetStatus("test-server", StatusCrashed)
+
 	err := cm.RestartServer(context.Background(), cfg)
 
-	// Should return nil (async) but do nothing.
-	assert.Nil(t, err)
+	// Should return error immediately
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "restart policy does not allow restart")
+
+	// Status should remain Crashed (not modified by RestartServer)
+	assert.Equal(t, StatusCrashed, pm.GetStatus("test-server"))
 
 	// Verify attempts didn't increase
 	assert.Equal(t, 0, pm.GetRestartAttempts("test-server"))
