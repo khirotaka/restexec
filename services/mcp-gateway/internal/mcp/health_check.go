@@ -89,15 +89,15 @@ func (m *ClientManager) StartHealthCheck(ctx context.Context, serverName string)
 				err := session.Ping(pingCtx, &mcp.PingParams{})
 				pingCancel()
 
+				// Read restarting flag before acquiring state lock to prevent race condition
+				m.mu.RLock()
+				isRestarting := m.restarting[serverName]
+				m.mu.RUnlock()
+
 				state.mu.Lock()
 				state.lastCheckTime = time.Now()
 
 				if err != nil {
-					// Check if already restarting to prevent counting transient failures during restart
-					m.mu.RLock()
-					isRestarting := m.restarting[serverName]
-					m.mu.RUnlock()
-
 					// Only increment if below threshold and not currently restarting
 					if !isRestarting && state.consecutiveFailures < 3 {
 						state.consecutiveFailures++
