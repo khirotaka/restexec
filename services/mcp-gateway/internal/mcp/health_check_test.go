@@ -191,18 +191,17 @@ func TestRestartServer_MaxAttemptsExceeded(t *testing.T) {
 
 	err := cm.RestartServer(context.Background(), cfg)
 
-	// RestartServer returns immediately (nil), but executes asynchronously in a goroutine
-	assert.Nil(t, err)
+	// RestartServer returns error immediately because max attempts reached
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "max restart attempts reached")
 
 	// Use Eventually pattern to wait for goroutine completion with retries
 	// This is more robust than fixed time.Sleep in resource-constrained environments
 	assert.Eventually(t, func() bool {
-		cm.mu.Lock()
-		isRestarting := cm.restarting["test-server"]
-		cm.mu.Unlock()
-		// Goroutine should complete and clear the restarting flag
-		return !isRestarting
-	}, 1*time.Second, 50*time.Millisecond, "goroutine should complete and clear restarting flag")
+		// Goroutine should complete and clear the restarting flag (status should not be restarting)
+		// Since we return early with error, status should be Crashed
+		return pm.GetStatus("test-server") == StatusCrashed
+	}, 1*time.Second, 50*time.Millisecond, "goroutine should complete and set status to crashed")
 
 	// Verify that restart attempts counter was NOT incremented
 	// (because the max attempts check at L173-177 prevented the increment at L178)
@@ -221,8 +220,9 @@ func TestRestartServer_PolicyNever(t *testing.T) {
 
 	err := cm.RestartServer(context.Background(), cfg)
 
-	// Should return nil (async) but do nothing.
-	assert.Nil(t, err)
+	// Should return error immediately
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "restart policy does not allow restart")
 
 	// Verify attempts didn't increase
 	assert.Equal(t, 0, pm.GetRestartAttempts("test-server"))
