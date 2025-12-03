@@ -184,34 +184,26 @@ func TestRestartServer_MaxAttemptsExceeded(t *testing.T) {
 
 	cfg := config.ServerConfig{Name: "test-server"}
 
-	// Simulate 3 previous attempts
+	// Simulate 3 previous attempts (max is 3)
 	pm.IncrementRestartAttempts("test-server")
 	pm.IncrementRestartAttempts("test-server")
 	pm.IncrementRestartAttempts("test-server")
 
 	err := cm.RestartServer(context.Background(), cfg)
 
-	// Should fail immediately because next attempt would be 4
-	// Note: RestartServer is async, but the check for max attempts happens inside the goroutine?
-	// Wait, my implementation of RestartServer does the check inside the goroutine.
-	// So RestartServer returns nil immediately.
-	// I need to check the logs or side effects.
-
-	// Actually, RestartServer returns nil and runs async.
-	// But if I want to test logic, I might need to inspect logs or state.
-	// However, if I look at the implementation:
-	// It checks attempts inside the goroutine.
-
-	// Let's verify that it DOES NOT call connectClient (which would be mocked if I could inject it)
-	// Since RestartServer calls connectClient which is a method on ClientManager, I can't easily mock it without further refactoring.
-	// But I can check if the server status remains Crashed (or whatever it was).
-
-	// A better way to test this specific logic unit is testing ProcessManager state or logs.
-	// Given the constraints, I will rely on the fact that I can't easily verify async internal behavior without hooks.
-	// But I can verify CalculateBackoff and IncrementRestartAttempts logic which I did above.
-
-	// Let's skip deep async verification for this test case and focus on what we can test.
+	// RestartServer returns immediately (nil), but executes asynchronously in a goroutine
 	assert.Nil(t, err)
+
+	// Wait for the goroutine to complete the max attempts check
+	// The goroutine should exit early at health_check.go:173-177 due to max attempts reached
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify that restart attempts counter was NOT incremented
+	// (because the max attempts check at L173-177 prevented the increment at L178)
+	assert.Equal(t, 3, pm.GetRestartAttempts("test-server"))
+
+	// Note: We cannot directly verify that connectClient was NOT called without additional
+	// mocking infrastructure, but the unchanged counter confirms the goroutine exited early.
 }
 
 func TestRestartServer_PolicyNever(t *testing.T) {
