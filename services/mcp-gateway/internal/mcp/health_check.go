@@ -202,7 +202,14 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		}
 		m.mu.Unlock()
 
-		// Attempt reconnection
+		// Check if parent context is already cancelled (e.g., during shutdown)
+		if ctx.Err() != nil {
+			slog.Info("Restart aborted due to context cancellation", "server", cfg.Name)
+			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+			return
+		}
+
+		// Attempt reconnection with timeout
 		// Use context.WithTimeout to ensure reconnection respects parent context cancellation
 		// This allows proper shutdown handling during application termination
 		connCtx, connCancel := context.WithTimeout(ctx, 30*time.Second)
