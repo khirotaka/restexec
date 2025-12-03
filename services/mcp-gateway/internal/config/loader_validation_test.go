@@ -7,10 +7,11 @@ import (
 
 func TestLoadConfig_HealthCheckInterval(t *testing.T) {
 	tests := []struct {
-		name        string
-		yamlContent string
-		envVar      string
-		expectError bool
+		name             string
+		yamlContent      string
+		envVar           string
+		expectError      bool
+		expectedInterval int
 	}{
 		{
 			name: "Valid interval in YAML",
@@ -19,7 +20,28 @@ servers:
   - name: test-server
     command: /bin/true
 healthCheckInterval: 10000`,
-			expectError: false,
+			expectError:      false,
+			expectedInterval: 10000,
+		},
+		{
+			name: "Boundary value - minimum (5000ms)",
+			yamlContent: `
+servers:
+  - name: test-server
+    command: /bin/true
+healthCheckInterval: 5000`,
+			expectError:      false,
+			expectedInterval: 5000,
+		},
+		{
+			name: "Boundary value - maximum (300000ms)",
+			yamlContent: `
+servers:
+  - name: test-server
+    command: /bin/true
+healthCheckInterval: 300000`,
+			expectError:      false,
+			expectedInterval: 300000,
 		},
 		{
 			name: "Interval too small in YAML",
@@ -27,7 +49,7 @@ healthCheckInterval: 10000`,
 servers:
   - name: test-server
     command: /bin/true
-healthCheckInterval: 1000`,
+healthCheckInterval: 4999`,
 			expectError: true,
 		},
 		{
@@ -36,7 +58,7 @@ healthCheckInterval: 1000`,
 servers:
   - name: test-server
     command: /bin/true
-healthCheckInterval: 400000`,
+healthCheckInterval: 300001`,
 			expectError: true,
 		},
 		{
@@ -45,8 +67,29 @@ healthCheckInterval: 400000`,
 servers:
   - name: test-server
     command: /bin/true`,
-			envVar:      "10000",
-			expectError: false,
+			envVar:           "10000",
+			expectError:      false,
+			expectedInterval: 10000,
+		},
+		{
+			name: "YAML takes precedence over Env",
+			yamlContent: `
+servers:
+  - name: test-server
+    command: /bin/true
+healthCheckInterval: 10000`,
+			envVar:           "20000",
+			expectError:      false,
+			expectedInterval: 10000,
+		},
+		{
+			name: "Default value when both unset",
+			yamlContent: `
+servers:
+  - name: test-server
+    command: /bin/true`,
+			expectError:      false,
+			expectedInterval: 30000,
 		},
 		{
 			name: "Interval too small in Env",
@@ -54,7 +97,7 @@ servers:
 servers:
   - name: test-server
     command: /bin/true`,
-			envVar:      "1000",
+			envVar:      "4999",
 			expectError: true,
 		},
 		{
@@ -63,7 +106,16 @@ servers:
 servers:
   - name: test-server
     command: /bin/true`,
-			envVar:      "400000",
+			envVar:      "300001",
+			expectError: true,
+		},
+		{
+			name: "Invalid format in Env",
+			yamlContent: `
+servers:
+  - name: test-server
+    command: /bin/true`,
+			envVar:      "abc",
 			expectError: true,
 		},
 	}
@@ -78,18 +130,21 @@ servers:
 
 			if tt.envVar != "" {
 				t.Setenv("HEALTH_CHECK_INTERVAL", tt.envVar)
-			} else {
-				if err := os.Unsetenv("HEALTH_CHECK_INTERVAL"); err != nil {
-					t.Fatalf("failed to unset env: %v", err)
-				}
 			}
+			// t.Setenv() handles cleanup automatically
 
-			_, err := LoadConfig(tmpFile)
-			if tt.expectError && err == nil {
-				t.Error("expected error but got nil")
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("unexpected error: %v", err)
+			config, err := LoadConfig(tmpFile)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if tt.expectedInterval != 0 && config.HealthCheckInterval != tt.expectedInterval {
+					t.Errorf("expected interval %d, got %d", tt.expectedInterval, config.HealthCheckInterval)
+				}
 			}
 		})
 	}

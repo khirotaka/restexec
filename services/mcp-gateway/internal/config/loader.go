@@ -9,6 +9,12 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+const (
+	MinHealthCheckIntervalMs     = 5000   // 5 seconds
+	MaxHealthCheckIntervalMs     = 300000 // 5 minutes
+	DefaultHealthCheckIntervalMs = 30000  // 30 seconds
+)
+
 // Config represents the root configuration structure
 type Config struct {
 	Servers             []ServerConfig `yaml:"servers" validate:"required,min=1,dive"`
@@ -55,12 +61,19 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
+	// Validate YAML-provided value first
+	if config.HealthCheckInterval != 0 {
+		if config.HealthCheckInterval < MinHealthCheckIntervalMs || config.HealthCheckInterval > MaxHealthCheckIntervalMs {
+			return nil, fmt.Errorf("invalid healthCheckInterval in YAML: %d (must be between %d and %d)", config.HealthCheckInterval, MinHealthCheckIntervalMs, MaxHealthCheckIntervalMs)
+		}
+	}
+
 	// Load health check interval from environment variable
 	if config.HealthCheckInterval == 0 {
 		if intervalStr := os.Getenv("HEALTH_CHECK_INTERVAL"); intervalStr != "" {
 			if interval, err := strconv.Atoi(intervalStr); err == nil {
-				if interval < 5000 || interval > 300000 { // 5s to 5min
-					return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL: %d (must be between 5000 and 300000)", interval)
+				if interval < MinHealthCheckIntervalMs || interval > MaxHealthCheckIntervalMs {
+					return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL: %d (must be between %d and %d)", interval, MinHealthCheckIntervalMs, MaxHealthCheckIntervalMs)
 				}
 				config.HealthCheckInterval = interval
 			} else {
@@ -68,12 +81,7 @@ func LoadConfig(path string) (*Config, error) {
 			}
 		}
 		if config.HealthCheckInterval == 0 {
-			config.HealthCheckInterval = 30000 // default 30s
-		}
-	} else {
-		// Validate YAML-provided value
-		if config.HealthCheckInterval < 5000 || config.HealthCheckInterval > 300000 {
-			return nil, fmt.Errorf("invalid healthCheckInterval in YAML: %d (must be between 5000 and 300000)", config.HealthCheckInterval)
+			config.HealthCheckInterval = DefaultHealthCheckIntervalMs
 		}
 	}
 
