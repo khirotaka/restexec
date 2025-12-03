@@ -239,7 +239,7 @@ func (m *ClientManager) CallTool(ctx context.Context, server, toolName string, i
 	// Check status
 	status := m.processManager.GetStatus(server)
 	if status == StatusRestarting {
-		return nil, fmt.Errorf("server %s is currently restarting, please retry after 10 seconds", server)
+		return nil, fmt.Errorf("server %s is currently restarting, please retry shortly", server)
 	} else if status == StatusCrashed {
 		return nil, mcpErrors.ErrServerCrashed
 	} else if status != StatusAvailable {
