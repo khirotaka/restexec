@@ -70,6 +70,11 @@ func LoadConfig(path string) (*Config, error) {
 		if config.HealthCheckInterval == 0 {
 			config.HealthCheckInterval = 30000 // default 30s
 		}
+	} else {
+		// Validate YAML-provided value
+		if config.HealthCheckInterval < 5000 || config.HealthCheckInterval > 300000 {
+			return nil, fmt.Errorf("invalid healthCheckInterval in YAML: %d (must be between 5000 and 300000)", config.HealthCheckInterval)
+		}
 	}
 
 	// Load restart policy from environment variable
