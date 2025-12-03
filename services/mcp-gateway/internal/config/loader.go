@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/goccy/go-yaml"
@@ -10,7 +11,9 @@ import (
 
 // Config represents the root configuration structure
 type Config struct {
-	Servers []ServerConfig `yaml:"servers" validate:"required,min=1,dive"`
+	Servers             []ServerConfig `yaml:"servers" validate:"required,min=1,dive"`
+	HealthCheckInterval int            `yaml:"healthCheckInterval"`
+	RestartPolicy       string         `yaml:"restartPolicy"`
 }
 
 // ServerConfig represents a single MCP server configuration
@@ -50,6 +53,37 @@ func LoadConfig(path string) (*Config, error) {
 		if config.Servers[i].Timeout == 0 {
 			config.Servers[i].Timeout = 30000 // 30秒をデフォルトに
 		}
+	}
+
+	// Load health check interval from environment variable
+	if config.HealthCheckInterval == 0 {
+		if intervalStr := os.Getenv("HEALTH_CHECK_INTERVAL"); intervalStr != "" {
+			if interval, err := strconv.Atoi(intervalStr); err == nil {
+				if interval < 5000 || interval > 300000 { // 5s to 5min
+					return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL: %d (must be between 5000 and 300000)", interval)
+				}
+				config.HealthCheckInterval = interval
+			} else {
+				return nil, fmt.Errorf("invalid HEALTH_CHECK_INTERVAL format: %s", intervalStr)
+			}
+		}
+		if config.HealthCheckInterval == 0 {
+			config.HealthCheckInterval = 30000 // default 30s
+		}
+	}
+
+	// Load restart policy from environment variable
+	// Precedence: YAML > Env > Default
+	if config.RestartPolicy == "" {
+		config.RestartPolicy = os.Getenv("MCP_SERVER_RESTART_POLICY")
+		if config.RestartPolicy == "" {
+			config.RestartPolicy = "never" // default
+		}
+	}
+
+	// Validate restart policy
+	if config.RestartPolicy != "never" && config.RestartPolicy != "on-failure" {
+		return nil, fmt.Errorf("invalid restart policy: %s (must be 'never' or 'on-failure')", config.RestartPolicy)
 	}
 
 	// Validate config

@@ -13,7 +13,7 @@ import (
 func TestSetupRouter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -46,7 +46,7 @@ func TestSetupRouter(t *testing.T) {
 func TestSetupRouter_CallToolRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -69,7 +69,7 @@ func TestSetupRouter_CallToolRoute(t *testing.T) {
 func TestSetupRouter_GetToolsRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -92,7 +92,7 @@ func TestSetupRouter_GetToolsRoute(t *testing.T) {
 func TestSetupRouter_HealthRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 

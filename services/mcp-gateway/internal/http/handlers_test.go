@@ -58,7 +58,7 @@ func TestCallToolRequest_JSONUnmarshaling(t *testing.T) {
 
 // TestHandler_Health_AllAvailable tests health endpoint when all servers are available.
 func TestHandler_Health_AllAvailable(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	pm.SetStatus("server-1", mcp.StatusAvailable)
 	pm.SetStatus("server-2", mcp.StatusAvailable)
 
@@ -85,7 +85,7 @@ func TestHandler_Health_AllAvailable(t *testing.T) {
 
 // TestHandler_Health_OneUnavailable tests health endpoint with one unavailable server.
 func TestHandler_Health_OneUnavailable(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	pm.SetStatus("server-1", mcp.StatusAvailable)
 	pm.SetStatus("server-2", mcp.StatusUnavailable)
 
@@ -110,7 +110,7 @@ func TestHandler_Health_OneUnavailable(t *testing.T) {
 
 // TestHandler_Health_OneCrashed tests health endpoint with one crashed server.
 func TestHandler_Health_OneCrashed(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	pm.SetStatus("server-1", mcp.StatusAvailable)
 	pm.SetStatus("server-2", mcp.StatusCrashed)
 
@@ -135,7 +135,7 @@ func TestHandler_Health_OneCrashed(t *testing.T) {
 
 // TestHandler_Health_NoServers tests health endpoint with no servers registered.
 func TestHandler_Health_NoServers(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -157,7 +157,7 @@ func TestHandler_Health_NoServers(t *testing.T) {
 
 // TestHandler_GetTools_Empty tests GetTools with no tools.
 func TestHandler_GetTools_Empty(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -183,7 +183,7 @@ func TestHandler_GetTools_Empty(t *testing.T) {
 
 // TestHandler_CallTool_InvalidJSON tests CallTool with invalid JSON.
 func TestHandler_CallTool_InvalidJSON(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -207,7 +207,7 @@ func TestHandler_CallTool_InvalidJSON(t *testing.T) {
 
 // TestHandler_CallTool_EmptyServer tests CallTool with empty server name.
 func TestHandler_CallTool_EmptyServer(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -237,7 +237,7 @@ func TestHandler_CallTool_EmptyServer(t *testing.T) {
 
 // TestHandler_CallTool_EmptyToolName tests CallTool with empty tool name.
 func TestHandler_CallTool_EmptyToolName(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -267,7 +267,7 @@ func TestHandler_CallTool_EmptyToolName(t *testing.T) {
 
 // TestHandler_CallTool_InvalidServerChars tests CallTool with invalid characters in server name.
 func TestHandler_CallTool_InvalidServerChars(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -297,7 +297,7 @@ func TestHandler_CallTool_InvalidServerChars(t *testing.T) {
 
 // TestHandler_CallTool_ServerTooLong tests CallTool with server name exceeding max length.
 func TestHandler_CallTool_ServerTooLong(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -329,7 +329,7 @@ func TestHandler_CallTool_ServerTooLong(t *testing.T) {
 
 // TestHandler_CallTool_ToolNameTooLong tests CallTool with tool name exceeding max length.
 func TestHandler_CallTool_ToolNameTooLong(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -361,7 +361,7 @@ func TestHandler_CallTool_ToolNameTooLong(t *testing.T) {
 
 // TestHandler_CallTool_InputNotObject tests CallTool with non-object input.
 func TestHandler_CallTool_InputNotObject(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -391,7 +391,7 @@ func TestHandler_CallTool_InputNotObject(t *testing.T) {
 
 // TestHandler_CallTool_InputTooDeep tests CallTool with deeply nested input.
 func TestHandler_CallTool_InputTooDeep(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -450,7 +450,7 @@ func TestHandler_CallTool_InputTooDeep(t *testing.T) {
 
 // TestHandler_CallTool_ServerNotFound tests CallTool with nonexistent server.
 func TestHandler_CallTool_ServerNotFound(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
 
@@ -484,7 +484,7 @@ func TestHandler_CallTool_ServerNotFound(t *testing.T) {
 // This is a limitation of unit testing ClientManager in isolation.
 // Full testing of unavailable/crashed status is covered in integration tests.
 func TestHandler_CallTool_ServerUnavailable(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	pm.SetStatus("test-server", mcp.StatusUnavailable)
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)
@@ -521,7 +521,7 @@ func TestHandler_CallTool_ServerUnavailable(t *testing.T) {
 // This is a limitation of unit testing ClientManager in isolation.
 // Full testing of unavailable/crashed status is covered in integration tests.
 func TestHandler_CallTool_ServerCrashed(t *testing.T) {
-	pm := mcp.NewProcessManager()
+	pm := mcp.NewProcessManager(30000, "never")
 	pm.SetStatus("test-server", mcp.StatusCrashed)
 	cm := mcp.NewClientManager(pm)
 	handler := NewHandler(cm, pm)

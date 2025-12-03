@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewProcessManager(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 
 	assert.NotNil(t, pm)
 	assert.NotNil(t, pm.statuses)
@@ -64,7 +64,7 @@ func TestProcessManager_GetStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pm := NewProcessManager()
+			pm := NewProcessManager(30000, "never")
 			tt.setup(pm)
 
 			status := pm.GetStatus(tt.serverName)
@@ -98,7 +98,7 @@ func TestProcessManager_SetStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pm := NewProcessManager()
+			pm := NewProcessManager(30000, "never")
 
 			pm.SetStatus(tt.serverName, tt.status)
 			retrievedStatus := pm.GetStatus(tt.serverName)
@@ -109,7 +109,7 @@ func TestProcessManager_SetStatus(t *testing.T) {
 }
 
 func TestProcessManager_SetStatus_Overwrite(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 
 	// Set initial status
 	pm.SetStatus("test-server", StatusAvailable)
@@ -152,7 +152,7 @@ func TestProcessManager_GetAllStatuses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pm := NewProcessManager()
+			pm := NewProcessManager(30000, "never")
 			tt.setup(pm)
 
 			statuses := pm.GetAllStatuses()
@@ -163,7 +163,7 @@ func TestProcessManager_GetAllStatuses(t *testing.T) {
 }
 
 func TestProcessManager_GetAllStatuses_IsCopy(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	pm.SetStatus("server-1", StatusAvailable)
 	pm.SetStatus("server-2", StatusUnavailable)
 
@@ -183,7 +183,7 @@ func TestProcessManager_GetAllStatuses_IsCopy(t *testing.T) {
 }
 
 func TestProcessManager_GetAllStatuses_ReflectsChanges(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 	pm.SetStatus("server-1", StatusAvailable)
 
 	// Get initial state
@@ -201,7 +201,7 @@ func TestProcessManager_GetAllStatuses_ReflectsChanges(t *testing.T) {
 }
 
 func TestProcessManager_Concurrent(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 
 	const numGoroutines = 100
 	const numServers = 10
@@ -257,7 +257,7 @@ func TestProcessManager_Concurrent(t *testing.T) {
 }
 
 func TestProcessManager_Concurrent_RaceDetection(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 
 	// This test specifically targets potential data races
 	// Use -race flag when running: go test -race ./...
@@ -290,7 +290,7 @@ func TestProcessManager_Concurrent_RaceDetection(t *testing.T) {
 }
 
 func TestProcessManager_MultipleServers(t *testing.T) {
-	pm := NewProcessManager()
+	pm := NewProcessManager(30000, "never")
 
 	servers := []string{
 		"auth-server",

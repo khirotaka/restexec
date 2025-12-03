@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Initialize managers
-	processManager := mcp.NewProcessManager()
+	processManager := mcp.NewProcessManager(cfg.HealthCheckInterval, cfg.RestartPolicy)
 	clientManager := mcp.NewClientManager(processManager)
 
 	// Connect to MCP servers
