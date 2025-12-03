@@ -194,16 +194,23 @@ func TestRestartServer_MaxAttemptsExceeded(t *testing.T) {
 	// RestartServer returns immediately (nil), but executes asynchronously in a goroutine
 	assert.Nil(t, err)
 
-	// Wait for the goroutine to complete the max attempts check
-	// The goroutine should exit early at health_check.go:173-177 due to max attempts reached
-	time.Sleep(100 * time.Millisecond)
+	// Use Eventually pattern to wait for goroutine completion with retries
+	// This is more robust than fixed time.Sleep in resource-constrained environments
+	assert.Eventually(t, func() bool {
+		cm.mu.Lock()
+		isRestarting := cm.restarting["test-server"]
+		cm.mu.Unlock()
+		// Goroutine should complete and clear the restarting flag
+		return !isRestarting
+	}, 1*time.Second, 50*time.Millisecond, "goroutine should complete and clear restarting flag")
 
 	// Verify that restart attempts counter was NOT incremented
 	// (because the max attempts check at L173-177 prevented the increment at L178)
 	assert.Equal(t, 3, pm.GetRestartAttempts("test-server"))
 
 	// Note: We cannot directly verify that connectClient was NOT called without additional
-	// mocking infrastructure, but the unchanged counter confirms the goroutine exited early.
+	// mocking infrastructure, but the unchanged counter and cleared restarting flag
+	// confirm the goroutine exited early as expected.
 }
 
 func TestRestartServer_PolicyNever(t *testing.T) {
