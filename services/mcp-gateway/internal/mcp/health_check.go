@@ -203,9 +203,18 @@ func (m *ClientManager) RestartServer(ctx context.Context, cfg config.ServerConf
 		m.mu.Unlock()
 
 		// Check if parent context is already cancelled (e.g., during shutdown)
+		// Early exit to avoid unnecessary resource cleanup (session close, process kill) that occurred above
+		// and the subsequent reconnection attempt during graceful shutdown
 		if ctx.Err() != nil {
 			slog.Info("Restart aborted due to context cancellation", "server", cfg.Name)
-			m.processManager.SetStatus(cfg.Name, StatusCrashed)
+
+			// Cancel any existing health check to prevent unnecessary operations during shutdown
+			m.mu.Lock()
+			if cancel, ok := m.healthCheckCancels[cfg.Name]; ok {
+				cancel()
+			}
+			m.mu.Unlock()
+
 			return
 		}
 
