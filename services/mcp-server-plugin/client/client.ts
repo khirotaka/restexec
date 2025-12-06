@@ -1,4 +1,4 @@
-const DEFAULT_GATEWAY_URL = Deno.env.get('MCP_GATEWAY_URL') ?? 'http://localhost:3001';
+const DEFAULT_GATEWAY_URL = 'http://localhost:3001';
 
 export interface MCPResponse<T> {
   success: boolean;
