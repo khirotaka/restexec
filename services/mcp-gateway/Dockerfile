@@ -26,6 +26,10 @@ WORKDIR /
 # Copy the binary from the builder stage
 COPY --from=builder /app/mcp-gateway /mcp-gateway
 
+# Note: MCP Server binaries are now provided by mcp-server-plugin init container
+# and mounted to /mcp-binaries via Kubernetes volumes.
+# See k8s/manifest.yaml for deployment configuration.
+
 # Run as non-root user (provided by the distroless:nonroot image)
 USER nonroot:nonroot
 
