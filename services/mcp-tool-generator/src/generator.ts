@@ -98,7 +98,7 @@ ${outputTypeDefinition}/**
  * ${tool.description || tool.name}
  */
 export async function ${camelToolName}(input: ${inputInterfaceName}): Promise<${outputInterfaceName}> {
-  return callMCPTool<${outputInterfaceName}>('${tool.server}', '${tool.name}', input as unknown as Record<string, unknown>);
+  return callMCPTool<${outputInterfaceName}>('${tool.server}', '${tool.name}', input as Record<string, unknown>);
 }
 `;
 }
