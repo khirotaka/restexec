@@ -18,7 +18,7 @@ mkdir -p "${CLIENT_CODE_DIR}"
 # Copy MCP Server binaries
 if [ -d "/mcp-binaries" ] && [ "$(ls -A /mcp-binaries 2>/dev/null)" ]; then
     echo "Copying MCP Server binaries..."
-    cp -r /mcp-binaries/* "${MCP_BINARIES_DIR}/"
+    cp -rL /mcp-binaries/* "${MCP_BINARIES_DIR}/"
     echo "  Copied: $(ls -1 /mcp-binaries | tr '\n' ' ')"
 else
     echo "  No MCP Server binaries found in /mcp-binaries"
