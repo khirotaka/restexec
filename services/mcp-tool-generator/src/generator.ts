@@ -1,22 +1,31 @@
+interface JsonSchema {
+  type?:
+    | "string"
+    | "number"
+    | "integer"
+    | "boolean"
+    | "array"
+    | "object"
+    | "null";
+  items?: JsonSchema;
+  properties?: Record<string, JsonSchema>;
+  required?: string[];
+  description?: string;
+  [key: string]: unknown;
+}
+
 export interface MCPTool {
   name: string;
   description?: string;
   server: string;
-  inputSchema: {
-    type: string;
-    properties?: Record<string, any>;
-    required?: string[];
-    [key: string]: any;
-  };
-  outputSchema?: {
-    type: string;
-    properties?: Record<string, any>;
-    required?: string[];
-    [key: string]: any;
-  };
+  inputSchema: JsonSchema;
+  outputSchema?: JsonSchema;
 }
 
-function jsonSchemaToTsType(schema: any, indentLevel = 0): string {
+function jsonSchemaToTsType(
+  schema: JsonSchema | undefined,
+  indentLevel = 0,
+): string {
   if (!schema) return "any";
 
   const type = schema.type;
@@ -34,7 +43,7 @@ function jsonSchemaToTsType(schema: any, indentLevel = 0): string {
     if (!schema.properties) return "Record<string, unknown>";
 
     const props = Object.entries(schema.properties).map(
-      ([key, propSchema]: [string, any]) => {
+      ([key, propSchema]) => {
         const isRequired = schema.required?.includes(key);
         const propType = jsonSchemaToTsType(propSchema, indentLevel + 1);
         const description = propSchema.description
