@@ -130,7 +130,7 @@ spec:
         # ============================================================
         - name: mcp-server-plugin
           image: mcp-server-plugin:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: MCP_BINARIES_DIR
               value: /mnt/mcp-binaries
@@ -149,7 +149,7 @@ spec:
         # ============================================================
         - name: mcp-gateway
           image: mcp-gateway:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           restartPolicy: Always # <- Native Sidecar (K8s 1.28+)
           env:
             - name: PORT
@@ -203,7 +203,7 @@ spec:
         # ============================================================
         - name: mcp-tool-generator
           image: mcp-tool-generator:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: MCP_GATEWAY_URL
               value: http://localhost:3001
@@ -226,7 +226,7 @@ spec:
         # ============================================================
         - name: restexec
           image: restexec:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: PORT
               value: "3000"
