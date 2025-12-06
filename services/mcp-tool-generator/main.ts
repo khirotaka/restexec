@@ -1,15 +1,33 @@
-
 import { ensureDir } from "jsr:@std/fs";
 import { join, resolve } from "jsr:@std/path";
 import { generateToolContent, type MCPTool } from "./src/generator.ts";
 
 const GATEWAY_URL = Deno.env.get("MCP_GATEWAY_URL") ?? "http://localhost:3001";
-const TARGET_DIR = resolve(Deno.cwd(), "../restexec/tools/mcp");
+const toolsDir = Deno.env.get("TOOLS_DIR") ?? resolve(Deno.cwd(), "../restexec/tools");
+const TARGET_DIR = resolve(toolsDir, "mcp");
+
+// client.ts source path - provided by mcp-server-plugin init container
+const CLIENT_SOURCE_PATH = Deno.env.get("CLIENT_SOURCE_PATH") ?? "/client/client.ts";
+
+async function loadClientSource(): Promise<string> {
+  try {
+    return await Deno.readTextFile(CLIENT_SOURCE_PATH);
+  } catch (error) {
+    throw new Error(`Failed to read client.ts from ${CLIENT_SOURCE_PATH}: ${error}`);
+  }
+}
 
 async function main() {
   console.log(`Fetching tools from ${GATEWAY_URL}...`);
   
   try {
+    await ensureDir(TARGET_DIR);
+    
+    // Copy client.ts from external source
+    const clientSource = await loadClientSource();
+    await Deno.writeTextFile(join(TARGET_DIR, "client.ts"), clientSource);
+    console.log(`client.ts copied from ${CLIENT_SOURCE_PATH} to ${join(TARGET_DIR, "client.ts")}`);
+
     const response = await fetch(`${GATEWAY_URL}/mcp/tools`);
     if (!response.ok) {
       throw new Error(`Failed to fetch tools: ${response.statusText}`);
