@@ -1,32 +1,40 @@
-import { ensureDir } from "jsr:@std/fs";
-import { join, resolve } from "jsr:@std/path";
+import { ensureDir } from "@std/fs";
+import { join, resolve } from "@std/path";
 import { generateToolContent, type MCPTool } from "./src/generator.ts";
 
 const GATEWAY_URL = Deno.env.get("MCP_GATEWAY_URL") ?? "http://localhost:3001";
-const toolsDir = Deno.env.get("TOOLS_DIR") ?? resolve(Deno.cwd(), "../restexec/tools");
+const toolsDir = Deno.env.get("TOOLS_DIR") ??
+  resolve(Deno.cwd(), "../restexec/tools");
 const TARGET_DIR = resolve(toolsDir, "mcp");
 
 // client.ts source path - provided by mcp-server-plugin init container
-const CLIENT_SOURCE_PATH = Deno.env.get("CLIENT_SOURCE_PATH") ?? "/client/client.ts";
+const CLIENT_SOURCE_PATH = Deno.env.get("CLIENT_SOURCE_PATH") ??
+  "/client/client.ts";
 
 async function loadClientSource(): Promise<string> {
   try {
     return await Deno.readTextFile(CLIENT_SOURCE_PATH);
   } catch (error) {
-    throw new Error(`Failed to read client.ts from ${CLIENT_SOURCE_PATH}: ${error}`);
+    throw new Error(
+      `Failed to read client.ts from ${CLIENT_SOURCE_PATH}: ${error}`,
+    );
   }
 }
 
 async function main() {
   console.log(`Fetching tools from ${GATEWAY_URL}...`);
-  
+
   try {
     await ensureDir(TARGET_DIR);
-    
+
     // Copy client.ts from external source
     const clientSource = await loadClientSource();
     await Deno.writeTextFile(join(TARGET_DIR, "client.ts"), clientSource);
-    console.log(`client.ts copied from ${CLIENT_SOURCE_PATH} to ${join(TARGET_DIR, "client.ts")}`);
+    console.log(
+      `client.ts copied from ${CLIENT_SOURCE_PATH} to ${
+        join(TARGET_DIR, "client.ts")
+      }`,
+    );
 
     const response = await fetch(`${GATEWAY_URL}/mcp/tools`);
     if (!response.ok) {
@@ -49,7 +57,11 @@ async function main() {
       toolsByServer[tool.server].push(tool);
     }
 
-    console.log(`Found ${tools.length} tools across ${Object.keys(toolsByServer).length} servers.`);
+    console.log(
+      `Found ${tools.length} tools across ${
+        Object.keys(toolsByServer).length
+      } servers.`,
+    );
 
     // Generate code for each server
     for (const [serverName, serverTools] of Object.entries(toolsByServer)) {
@@ -63,10 +75,10 @@ async function main() {
         const fileName = `${tool.name}.ts`;
         const filePath = join(serverDir, fileName);
         const content = generateToolContent(tool);
-        
+
         await Deno.writeTextFile(filePath, content);
         console.log(`  Generated ${fileName}`);
-        
+
         exportStatements.push(`export * from "./${tool.name}.ts";`);
       }
 
@@ -76,7 +88,6 @@ async function main() {
     }
 
     console.log("Generation complete!");
-
   } catch (error) {
     console.error("Error:", error);
     Deno.exit(1);
