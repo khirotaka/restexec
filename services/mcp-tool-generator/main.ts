@@ -95,7 +95,7 @@ async function main() {
         await Deno.writeTextFile(filePath, content);
         console.log(`  Generated ${fileName}`);
 
-        exportStatements.push(`export * from "./${fileName}";`);
+        exportStatements.push(`export * from "./${fileName.replace(/\.ts$/, '')}";`);
       }
 
       // Generate index.ts
