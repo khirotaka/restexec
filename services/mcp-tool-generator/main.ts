@@ -3,8 +3,12 @@ import { join, resolve } from "@std/path";
 import { generateToolContent, type MCPTool } from "./src/generator.ts";
 
 const GATEWAY_URL = Deno.env.get("MCP_GATEWAY_URL") ?? "http://localhost:3001";
-const toolsDir = Deno.env.get("TOOLS_DIR") ??
-  resolve(Deno.cwd(), "../restexec/tools");
+const toolsDir = Deno.env.get("TOOLS_DIR");
+
+if (!toolsDir) {
+  throw new Error("TOOLS_DIR environment variable is not set");
+}
+
 const TARGET_DIR = resolve(toolsDir, "mcp");
 const TIMEOUT = 30_000;
 
