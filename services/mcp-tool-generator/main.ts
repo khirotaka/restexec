@@ -6,6 +6,7 @@ const GATEWAY_URL = Deno.env.get("MCP_GATEWAY_URL") ?? "http://localhost:3001";
 const toolsDir = Deno.env.get("TOOLS_DIR") ??
   resolve(Deno.cwd(), "../restexec/tools");
 const TARGET_DIR = resolve(toolsDir, "mcp");
+const TIMEOUT = 30_000;
 
 // client.ts source path - provided by mcp-server-plugin init container
 const CLIENT_SOURCE_PATH = Deno.env.get("CLIENT_SOURCE_PATH") ??
@@ -36,7 +37,10 @@ async function main() {
       }`,
     );
 
-    const response = await fetch(`${GATEWAY_URL}/mcp/tools`);
+    const response = await fetch(`${GATEWAY_URL}/mcp/tools`, {
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+
     if (!response.ok) {
       throw new Error(`Failed to fetch tools: ${response.statusText}`);
     }
