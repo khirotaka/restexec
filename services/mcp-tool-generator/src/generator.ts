@@ -55,11 +55,9 @@ function jsonSchemaToTsType(schema: any, indentLevel = 0): string {
 }
 
 function toCamelCase(str: string): string {
-  return str.replace(/([-_][a-z])/ig, ($1) => {
-    return $1.toUpperCase()
-      .replace("-", "")
-      .replace("_", "");
-  });
+  return str
+    .replace(/^[-_]+/, "") // 先頭の記号を除去
+    .replace(/[-_]+([a-zA-Z])/g, (_, letter) => letter.toUpperCase());
 }
 
 function capitalize(str: string): string {
