@@ -26,6 +26,14 @@ async function loadClientSource(): Promise<string> {
   }
 }
 
+function sanitizeFileName(name: string): string {
+  // パストラバーサルを防ぐため、パス区切り文字を除去
+  const sanitizedName = name.replace(/[\/\\:]/g, "_");
+
+  // 先頭がドットで始まる隠しファイルを防ぐ
+  return sanitizedName.startsWith(".") ? "_" + sanitizedName : sanitizedName;
+}
+
 async function main() {
   console.log(`Fetching tools from ${GATEWAY_URL}...`);
 
@@ -80,14 +88,14 @@ async function main() {
       const exportStatements: string[] = [];
 
       for (const tool of serverTools) {
-        const fileName = `${tool.name}.ts`;
+        const fileName = `${sanitizeFileName(tool.name)}.ts`;
         const filePath = join(serverDir, fileName);
         const content = generateToolContent(tool);
 
         await Deno.writeTextFile(filePath, content);
         console.log(`  Generated ${fileName}`);
 
-        exportStatements.push(`export * from "./${tool.name}.ts";`);
+        exportStatements.push(`export * from "./${fileName}";`);
       }
 
       // Generate index.ts
