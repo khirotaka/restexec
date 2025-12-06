@@ -90,7 +90,7 @@ export function generateToolContent(tool: MCPTool): string {
     }\n\n`;
   }
 
-  return `import { callMCPTool } from "/tools/mcp/client.ts";
+  return `import { callMCPTool } from "../client.ts";
 
 export interface ${inputInterfaceName} ${inputTypeDefinition}
 
