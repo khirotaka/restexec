@@ -1,4 +1,5 @@
 const DEFAULT_GATEWAY_URL = "http://localhost:3001";
+const TIMEOUT = 30_000;
 
 export interface MCPResponse<T> {
   success: boolean;
@@ -18,6 +19,7 @@ export async function callMCPTool<T>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT),
   });
 
   if (!response.ok) {
