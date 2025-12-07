@@ -1,0 +1,279 @@
+# Kubernetes 1.28+ Sidecar Pattern Deployment
+# mcp-gateway と restexec を同一 Pod 内で実行
+#
+# アーキテクチャ:
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │ Pod: restexec                                                           │
+#   │                                                                         │
+#   │  ┌─────────────────────────────────────────────────────────────────┐    │
+#   │  │ Init Container (1st): mcp-server-plugin                         │    │
+#   │  │   └─ MCP Servers → mcp-binaries-volume                          │    │
+#   │  │   └─ client.ts → client-code-volume                             │    │
+#   │  └─────────────────────────────────────────────────────────────────┘    │
+#   │           │                                                             │
+#   │           ▼                                                             │
+#   │  ┌─────────────────────────────────────────────────────────────────┐    │
+#   │  │ Sidecar (Native): mcp-gateway (localhost:3001)                  │    │
+#   │  │   └─ MCP Server: /mcp-binaries/sample-mcp-server                │    │
+#   │  └─────────────────────────────────────────────────────────────────┘    │
+#   │           │                                                             │
+#   │           │ HTTP (localhost:3001)                                       │
+#   │           ▼                                                             │
+#   │  ┌─────────────────────────────────────────────────────────────────┐    │
+#   │  │ Init Container: mcp-tool-generator                              │    │
+#   │  │   └─ client.ts from client-code-volume                          │    │
+#   │  │   └─ GET /mcp/tools → Generate TypeScript → /tools              │    │
+#   │  └─────────────────────────────────────────────────────────────────┘    │
+#   │           │                                                             │
+#   │           │ Volume: tools-volume                                        │
+#   │           ▼                                                             │
+#   │  ┌─────────────────────────────────────────────────────────────────┐    │
+#   │  │ Container: restexec (localhost:3000)                            │    │
+#   │  │   └─ imports from /tools/mcp/*                                  │    │
+#   │  └─────────────────────────────────────────────────────────────────┘    │
+#   │                                                                         │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#             │
+#             ▼
+#   ┌─────────────────────────────────────────────────────────────────────────┐
+#   │ Service: restexec:3000                                                  │
+#   └─────────────────────────────────────────────────────────────────────────┘
+#
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: restexec
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-gateway-config
+  namespace: restexec
+data:
+  config.yaml: |
+    servers:
+      - name: sample-mcp-server
+        command: /mcp-binaries/sample-mcp-server
+        timeout: 30000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restexec-import-map
+  namespace: restexec
+data:
+  import_map.json: |
+    {
+      "imports": {
+        "@/": "/tools/",
+        "utils/": "/tools/utils/",
+        "types": "/tools/types.ts",
+        "es-toolkit": "https://esm.sh/es-toolkit@1.42.0",
+        "es-toolkit/": "https://esm.sh/es-toolkit@1.42.0/",
+        "date-fns": "https://esm.sh/date-fns@4.1.0",
+        "date-fns/": "https://esm.sh/date-fns@4.1.0/",
+        "zod": "https://esm.sh/zod@4.1.13",
+        "papaparse": "https://esm.sh/papaparse@5.5.3",
+        "nanoid": "https://esm.sh/nanoid@5.1.6",
+        "decimal.js": "https://esm.sh/decimal.js@10.6.0"
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: restexec
+  namespace: restexec
+spec:
+  selector:
+    app: restexec
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: restexec
+  namespace: restexec
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: restexec
+  template:
+    metadata:
+      labels:
+        app: restexec
+    spec:
+      volumes:
+        - name: tools-volume
+          emptyDir: {}
+        - name: workspace-volume
+          emptyDir: {}
+        - name: mcp-binaries-volume
+          emptyDir: {}
+        - name: client-code-volume
+          emptyDir: {}
+        - name: mcp-gateway-config
+          configMap:
+            name: mcp-gateway-config
+        - name: import-map
+          configMap:
+            name: restexec-import-map
+
+      initContainers:
+        # ============================================================
+        # MCP Server Plugin (First Init Container)
+        # MCP Server バイナリと client.ts を共有ボリュームにデプロイ
+        # ============================================================
+        - name: mcp-server-plugin
+          image: mcp-server-plugin:latest
+          imagePullPolicy: Always
+          env:
+            - name: MCP_BINARIES_DIR
+              value: /mnt/mcp-binaries
+            - name: CLIENT_CODE_DIR
+              value: /mnt/client
+          volumeMounts:
+            - name: mcp-binaries-volume
+              mountPath: /mnt/mcp-binaries
+            - name: client-code-volume
+              mountPath: /mnt/client
+
+        # ============================================================
+        # Kubernetes 1.28+ Native Sidecar Container
+        # restartPolicy: Always により、他の init container より先に起動し、
+        # Pod のライフサイクル全体を通じて実行され続ける
+        # ============================================================
+        - name: mcp-gateway
+          image: mcp-gateway:latest
+          imagePullPolicy: Always
+          restartPolicy: Always # <- Native Sidecar (K8s 1.28+)
+          env:
+            - name: PORT
+              value: "3001"
+            - name: LOG_LEVEL
+              value: INFO
+            - name: MAX_TIMEOUT
+              value: "300000"
+            - name: HEALTH_CHECK_INTERVAL
+              value: "30000"
+            - name: MCP_SERVER_RESTART_POLICY
+              value: never
+            - name: DISABLE_VALIDATION
+              value: "false"
+            - name: CONFIG_PATH
+              value: /config/config.yaml
+          ports:
+            - containerPort: 3001
+              name: mcp-http
+          volumeMounts:
+            - name: mcp-gateway-config
+              mountPath: /config/config.yaml
+              subPath: config.yaml
+            - name: mcp-binaries-volume
+              mountPath: /mcp-binaries
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+        # ============================================================
+        # MCP Tool Generator (通常の Init Container)
+        # mcp-gateway sidecar が起動完了後に実行される
+        # /mcp/tools から TypeScript コードを生成し /tools に書き込む
+        # ============================================================
+        - name: mcp-tool-generator
+          image: mcp-tool-generator:latest
+          imagePullPolicy: Always
+          env:
+            - name: MCP_GATEWAY_URL
+              value: http://localhost:3001
+            - name: TOOLS_DIR
+              value: /tools
+            - name: CLIENT_SOURCE_PATH
+              value: /mnt/client/client.ts
+          volumeMounts:
+            - name: tools-volume
+              mountPath: /tools
+            - name: client-code-volume
+              mountPath: /mnt/client
+              readOnly: true
+
+      containers:
+        # ============================================================
+        # restexec メインコンテナ
+        # /tools から MCP ツールの TypeScript コードを import
+        # localhost:3001 経由で MCP Gateway と通信
+        # ============================================================
+        - name: restexec
+          image: restexec:latest
+          imagePullPolicy: Always
+          env:
+            - name: PORT
+              value: "3000"
+            - name: WORKSPACE_DIR
+              value: /workspace
+            - name: TOOLS_DIR
+              value: /tools
+            - name: DEFAULT_TIMEOUT
+              value: "5000"
+            - name: MAX_TIMEOUT
+              value: "300000"
+            - name: LOG_LEVEL
+              value: info
+            - name: DENO_PATH
+              value: deno
+            - name: DENO_ALLOW_READ
+              value: /workspace,/tools
+            - name: DENO_ALLOW_WRITE
+              value: ""
+            - name: DENO_ALLOW_NET
+              value: "localhost:3001"
+            - name: DENO_ALLOW_RUN
+              value: "false"
+            - name: DENO_IMPORT_MAP
+              value: /workspace/import_map.json
+            - name: MCP_GATEWAY_URL
+              value: http://localhost:3001
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: tools-volume
+              mountPath: /tools
+            - name: workspace-volume
+              mountPath: /workspace
+            - name: import-map
+              mountPath: /workspace/import_map.json
+              subPath: import_map.json
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
