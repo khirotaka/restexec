@@ -1,0 +1,51 @@
+version: "3"
+tasks:
+  default:
+    aliases:
+      - list
+    desc: List all tasks
+    cmd: task -l
+
+  buildMCPServerPlugin:
+    desc: Build mcp-server-plugin image
+    dir: services/mcp-server-plugin
+    cmds:
+      - docker build -t mcp-server-plugin:latest .
+
+  buildMCPGatewayImage:
+    desc: Build mcp-gateway image
+    dir: services/mcp-gateway
+    cmds:
+      - docker build -t mcp-gateway:latest .
+
+  buildMCPToolGeneratorImage:
+    desc: Build mcp-tool-generator image
+    dir: services/mcp-tool-generator
+    cmds:
+      - docker build -t mcp-tool-generator:latest .
+
+  buildRestexecImage:
+    desc: Build restexec image
+    dir: services/restexec
+    cmds:
+      - docker build -t restexec:latest .
+
+  build:
+    desc: Build all images
+    cmds:
+      - task: buildMCPServerPlugin
+      - task: buildMCPGatewayImage
+      - task: buildMCPToolGeneratorImage
+      - task: buildRestexecImage
+
+  deploy:
+    desc: Deploy to Kubernetes
+    dir: k8s
+    cmds:
+      - kubectl apply -f manifest.yaml
+
+  undeploy:
+    desc: Undeploy from Kubernetes
+    dir: k8s
+    cmds:
+      - kubectl delete -f manifest.yaml
