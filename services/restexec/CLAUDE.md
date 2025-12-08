@@ -37,10 +37,13 @@ restexec は、REST API 経由で TypeScript コードを安全に実行する�
    - 結果は stdout に出力: `console.log(JSON.stringify(result))`
    - 各実行は独立した Deno 子プロセスで実行
 
-2. **3つの API エンドポイント**:
+2. **主要 API エンドポイント**:
    - `PUT /workspace` - TypeScript コードを保存
    - `POST /lint` - `deno lint` でコード品質をチェック
    - `POST /execute` - コードを実行して結果を返す
+   - `GET /files/list` - ファイル一覧を取得（glob対応）
+   - `GET /files/read` - ファイル内容を読み取り
+   - `POST /files/search` - ファイル内容を検索（grep機能）
 
 3. **セキュリティファースト設計**: Deno の明示的なパーミッションシステム
    - Read: `/workspace`, `/tools` のみ
@@ -75,8 +78,8 @@ restexec は、REST API 経由で TypeScript コードを安全に実行する�
 ```typescript
 async function main() {
   const result = {
-    message: "Processing complete",
-    status: "success"
+    message: 'Processing complete',
+    status: 'success',
   };
 
   // REQUIRED: Output as JSON
@@ -94,6 +97,7 @@ main().catch((error) => {
 ```
 
 **重要な要件**:
+
 1. ✅ `console.log(JSON.stringify(result))` で出力
 2. ✅ main 関数を呼び出す（定義だけでなく）
 3. ✅ `.catch()` と `Deno.exit(1)` でエラーハンドリング
@@ -110,7 +114,7 @@ async function main() {
   const result = {
     sum: add(10, 20),
     text: capitalize('hello'),
-    status: 'success'
+    status: 'success',
   };
   console.log(JSON.stringify(result));
 }
@@ -132,7 +136,7 @@ async function main() {
   const result = {
     apiKey: apiKey,
     debugEnabled: debugMode === 'true',
-    status: 'success'
+    status: 'success',
   };
   console.log(JSON.stringify(result));
 }
@@ -144,6 +148,7 @@ main().catch((error) => {
 ```
 
 **API リクエストで環境変数を渡す**:
+
 ```bash
 curl -X POST http://localhost:3000/execute \
   -H "Content-Type: application/json" \
@@ -157,12 +162,14 @@ curl -X POST http://localhost:3000/execute \
 ```
 
 **環境変数の制約**:
+
 - **キー形式**: 大文字、数字、アンダースコアのみ (`/^[A-Z0-9_]+$/`)
 - **最大数**: 50 個
 - **最大サイズ**: 10KB（すべてのキーと値の合計）
 - **禁止キー**: `PATH`, `DENO_DIR`, `HOME`, `USER`, `PWD`, `SHELL`, `HOSTNAME`, `TMPDIR`, `TEMP`, `TMP`, `DENO_*`
 
 **セキュリティ制約**:
+
 - ✅ `/workspace` と `/tools` から読み取り可能
 - ❌ write, network, subprocess アクセスなし（デフォルト）
 - ⏱️ デフォルトタイムアウト: 5 秒
@@ -179,8 +186,8 @@ curl -X POST http://localhost:3000/execute \
 1. **`deps.ts` に追加** - 正確なバージョンを指定:
    ```typescript
    // deps.ts
-   export * from "https://esm.sh/es-toolkit@1.27.0";
-   export * from "https://esm.sh/date-fns@3.0.0";
+   export * from 'https://esm.sh/es-toolkit@1.27.0';
+   export * from 'https://esm.sh/date-fns@3.0.0';
    ```
 
 2. **`import_map.json` を更新** (オプション、利便性のため):
@@ -214,6 +221,7 @@ curl -X POST http://localhost:3000/execute \
 ### Task: Understand the API
 
 **PUT /workspace** - コードを保存:
+
 ```json
 // Request
 {"codeId": "my-script", "code": "console.log(JSON.stringify({msg: 'hi'}));"}
@@ -223,6 +231,7 @@ curl -X POST http://localhost:3000/execute \
 ```
 
 **POST /lint** - コード品質をチェック:
+
 ```json
 // Request
 {"codeId": "my-script", "timeout": 5000}
@@ -232,6 +241,7 @@ curl -X POST http://localhost:3000/execute \
 ```
 
 **POST /execute** - コードを実行:
+
 ```json
 // Request
 {"codeId": "my-script", "timeout": 5000}
@@ -241,22 +251,44 @@ curl -X POST http://localhost:3000/execute \
 ```
 
 **GET /health** - サーバーステータス:
+
 ```json
 {"status": "ok", "uptime": 12345, "memoryUsage": {...}}
 ```
 
-**典型的なワークフロー**:
-```
-PUT /workspace → (POST /lint) → POST /execute
+**File Explorer API** (ファイル探索・検索):
+
+```bash
+# ファイル一覧を取得
+curl "http://localhost:3000/files/list?path=/tools&pattern=**/*.ts"
+
+# ファイル内容を読み取り
+curl "http://localhost:3000/files/read?path=/tools/utils/math.ts"
+
+# ファイル内容を検索
+curl -X POST http://localhost:3000/files/search \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/tools", "query": "export function", "pattern": "**/*.ts"}'
 ```
 
-**完全な仕様**: [specs/API.md](specs/API.md), [specs/LintAPI.md](specs/LintAPI.md), [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md)
+**典型的なワークフロー**:
+
+```
+# 基本ワークフロー
+PUT /workspace → (POST /lint) → POST /execute
+
+# AI Agent ワークフロー
+GET /files/list → GET /files/read → PUT /workspace → POST /execute
+```
+
+**完全な仕様**: [specs/API.md](specs/API.md), [specs/LintAPI.md](specs/LintAPI.md), [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md), [specs/FileExplorerAPI.md](specs/FileExplorerAPI.md)
 
 ---
 
 ### Task: Run Tests
 
 **基本コマンド**:
+
 ```bash
 deno task test
 ```
@@ -266,6 +298,7 @@ deno task test
 テストは `/workspace` ディレクトリに書き込みます。これが失敗する場合：
 
 **解決策 1**: `/workspace` を適切な権限で作成:
+
 ```bash
 sudo mkdir -p /workspace
 sudo chmod 777 /workspace
@@ -273,17 +306,20 @@ deno task test
 ```
 
 **解決策 2**: 一時ディレクトリを使用（ローカル開発推奨）:
+
 ```bash
 mkdir -p /tmp/restexec-workspace
 WORKSPACE_DIR=/tmp/restexec-workspace deno task test
 ```
 
 **なぜこれが起こるか**:
+
 - 統合テストは `config.workspaceDir` にファイルを保存（デフォルト: `/workspace`）
 - ローカルマシンには `/workspace` がないか、書き込み権限がない可能性
 - Docker コンテナにはこのディレクトリが事前設定済み
 
 **特定のテストファイルを実行**:
+
 ```bash
 deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/integration/workspace.test.ts
 ```
@@ -299,6 +335,7 @@ deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/i
 **症状**: コードは実行されるが `result` フィールドが `null`
 
 **よくある原因**:
+
 1. `console.log(JSON.stringify(result))` が欠けている
 2. 関数は定義されているが呼び出されていない
 3. `return` を使用（`console.log` の代わりに）
@@ -312,11 +349,13 @@ deno test --allow-read --allow-write --allow-net --allow-env --allow-run tests/i
 **症状**: 外部ライブラリのインポートでエラー
 
 **よくある原因**:
+
 1. ライブラリが `deps.ts` にない
 2. コンテナを再ビルドしていない
 3. インポートパスが間違っている
 
 **解決策**:
+
 ```bash
 # 1. deps.ts に追加
 # 2. 再ビルド
@@ -334,6 +373,7 @@ docker compose up -d restexec
 **よくある原因**: 無限ループ、長時間の操作、タイムアウトが短すぎる
 
 **解決策**:
+
 1. コードに無限ループがないか確認
 2. タイムアウトを増やす: `{"timeout": 30000}`
 3. 非同期操作を最適化
@@ -347,6 +387,7 @@ docker compose up -d restexec
 **よくある原因**: コードが禁止されたリソースにアクセスしている
 
 **解決策**:
+
 1. 上記の [Security Model](#-restexec-overview) を確認
 2. コードが `/workspace` と `/tools` のみにアクセスすることを確認
 3. 必要に応じて環境変数経由でパーミッションを設定
@@ -362,6 +403,7 @@ docker compose up -d restexec
 **よくある原因**: ファイルが保存されていない、codeId が間違っている
 
 **解決策**:
+
 ```bash
 # 1. まず保存
 curl -X PUT http://localhost:3000/workspace \
@@ -381,6 +423,7 @@ curl -X POST http://localhost:3000/execute \
 **症状**: "Permission denied" や "No such file or directory" のようなテストエラー
 
 **よくある原因**:
+
 - `/workspace` ディレクトリが存在しない
 - `/workspace` への書き込み権限がない
 - ローカルマシンでテストを実行している（Docker 内ではない）
@@ -388,6 +431,7 @@ curl -X POST http://localhost:3000/execute \
 **解決策** (いずれかを選択):
 
 **Option 1** - `/workspace` ディレクトリを作成:
+
 ```bash
 sudo mkdir -p /workspace
 sudo chmod 777 /workspace
@@ -395,6 +439,7 @@ deno task test
 ```
 
 **Option 2** - 一時ディレクトリを使用（推奨）:
+
 ```bash
 # WORKSPACE_DIR を書き込み可能な場所に設定
 mkdir -p /tmp/restexec-workspace
@@ -402,11 +447,13 @@ WORKSPACE_DIR=/tmp/restexec-workspace deno task test
 ```
 
 **Option 3** - Docker でテストを実行:
+
 ```bash
 docker compose run --rm restexec deno task test
 ```
 
 **環境変数**:
+
 ```bash
 # テスト用のワークスペースディレクトリを上書き
 export WORKSPACE_DIR=/tmp/restexec-workspace
@@ -425,6 +472,7 @@ deno task test
 **よくある原因**: ポート使用中、ビルドエラー、設定問題
 
 **解決策**:
+
 ```bash
 # 1. ログを確認
 docker compose logs restexec
@@ -446,21 +494,26 @@ cat compose.yaml
 ### Essential Documentation
 
 **開発用**:
+
 - [docs/workspace-code-guide.md](docs/workspace-code-guide.md) - ワークスペースコード作成の完全ガイド
 - [specs/Security.md](specs/Security.md) - セキュリティモデルとパーミッション
 - [specs/Libraries.md](specs/Libraries.md) - 外部ライブラリ管理
 
 **API 仕様**:
+
 - [specs/API.md](specs/API.md) - POST /execute エンドポイント
 - [specs/LintAPI.md](specs/LintAPI.md) - POST /lint エンドポイント
 - [specs/WorkspaceSaveAPI.md](specs/WorkspaceSaveAPI.md) - PUT /workspace エンドポイント
+- [specs/FileExplorerAPI.md](specs/FileExplorerAPI.md) - File Explorer API（/files/*）
 
 **アーキテクチャ**:
+
 - [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - システム設計
 - [specs/Sequence.md](specs/Sequence.md) - 実行フロー図
 - [specs/CodeExecution.md](specs/CodeExecution.md) - 実行の詳細
 
 **運用**:
+
 - [README.md](README.md) - クイックスタートガイド
 - [DOCKER.md](DOCKER.md) - Docker セットアップ
 - [specs/Deployment.md](specs/Deployment.md) - デプロイメントガイド
@@ -468,6 +521,7 @@ cat compose.yaml
 - [specs/Test.md](specs/Test.md) - テスト戦略
 
 **その他の仕様**:
+
 - [specs/FileSystem.md](specs/FileSystem.md) - ファイルシステム構造
 - [specs/Logging.md](specs/Logging.md) - ロギング設定
 - [specs/Performance.md](specs/Performance.md) - パフォーマンスベンチマーク
@@ -476,11 +530,13 @@ cat compose.yaml
 ### Working Examples
 
 **コード例**:
+
 - [example/workspace/hello-world.ts](example/workspace/hello-world.ts) - シンプルな例
 - [example/workspace/with-import.ts](example/workspace/with-import.ts) - インポートの例
 - [example/workspace/async-example.ts](example/workspace/async-example.ts) - 非同期の例
 
 **ユーティリティ例**:
+
 - [example/tools/utils/math.ts](example/tools/utils/math.ts) - 数学ユーティリティ
 - [example/tools/utils/string.ts](example/tools/utils/string.ts) - 文字列ユーティリティ
 
@@ -506,6 +562,7 @@ cat compose.yaml
 ### Architecture Questions
 
 詳細なアーキテクチャの質問については、以下を読む：
+
 1. [specs/SystemArchitecture.md](specs/SystemArchitecture.md) - ハイレベル設計
 2. [specs/Sequence.md](specs/Sequence.md) - 実行フロー
 3. [specs/Security.md](specs/Security.md) - セキュリティモデル
@@ -529,6 +586,7 @@ cat compose.yaml
 ### Before Committing
 
 変更をコミットする前にこれらのチェックを実施：
+
 ```bash
 # Lint code
 deno lint src/ tests/
@@ -543,6 +601,7 @@ deno task test
 すべてのチェックがエラーや警告なしでパスする必要があります。
 
 **フォーマット問題の自動修正**:
+
 ```bash
 deno fmt src/ tests/
 ```
@@ -566,6 +625,6 @@ deno fmt src/ tests/
 
 ---
 
-*このドキュメントはナビゲーションガイドです。完全な情報については、リンクされたドキュメントファイルを参照してください。*
+_このドキュメントはナビゲーションガイドです。完全な情報については、リンクされたドキュメントファイルを参照してください。_
 
-*Last updated: 2025-11-30*
+_Last updated: 2025-12-08_
