@@ -42,6 +42,30 @@ Kubernetes へのデプロイ時、Pod 間でボリュームを共有するに�
 | `maxDepth`      | number  | ❌ No  | 10         | 探索する最大ディレクトリ深度(1-100)                                                   |
 | `includeHidden` | boolean | ❌ No  | false      | 隠しファイル(`.` で始まるファイル)を含める                                            |
 
+#### Glob パターンの制約
+
+- **最大長**: 200文字
+- **禁止パターン**: 絶対パス（`/` で始まる）、親ディレクトリ参照（`..`）
+- **複雑さ制限**: `**` の使用は最大2回まで
+- **バリデーション**: パターンが `maxDepth` と整合するかチェック
+
+#### 400 Bad Request - 無効な glob パターン
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "Invalid glob pattern",
+    "details": {
+      "field": "pattern",
+      "value": "../../**/*.ts",
+      "reason": "Pattern contains parent directory reference"
+    }
+  }
+}
+```
+
 ### 使用例
 
 ```bash
@@ -90,19 +114,43 @@ curl "http://localhost:3000/files/list?path=/workspace&maxDepth=2"
 
 #### レスポンスフィールド
 
-| フィールド                    | 型      | 説明                                         |
-| ----------------------------- | ------- | -------------------------------------------- |
-| `result.basePath`             | string  | 一覧表示されたベースディレクトリ             |
-| `result.pattern`              | string  | フィルタリングに使用された glob パターン     |
-| `result.files`                | array   | ファイル/ディレクトリエントリの配列          |
-| `result.files[].path`         | string  | ファイルへの絶対パス                         |
-| `result.files[].relativePath` | string  | basePath からの相対パス                      |
-| `result.files[].name`         | string  | ファイルまたはディレクトリ名                 |
-| `result.files[].size`         | number  | ファイルサイズ(バイト単位、ディレクトリは 0) |
-| `result.files[].isDirectory`  | boolean | エントリがディレクトリかどうか               |
-| `result.files[].modifiedAt`   | string  | 最終更新日時(ISO 8601)                       |
-| `result.totalCount`           | number  | マッチするエントリの総数                     |
-| `result.truncated`            | boolean | 制限により結果が切り詰められたかどうか       |
+| フィールド                    | 型      | 説明                                                                              |
+| ----------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `result.basePath`             | string  | 一覧表示されたベースディレクトリ                                                  |
+| `result.pattern`              | string  | フィルタリングに使用された glob パターン                                          |
+| `result.files`                | array   | ファイル/ディレクトリエントリの配列                                               |
+| `result.files[].path`         | string  | ファイルへの絶対パス                                                              |
+| `result.files[].relativePath` | string  | basePath からの相対パス                                                           |
+| `result.files[].name`         | string  | ファイルまたはディレクトリ名                                                      |
+| `result.files[].size`         | number  | ファイルサイズ(バイト単位、ディレクトリは 0)                                      |
+| `result.files[].isDirectory`  | boolean | エントリがディレクトリかどうか                                                    |
+| `result.files[].modifiedAt`   | string  | 最終更新日時(ISO 8601)                                                            |
+| `result.totalCount`           | number  | 返されたエントリの総数（`truncated=true` の場合は制限値まで）                     |
+| `result.truncated`            | boolean | 結果が制限により切り詰められたかどうか                                            |
+| `result.truncatedReason`      | string  | 切り詰められた理由（`truncated=true` の場合のみ）: "max_results" または "timeout" |
+
+#### レスポンス例（切り詰められた場合）
+
+```json
+{
+  "success": true,
+  "result": {
+    "basePath": "/tools",
+    "pattern": "**/*.ts",
+    "files": [...],
+    "totalCount": 1000,
+    "truncated": true,
+    "truncatedReason": "max_results"
+  },
+  "executionTime": 450
+}
+```
+
+**ユーザーガイダンス**: 結果が切り詰められた場合の対処方法:
+
+- より具体的な `pattern` を使用して結果を絞り込む
+- `maxDepth` を減らして探索範囲を制限する
+- 複数のリクエストに分割して探索する
 
 ### エラーレスポンス
 
@@ -336,15 +384,15 @@ UTF-8 でデコードできないファイル（バイナリファイルや別�
 
 #### パラメータ
 
-| パラメータ        | 型      | 必須   | デフォルト | 説明                                       |
-| ----------------- | ------- | ------ | ---------- | ------------------------------------------ |
-| `path`            | string  | ✅ Yes | -          | 検索するベースディレクトリ                 |
-| `query`           | string  | ✅ Yes | -          | 検索クエリ(プレーンテキストまたは正規表現) |
-| `pattern`         | string  | ❌ No  | `**/*`     | ファイルをフィルタリングする glob パターン |
-| `isRegex`         | boolean | ❌ No  | false      | クエリが正規表現パターンかどうか           |
-| `caseInsensitive` | boolean | ❌ No  | false      | 大文字小文字を区別しない検索               |
-| `maxResults`      | number  | ❌ No  | 100        | 返されるマッチの最大数(1-500)              |
-| `contextLines`    | number  | ❌ No  | 0          | マッチの前後のコンテキスト行数(0-5)        |
+| パラメータ        | 型      | 必須   | デフォルト | 説明                                                                                                                             |
+| ----------------- | ------- | ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `path`            | string  | ✅ Yes | -          | 検索するベースディレクトリ                                                                                                       |
+| `query`           | string  | ✅ Yes | -          | 検索クエリ(プレーンテキストまたは正規表現)                                                                                       |
+| `pattern`         | string  | ❌ No  | `**/*`     | ファイルをフィルタリングする glob パターン                                                                                       |
+| `isRegex`         | boolean | ❌ No  | false      | クエリが正規表現パターンかどうか                                                                                                 |
+| `caseInsensitive` | boolean | ❌ No  | false      | 大文字小文字を区別しない検索                                                                                                     |
+| `maxResults`      | number  | ❌ No  | 100        | 返されるマッチの最大数(1-500)                                                                                                    |
+| `contextLines`    | number  | ❌ No  | 0          | マッチの前後のコンテキスト行数(0-5)。最大5行に制限することで、大量のマッチがあってもレスポンスサイズが 10MB を超えないことを保証 |
 
 ### 使用例
 
@@ -430,6 +478,31 @@ curl -X POST http://localhost:3000/files/search \
 | `result.filesSearched`           | number  | 検索されたファイル数                               |
 | `result.filesWithMatches`        | number  | 少なくとも 1 つのマッチを含むファイル数            |
 | `result.truncated`               | boolean | 結果が切り詰められたかどうか                       |
+| `result.warnings`                | array   | 検索中に発生した警告の配列（オプション）           |
+| `result.warnings[].type`         | string  | 警告タイプ（例: "RegexTimeout"）                   |
+| `result.warnings[].file`         | string  | 警告が発生したファイルパス                         |
+| `result.warnings[].message`      | string  | 警告メッセージ                                     |
+
+#### レスポンス例（正規表現タイムアウト発生時）
+
+```json
+{
+  "success": true,
+  "result": {
+    "query": "complex.*pattern",
+    "matches": [...],
+    "totalMatches": 15,
+    "warnings": [
+      {
+        "type": "RegexTimeout",
+        "file": "/tools/large-file.ts",
+        "message": "Regex matching timed out after 5 seconds, file skipped"
+      }
+    ]
+  },
+  "executionTime": 8500
+}
+```
 
 ### エラーレスポンス
 
@@ -689,6 +762,9 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下�
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ AI Agent ワークフロー                                                    │
 │                                                                         │
+│  前提: すべてのリクエストに Authorization ヘッダーが必要                   │
+│  Authorization: Bearer <RESTEXEC_API_KEY>                               │
+│                                                                         │
 │  1. GET /files/list?path=/tools&pattern=**/*.ts                         │
 │     └─ 利用可能なツールを発見                                            │
 │                                                                         │
@@ -704,6 +780,14 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下�
 │  5. POST /execute                                                       │
 │     └─ 保存されたコードを実行                                            │
 └─────────────────────────────────────────────────────────────────────────┘
+```
+
+**使用例（認証付き）**:
+
+```bash
+# ファイル一覧を取得（認証付き）
+curl -H "Authorization: Bearer ${RESTEXEC_API_KEY}" \
+  "http://localhost:3000/files/list?path=/tools&pattern=**/*.ts"
 ```
 
 ### 既存エンドポイントとの連携
@@ -723,9 +807,12 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下�
 
 1. パス検証(トラバーサル防止)
 2. glob パターンマッチング
-3. 様々なエンコーディングでのファイル読み取り
-4. エッジケースを含む正規表現検索
-5. リソース制限の適用
+3. **glob パターンのバリデーション（複雑さ、禁止パターン）**
+4. 様々なエンコーディングでのファイル読み取り
+5. エッジケースを含む正規表現検索
+6. リソース制限の適用
+7. **隠しファイルのフィルタリング（`includeHidden=false` のデフォルト動作）**
+8. **MIME タイプ検出の正確性（各拡張子のマッピング）**
 
 ### 統合テスト
 
@@ -738,9 +825,17 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下�
 
 1. パストラバーサルの試行(`../../../etc/passwd`)
 2. シンボリックリンクのエスケープ
+   - **許可されたパス内のシンボリックリンクから外部へのリンク**
+   - **外部から許可されたパスへのシンボリックリンク（逆方向）**
+   - **チェイン化されたシンボリックリンク（A→B→外部）**
 3. ReDoS パターン
 4. 大きなファイル攻撃
 5. 隠しファイルへのアクセス
+   - **`includeHidden=false` での `.env` へのアクセス試行**
+   - **明示的な隠しファイルパスでの読み取り試行**
+6. **glob パターンによるDoS攻撃（`**/**/**/**/**/*.ts`）**
+7. **同時実行制限のバイパス試行**
+8. **正規表現タイムアウトのテスト（複雑なパターン + 大きなファイル）**
 
 ---
 

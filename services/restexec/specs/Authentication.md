@@ -190,13 +190,20 @@ deno eval "console.log(crypto.randomUUID() + crypto.randomUUID())"
 
 ### 環境変数
 
-| 変数                           | デフォルト | 説明                                        |
-| ------------------------------ | ---------- | ------------------------------------------- |
-| `AUTH_ENABLED`                 | `false`    | 認証機能の有効/無効                         |
-| `AUTH_API_KEY`                 | (なし)     | API Key（`AUTH_ENABLED=true` の場合は必須） |
-| `AUTH_RATE_LIMIT_ENABLED`      | `true`     | 認証失敗時のレート制限                      |
-| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` | `5`        | レート制限までの最大試行回数                |
-| `AUTH_RATE_LIMIT_WINDOW_MS`    | `60000`    | レート制限のウィンドウ期間（ミリ秒）        |
+| 変数                           | デフォルト | 説明                                                      |
+| ------------------------------ | ---------- | --------------------------------------------------------- |
+| `AUTH_ENABLED`                 | `false`    | 認証機能の有効/無効（本番環境では必ず `true` にすること） |
+| `AUTH_API_KEY`                 | (なし)     | API Key（`AUTH_ENABLED=true` の場合は必須）               |
+| `AUTH_RATE_LIMIT_ENABLED`      | `true`     | 認証失敗時のレート制限                                    |
+| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` | `5`        | レート制限までの最大試行回数                              |
+| `AUTH_RATE_LIMIT_WINDOW_MS`    | `60000`    | レート制限のウィンドウ期間（ミリ秒）                      |
+| `AUTH_RATE_LIMIT_TRUST_PROXY`  | `false`    | `X-Forwarded-For` ヘッダーを信頼するかどうか              |
+
+**注意**: `AUTH_ENABLED` が未設定の場合、起動時に以下の警告ログが出力されます:
+
+```
+[WARN] AUTH_ENABLED is not explicitly set. Defaulting to false. This is NOT recommended for production.
+```
 
 ### 起動時のバリデーション
 
@@ -463,6 +470,21 @@ networks:
 | ブロック期間   | 60秒         | 制限発動後のブロック期間       |
 | 識別子         | IP アドレス  | レート制限の対象識別           |
 
+### レート制限の識別子戦略
+
+| 環境              | 識別子                                         | 説明                                      |
+| ----------------- | ---------------------------------------------- | ----------------------------------------- |
+| Kubernetes (内部) | Pod IP または Service Account Token Subject    | NetworkPolicy と組み合わせて使用          |
+| Kubernetes (外部) | `X-Forwarded-For` の最初のIP（信頼できる場合） | Ingress Controller が設定する場合のみ使用 |
+| Docker Compose    | コンテナ IP                                    | 内部ネットワーク内の識別                  |
+| 開発環境          | リクエスト元 IP                                | 単純な IP ベースの制限                    |
+
+**セキュリティ上の注意**:
+
+- `X-Forwarded-For` ヘッダーは信頼できる Ingress/Proxy が設定した場合のみ使用
+- クライアントが直接 `X-Forwarded-For` を送信できる場合は使用しない
+- 環境変数 `AUTH_RATE_LIMIT_TRUST_PROXY` で制御（デフォルト: false）
+
 ### レスポンス
 
 #### 429 Too Many Requests - レート制限
@@ -684,9 +706,38 @@ export const config = {
       enabled: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_ENABLED'), true),
       maxAttempts: parseInt(Deno.env.get('AUTH_RATE_LIMIT_MAX_ATTEMPTS') || '5', 10),
       windowMs: parseInt(Deno.env.get('AUTH_RATE_LIMIT_WINDOW_MS') || '60000', 10),
+      trustProxy: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_TRUST_PROXY'), false),
     },
   },
 };
+
+// AUTH_ENABLED が明示的に設定されていない場合の警告
+if (Deno.env.get('AUTH_ENABLED') === undefined) {
+  console.warn(
+    '[WARN] AUTH_ENABLED is not explicitly set. Defaulting to false. This is NOT recommended for production.',
+  );
+}
+
+// 起動時バリデーション
+export function validateAuthConfig() {
+  if (config.auth.enabled) {
+    if (!config.auth.apiKey) {
+      console.error('[ERROR] AUTH_ENABLED is true but AUTH_API_KEY is not set');
+      Deno.exit(1);
+    }
+    if (config.auth.apiKey.length < 32) {
+      console.error(`[ERROR] AUTH_API_KEY must be at least 32 characters long (current: ${config.auth.apiKey.length})`);
+      Deno.exit(1);
+    }
+  }
+}
+```
+
+**src/main.ts での呼び出し**:
+
+```typescript
+import { validateAuthConfig } from './config.ts';
+validateAuthConfig();
 ```
 
 ---
