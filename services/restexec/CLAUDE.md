@@ -45,10 +45,12 @@ restexec は、REST API 経由で TypeScript コードを安全に実行する�
    - `GET /files/read` - ファイル内容を読み取り
    - `POST /files/search` - ファイル内容を検索（grep機能）
 
-3. **セキュリティファースト設計**: Deno の明示的なパーミッションシステム
+3. **セキュリティファースト設計**:
+   - Deno の明示的なパーミッションシステム
    - Read: `/workspace`, `/tools` のみ
    - Write/Network/Subprocess: デフォルトで無効
    - Timeout: 5 秒（最大 300 秒）
+   - API Key 認証: Bearer トークンによるアクセス制御
 
 ### Key Features
 
@@ -497,6 +499,7 @@ cat compose.yaml
 
 - [docs/workspace-code-guide.md](docs/workspace-code-guide.md) - ワークスペースコード作成の完全ガイド
 - [specs/Security.md](specs/Security.md) - セキュリティモデルとパーミッション
+- [specs/Authentication.md](specs/Authentication.md) - API Key 認証と NetworkPolicy
 - [specs/Libraries.md](specs/Libraries.md) - 外部ライブラリ管理
 
 **API 仕様**:

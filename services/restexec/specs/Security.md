@@ -128,3 +128,30 @@ File Explorer API のすべての操作はログに記録されます：
 - エラー（パストラバーサル試行、アクセス拒否など）
 
 詳細な仕様は [FileExplorerAPI.md](./FileExplorerAPI.md) を参照してください。
+
+## 認証・認可
+
+restexec サービスは、API Key 認証と Kubernetes NetworkPolicy を組み合わせた多層防御を提供します。
+
+### API Key 認証
+
+- **Bearer トークン認証**: `Authorization: Bearer <api-key>` ヘッダーによる認証
+- **タイミングセーフ比較**: タイミング攻撃を防ぐための定数時間比較
+- **レート制限**: 認証失敗時のブルートフォース攻撃防止
+
+### 認証が必要なエンドポイント
+
+| エンドポイント       | 認証    |
+| -------------------- | ------- |
+| `POST /execute`      | ✅ 必須 |
+| `PUT /workspace`     | ✅ 必須 |
+| `POST /lint`         | ✅ 必須 |
+| `GET /files/*`       | ✅ 必須 |
+| `POST /files/search` | ✅ 必須 |
+| `GET /health`        | ❌ 不要 |
+
+### Kubernetes NetworkPolicy
+
+Pod 間通信を制限し、許可された Pod からのみアクセスを許可します。
+
+詳細な仕様は [Authentication.md](./Authentication.md) を参照してください。
