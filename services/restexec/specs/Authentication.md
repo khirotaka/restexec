@@ -190,19 +190,26 @@ deno eval "console.log(crypto.randomUUID() + crypto.randomUUID())"
 
 ### 環境変数
 
-| 変数                           | デフォルト | 説明                                                      |
-| ------------------------------ | ---------- | --------------------------------------------------------- |
-| `AUTH_ENABLED`                 | `false`    | 認証機能の有効/無効（本番環境では必ず `true` にすること） |
-| `AUTH_API_KEY`                 | (なし)     | API Key（`AUTH_ENABLED=true` の場合は必須）               |
-| `AUTH_RATE_LIMIT_ENABLED`      | `true`     | 認証失敗時のレート制限                                    |
-| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` | `5`        | レート制限までの最大試行回数                              |
-| `AUTH_RATE_LIMIT_WINDOW_MS`    | `60000`    | レート制限のウィンドウ期間（ミリ秒）                      |
-| `AUTH_RATE_LIMIT_TRUST_PROXY`  | `false`    | `X-Forwarded-For` ヘッダーを信頼するかどうか              |
+| 変数                           | デフォルト | 説明                                                                          |
+| ------------------------------ | ---------- | ----------------------------------------------------------------------------- |
+| `AUTH_ENABLED`                 | (必須)     | 認証機能の有効/無効。この変数は必須であり、未設定の場合は起動時にエラーとなる |
+| `AUTH_API_KEY`                 | (なし)     | API Key（`AUTH_ENABLED=true` の場合は必須）                                   |
+| `AUTH_RATE_LIMIT_ENABLED`      | `true`     | 認証失敗時のレート制限                                                        |
+| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` | `5`        | レート制限までの最大試行回数                                                  |
+| `AUTH_RATE_LIMIT_WINDOW_MS`    | `60000`    | レート制限のウィンドウ期間（ミリ秒）                                          |
+| `AUTH_RATE_LIMIT_TRUST_PROXY`  | `false`    | `X-Forwarded-For` ヘッダーを信頼するかどうか                                  |
+| `AUTH_TRUSTED_PROXY_IPS`       | (なし)     | 信頼するプロキシのIPアドレス範囲（CIDR形式、カンマ区切り）                    |
 
-**注意**: `AUTH_ENABLED` が未設定の場合、起動時に以下の警告ログが出力されます:
+**注意**: `AUTH_ENABLED` が未設定の場合、セキュリティ上の理由から起動を拒否します:
 
 ```
-[WARN] AUTH_ENABLED is not explicitly set. Defaulting to false. This is NOT recommended for production.
+[ERROR] AUTH_ENABLED must be explicitly set to "true" or "false"
+```
+
+**開発環境での設定例**:
+
+```bash
+AUTH_ENABLED=false  # 開発時は明示的に false を設定
 ```
 
 ### 起動時のバリデーション
@@ -485,6 +492,67 @@ networks:
 - クライアントが直接 `X-Forwarded-For` を送信できる場合は使用しない
 - 環境変数 `AUTH_RATE_LIMIT_TRUST_PROXY` で制御（デフォルト: false）
 
+### X-Forwarded-For の検証
+
+`AUTH_RATE_LIMIT_TRUST_PROXY=true` の場合、以下の条件をすべて満たす場合のみ `X-Forwarded-For` ヘッダーを信頼します：
+
+1. **リクエスト元が信頼できるプロキシIP範囲内**:
+   - 環境変数 `AUTH_TRUSTED_PROXY_IPS` でカンマ区切りのCIDR範囲を指定（例: `10.0.0.0/8,172.16.0.0/12`）
+   - リクエスト直接の送信元IPがこの範囲内にある場合のみヘッダーを信頼
+
+2. **ヘッダーの形式検証**:
+   - `X-Forwarded-For: client, proxy1, proxy2` の形式で、最初のIPアドレスのみを使用
+   - 不正な形式（例: `X-Forwarded-For: ${env.SECRET}`）は拒否
+
+3. **フォールバック**:
+   - `AUTH_RATE_LIMIT_TRUST_PROXY=true` だが `X-Forwarded-For` がない場合、直接の送信元IPを使用
+   - 信頼できないプロキシからのリクエストの場合、直接の送信元IPを使用
+
+**設定例**:
+
+```yaml
+env:
+  - name: AUTH_RATE_LIMIT_TRUST_PROXY
+    value: 'true'
+  - name: AUTH_TRUSTED_PROXY_IPS
+    value: '10.0.0.0/8,172.16.0.0/12' # Kubernetes内部ネットワーク
+```
+
+**実装例**:
+
+```typescript
+function getClientIP(ctx: Context): string {
+  const directIP = ctx.request.ip;
+
+  if (!config.auth.rateLimit.trustProxy) {
+    return directIP;
+  }
+
+  // 送信元が信頼できるプロキシ範囲内かチェック
+  if (!isInTrustedProxyRange(directIP, config.auth.trustedProxyIPs)) {
+    return directIP;
+  }
+
+  const forwardedFor = ctx.request.headers.get('X-Forwarded-For');
+  if (!forwardedFor) {
+    return directIP;
+  }
+
+  // 最初のIPアドレスを抽出
+  const clientIP = forwardedFor.split(',')[0].trim();
+
+  // IPアドレスの形式を検証
+  if (!isValidIP(clientIP)) {
+    logger.warn(`Invalid X-Forwarded-For header: ${forwardedFor}`);
+    return directIP;
+  }
+
+  return clientIP;
+}
+```
+
+**セキュリティ警告**: `AUTH_RATE_LIMIT_TRUST_PROXY=true` と `AUTH_TRUSTED_PROXY_IPS` の組み合わせが正しく設定されていない場合、レート制限が無効化される可能性があります。
+
 ### レスポンス
 
 #### 429 Too Many Requests - レート制限
@@ -702,6 +770,7 @@ export const config = {
   auth: {
     enabled: parseBooleanEnv(Deno.env.get('AUTH_ENABLED'), false),
     apiKey: Deno.env.get('AUTH_API_KEY') || '',
+    trustedProxyIPs: Deno.env.get('AUTH_TRUSTED_PROXY_IPS')?.split(',').map((ip) => ip.trim()) || [],
     rateLimit: {
       enabled: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_ENABLED'), true),
       maxAttempts: parseInt(Deno.env.get('AUTH_RATE_LIMIT_MAX_ATTEMPTS') || '5', 10),
@@ -711,11 +780,10 @@ export const config = {
   },
 };
 
-// AUTH_ENABLED が明示的に設定されていない場合の警告
+// AUTH_ENABLED が明示的に設定されていない場合はエラー（セキュアバイデフォルト）
 if (Deno.env.get('AUTH_ENABLED') === undefined) {
-  console.warn(
-    '[WARN] AUTH_ENABLED is not explicitly set. Defaulting to false. This is NOT recommended for production.',
-  );
+  console.error('[ERROR] AUTH_ENABLED must be explicitly set to "true" or "false"');
+  Deno.exit(1);
 }
 
 // 起動時バリデーション
@@ -729,6 +797,13 @@ export function validateAuthConfig() {
       console.error(`[ERROR] AUTH_API_KEY must be at least 32 characters long (current: ${config.auth.apiKey.length})`);
       Deno.exit(1);
     }
+  }
+
+  // X-Forwarded-For の信頼設定の検証
+  if (config.auth.rateLimit.trustProxy && !config.auth.trustedProxyIPs) {
+    console.warn(
+      '[WARN] AUTH_RATE_LIMIT_TRUST_PROXY is true but AUTH_TRUSTED_PROXY_IPS is not set. All proxies will be trusted, which may be a security risk.',
+    );
   }
 }
 ```

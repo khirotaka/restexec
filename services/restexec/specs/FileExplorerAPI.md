@@ -49,6 +49,36 @@ Kubernetes へのデプロイ時、Pod 間でボリュームを共有するに�
 - **複雑さ制限**: `**` の使用は最大2回まで
 - **バリデーション**: パターンが `maxDepth` と整合するかチェック
 
+#### Glob パターンと maxDepth の整合性
+
+- `**` を含むパターン（例: `**/*.ts`）は `maxDepth >= 2` が必要
+- `**` が2回含まれる場合（例: `**/foo/**/*.ts`）は `maxDepth >= 3` が必要
+- 矛盾する組み合わせの場合は ValidationError を返す
+
+**例**:
+
+```json
+// ❌ 無効な組み合わせ
+{
+  "pattern": "**/*.ts",
+  "maxDepth": 1
+}
+
+// エラーレスポンス
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "Pattern and maxDepth are inconsistent",
+    "details": {
+      "pattern": "**/*.ts",
+      "maxDepth": 1,
+      "reason": "Pattern '**' requires maxDepth >= 2"
+    }
+  }
+}
+```
+
 #### 400 Bad Request - 無効な glob パターン
 
 ```json
@@ -256,6 +286,20 @@ curl "http://localhost:3000/files/read?path=/workspace/data.bin&encoding=base64"
 
 MIME タイプはファイル拡張子に基づいて検出されます（magic number の解析は行いません）。
 
+**MIME タイプ検出のアルゴリズム**:
+
+1. ファイル名から最後の `.` 以降を拡張子として抽出
+2. 拡張子を小文字に変換（大文字小文字を区別しない）
+3. マッピングテーブルと照合
+4. マッチしない場合は `application/octet-stream` を返す
+
+**特殊ケース**:
+
+- 複数の拡張子（`.tar.gz`）: 最後の拡張子のみを使用（`.gz` → `application/gzip`）
+- 隠しファイル（`.gitignore`）: `.gitignore` 全体をファイル名として扱い、拡張子なしと判定（`application/octet-stream`）
+- 拡張子なし（`README`）: `application/octet-stream`
+- ドット始まりで拡張子あり（`.env`）: 拡張子なしとして扱い `application/octet-stream`
+
 **サポートされる主要な MIME タイプ**:
 
 | 拡張子          | MIME タイプ                |
@@ -276,9 +320,12 @@ MIME タイプはファイル拡張子に基づいて検出されます（magic 
 | `.jpg`, `.jpeg` | `image/jpeg`               |
 | `.gif`          | `image/gif`                |
 | `.webp`         | `image/webp`               |
+| `.sh`           | `application/x-sh`         |
+| `.py`           | `text/x-python`            |
+| `.go`           | `text/x-go`                |
+| `.rs`           | `text/x-rust`              |
+| `.gz`           | `application/gzip`         |
 | (その他/不明)   | `application/octet-stream` |
-
-**注意**: 拡張子がない場合やマッピングに存在しない場合は `application/octet-stream` を返します。
 
 ### エラーレスポンス
 
@@ -384,15 +431,15 @@ UTF-8 でデコードできないファイル（バイナリファイルや別�
 
 #### パラメータ
 
-| パラメータ        | 型      | 必須   | デフォルト | 説明                                                                                                                             |
-| ----------------- | ------- | ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `path`            | string  | ✅ Yes | -          | 検索するベースディレクトリ                                                                                                       |
-| `query`           | string  | ✅ Yes | -          | 検索クエリ(プレーンテキストまたは正規表現)                                                                                       |
-| `pattern`         | string  | ❌ No  | `**/*`     | ファイルをフィルタリングする glob パターン                                                                                       |
-| `isRegex`         | boolean | ❌ No  | false      | クエリが正規表現パターンかどうか                                                                                                 |
-| `caseInsensitive` | boolean | ❌ No  | false      | 大文字小文字を区別しない検索                                                                                                     |
-| `maxResults`      | number  | ❌ No  | 100        | 返されるマッチの最大数(1-500)                                                                                                    |
-| `contextLines`    | number  | ❌ No  | 0          | マッチの前後のコンテキスト行数(0-5)。最大5行に制限することで、大量のマッチがあってもレスポンスサイズが 10MB を超えないことを保証 |
+| パラメータ        | 型      | 必須   | デフォルト | 説明                                                                                                                                                                                                                        |
+| ----------------- | ------- | ------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `path`            | string  | ✅ Yes | -          | 検索するベースディレクトリ                                                                                                                                                                                                  |
+| `query`           | string  | ✅ Yes | -          | 検索クエリ(プレーンテキストまたは正規表現)                                                                                                                                                                                  |
+| `pattern`         | string  | ❌ No  | `**/*`     | ファイルをフィルタリングする glob パターン                                                                                                                                                                                  |
+| `isRegex`         | boolean | ❌ No  | false      | クエリが正規表現パターンかどうか                                                                                                                                                                                            |
+| `caseInsensitive` | boolean | ❌ No  | false      | 大文字小文字を区別しない検索                                                                                                                                                                                                |
+| `maxResults`      | number  | ❌ No  | 100        | 返されるマッチの最大数(1-500)                                                                                                                                                                                               |
+| `contextLines`    | number  | ❌ No  | 0          | マッチの前後のコンテキスト行数(0-5)。以下の計算に基づき最大5行に制限: 最悪ケース（maxResults=500, 各マッチに前後5行ずつ, 1行200文字）で約 500 * (1+10) * 200 = 1.1MB となり、マッチ本文を含めても10MB以内に収まることを保証 |
 
 ### 使用例
 
@@ -613,6 +660,30 @@ function validatePath(requestedPath: string): string {
 - TOCTOU (Time-of-check to time-of-use) 競合状態のリスクを最小限にするため、検証後すぐにファイル操作を実行
 - シンボリックリンクは解決後に再度検証し、外部ディレクトリへのエスケープを防止
 
+**TOCTOU リスクの軽減策**:
+
+1. **検証とファイル操作の原子化**: 検証関数内で直接ファイルハンドルを開き、そのハンドルを返す
+
+```typescript
+function openValidatedFile(requestedPath: string): Deno.FsFile {
+  const realPath = validatePath(requestedPath); // 検証
+  // 検証直後にファイルを開く（間に他の操作を挟まない）
+  try {
+    return Deno.openSync(realPath, { read: true });
+  } catch (error) {
+    throw new FileAccessError('Failed to open validated file');
+  }
+}
+```
+
+2. **検証結果のキャッシュ禁止**: パス検証結果は決してキャッシュせず、リクエストごとに再検証
+
+3. **ファイルディスクリプタベースの操作**: 可能な限り、パス文字列ではなくファイルディスクリプタを使用して操作
+
+4. **制限事項の明記**: 完全な TOCTOU 防止は不可能であることを認識し、追加の防御層（NetworkPolicy、認証）と組み合わせる
+
+**注意**: この対策は TOCTOU リスクを「最小限」にするものであり、完全に排除するものではありません。Kubernetes 環境では、攻撃者が同一 Pod 内でシンボリックリンクを変更できる状況は想定していません（そのような状況ではすでにセキュリティ境界が突破されています）。
+
 ### リソース制限
 
 | リソース             | 制限  | 説明                                       |
@@ -677,9 +748,63 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下�
 (.+)+          # 任意文字のネスト
 ```
 
-#### 3. マッチタイムアウト
+#### 危険なパターンの検出方法
 
-各ファイルに対して 5 秒の正規表現タイムアウトが設定されています。タイムアウトした場合、そのファイルのマッチングはスキップされ、検索は次のファイルに進みます。
+完全な静的解析は困難なため、以下の複合的なアプローチを使用します：
+
+**1. ヒューリスティック検出**:
+
+```typescript
+function isDangerousPattern(pattern: string): boolean {
+  // ネストされた量指定子の検出（簡易版）
+  const nestedQuantifiers = /(\+|\*|\{[0-9,]+\})\s*(\+|\*|\{[0-9,]+\})/;
+  if (nestedQuantifiers.test(pattern)) {
+    return true;
+  }
+
+  // 連続した .* の検出
+  if (/(\.\*){3,}/.test(pattern)) {
+    return true;
+  }
+
+  // オルタネーションの重複パターン
+  if (/\([^)]*\|[^)]*\)\+/.test(pattern)) {
+    return true;
+  }
+
+  return false;
+}
+```
+
+**2. 制限値による間接的な防御**:
+
+- パターンの最大長: 500文字
+- キャプチャグループの最大数: 20個
+- 文字クラスの最大サイズ: 100文字
+
+**3. ランタイムタイムアウト**:
+
+- 各ファイルに対して5秒のタイムアウト
+- タイムアウト時はそのファイルをスキップし、警告を返す
+
+**4. 既知の危険パターンのブラックリスト**:
+
+```typescript
+const BLOCKED_PATTERNS = [
+  /\(.*\+\)\+/, // (a+)+
+  /\(.*\*\)\*/, // (a*)*
+  /\(.*\+\)\*/, // (a+)*
+  /\(.*\|\.\*\)\+/, // (a|.*)+
+];
+```
+
+**制限事項**:
+
+- すべての ReDoS パターンを事前に検出することは不可能
+- 複雑で安全なパターンが誤って拒否される可能性がある（偽陽性）
+- 主な防御はランタイムタイムアウトに依存
+
+**トレードオフ**: 厳格な検証は柔軟性を損なうため、実装時には偽陽性率と偽陰性率のバランスを考慮してください。
 
 #### 400 Bad Request - 正規表現が複雑すぎる
 
