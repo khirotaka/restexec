@@ -154,11 +154,17 @@ curl "http://localhost:3000/files/list?path=/workspace&maxDepth=2"
 
 **クエリパラメータ**:
 
-| パラメータ | 型     | 必須   | デフォルト | 説明                                                                      |
-| ---------- | ------ | ------ | ---------- | ------------------------------------------------------------------------- |
-| `path`     | string | ✅ Yes | -          | 読み取るファイルのパス(`/workspace` または `/tools` 配下である必要がある) |
-| `encoding` | string | ❌ No  | `utf-8`    | ファイルエンコーディング(`utf-8`, `base64`)                               |
-| `maxSize`  | number | ❌ No  | 1048576    | 読み取る最大ファイルサイズ(バイト単位、最大: 10MB)                        |
+| パラメータ | 型     | 必須   | デフォルト | 説明                                                                                                                         |
+| ---------- | ------ | ------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `path`     | string | ✅ Yes | -          | 読み取るファイルのパス(`/workspace` または `/tools` 配下である必要がある)                                                    |
+| `encoding` | string | ❌ No  | `utf-8`    | ファイルエンコーディング(`utf-8`, `base64`)                                                                                  |
+| `maxSize`  | number | ❌ No  | 1048576    | 読み取る最大ファイルサイズ(バイト単位、デフォルト: 1MB、最大許容値: 10MB)。10MB を超える値を指定した場合は 10MB に制限される |
+
+**バリデーションルール**:
+
+- `maxSize` は 1 〜 10485760 (10MB) の範囲内である必要があります
+- 10MB を超える `maxSize` を指定した場合、自動的に 10MB に切り詰められます
+- ファイルサイズが指定した `maxSize` を超える場合は 413 エラーを返します
 
 ### 使用例
 
@@ -189,14 +195,42 @@ curl "http://localhost:3000/files/read?path=/workspace/data.bin&encoding=base64"
 
 #### レスポンスフィールド
 
-| フィールド          | 型     | 説明                                                          |
-| ------------------- | ------ | ------------------------------------------------------------- |
-| `result.path`       | string | ファイルへの絶対パス                                          |
-| `result.content`    | string | ファイルの内容(UTF-8 テキストまたは base64 エンコード)        |
-| `result.size`       | number | ファイルサイズ(バイト単位)                                    |
-| `result.encoding`   | string | 使用されたコンテンツエンコーディング(`utf-8` または `base64`) |
-| `result.mimeType`   | string | 検出されたファイルの MIME タイプ                              |
-| `result.modifiedAt` | string | 最終更新日時(ISO 8601)                                        |
+| フィールド          | 型     | 説明                                                                          |
+| ------------------- | ------ | ----------------------------------------------------------------------------- |
+| `result.path`       | string | ファイルへの絶対パス                                                          |
+| `result.content`    | string | ファイルの内容(UTF-8 テキストまたは base64 エンコード)                        |
+| `result.size`       | number | ファイルサイズ(バイト単位)                                                    |
+| `result.encoding`   | string | 使用されたコンテンツエンコーディング(`utf-8` または `base64`)                 |
+| `result.mimeType`   | string | 検出されたファイルの MIME タイプ（詳細は「MIME タイプ検出」セクションを参照） |
+| `result.modifiedAt` | string | 最終更新日時(ISO 8601)                                                        |
+
+#### MIME タイプ検出
+
+MIME タイプはファイル拡張子に基づいて検出されます（magic number の解析は行いません）。
+
+**サポートされる主要な MIME タイプ**:
+
+| 拡張子          | MIME タイプ                |
+| --------------- | -------------------------- |
+| `.ts`           | `text/typescript`          |
+| `.tsx`          | `text/typescript`          |
+| `.js`           | `text/javascript`          |
+| `.jsx`          | `text/javascript`          |
+| `.json`         | `application/json`         |
+| `.md`           | `text/markdown`            |
+| `.txt`          | `text/plain`               |
+| `.html`         | `text/html`                |
+| `.css`          | `text/css`                 |
+| `.yaml`, `.yml` | `text/yaml`                |
+| `.xml`          | `application/xml`          |
+| `.svg`          | `image/svg+xml`            |
+| `.png`          | `image/png`                |
+| `.jpg`, `.jpeg` | `image/jpeg`               |
+| `.gif`          | `image/gif`                |
+| `.webp`         | `image/webp`               |
+| (その他/不明)   | `application/octet-stream` |
+
+**注意**: 拡張子がない場合やマッピングに存在しない場合は `application/octet-stream` を返します。
 
 ### エラーレスポンス
 
@@ -246,6 +280,26 @@ curl "http://localhost:3000/files/read?path=/workspace/data.bin&encoding=base64"
       "path": "/workspace/large-file.ts",
       "size": 20971520,
       "maxSize": 10485760
+    }
+  },
+  "executionTime": 2
+}
+```
+
+#### 400 Bad Request - エンコーディングエラー
+
+UTF-8 でデコードできないファイル（バイナリファイルや別のエンコーディング）を `encoding=utf-8` で読み取ろうとした場合:
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "EncodingError",
+    "message": "Failed to decode file with specified encoding",
+    "details": {
+      "path": "/workspace/binary-file.bin",
+      "encoding": "utf-8",
+      "suggestion": "Try encoding=base64 for binary files"
     }
   },
   "executionTime": 2
@@ -446,14 +500,45 @@ curl -X POST http://localhost:3000/files/search \
 3. **シンボリックリンクの解決**: シンボリックリンクを解決し、許可されたパスに対して検証
 4. **隠しファイル制御**: デフォルトで隠しファイルを除外
 
+**詳細なパス検証フロー**:
+
 ```typescript
-// パス検証ロジック(疑似コード)
-function validatePath(path: string): boolean {
-  const resolvedPath = Deno.realPathSync(path);
+import * as path from '@std/path';
+
+function validatePath(requestedPath: string): string {
+  // 1. 入力パスの正規化（相対パス解決）
+  const normalizedPath = path.normalize(requestedPath);
+
+  // 2. 初期バリデーション：許可されたパスで始まるか
   const allowedPaths = [config.workspaceDir, config.toolsDir];
-  return allowedPaths.some((allowed) => resolvedPath.startsWith(allowed));
+  if (!allowedPaths.some((allowed) => normalizedPath.startsWith(allowed))) {
+    throw new ValidationError('Path must be under /workspace or /tools');
+  }
+
+  // 3. パスの存在確認
+  let realPath: string;
+  try {
+    realPath = Deno.realPathSync(normalizedPath);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      throw new FileNotFoundError('Path not found');
+    }
+    throw error;
+  }
+
+  // 4. シンボリックリンク解決後の再検証
+  if (!allowedPaths.some((allowed) => realPath.startsWith(allowed))) {
+    throw new ValidationError('Resolved path is outside allowed directories');
+  }
+
+  return realPath;
 }
 ```
+
+**セキュリティ上の注意点**:
+
+- TOCTOU (Time-of-check to time-of-use) 競合状態のリスクを最小限にするため、検証後すぐにファイル操作を実行
+- シンボリックリンクは解決後に再度検証し、外部ディレクトリへのエスケープを防止
 
 ### リソース制限
 
@@ -466,24 +551,95 @@ function validatePath(path: string): boolean {
 | 検索タイムアウト     | 30 秒 | 検索操作の最大時間                         |
 | 正規表現タイムアウト | 5 秒  | ファイルごとの正規表現マッチングの最大時間 |
 
+### 同時実行制御
+
+複数のクライアントからの同時リクエストによるリソース枯渇を防ぐため、同時実行数を制限します:
+
+| 制限項目                   | 制限値 | 説明                                          |
+| -------------------------- | ------ | --------------------------------------------- |
+| 最大同時検索リクエスト数   | 5      | `/files/search` の同時実行数上限              |
+| 最大同時ファイル読み取り数 | 10     | `/files/read` の同時実行数上限                |
+| リクエストキュー待機時間   | 10 秒  | 上限到達時の最大待機時間、超過時は 429 エラー |
+
+#### 429 Too Many Requests エラー
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "RateLimitError",
+    "message": "Too many concurrent requests",
+    "details": {
+      "operation": "search",
+      "limit": 5,
+      "retryAfter": 3
+    }
+  },
+  "executionTime": 1
+}
+```
+
 ### 正規表現のセキュリティ
 
-ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために:
+ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために、以下の対策を実施します:
 
-1. **正規表現の複雑さ**: 複雑なパターンは拒否されます
-2. **マッチタイムアウト**: 各ファイルに 5 秒の正規表現タイムアウトがあります
-3. **パターン検証**: 実行前にパターンを検証します
+#### 1. 正規表現の複雑さ制限
+
+| 制限項目                   | 制限値 | 説明                         |
+| -------------------------- | ------ | ---------------------------- |
+| ネストされた量指定子の深度 | 3      | 例: `(a+)+` はネスト深度 2   |
+| パターンの最大長           | 500    | 正規表現パターンの最大文字数 |
+| キャプチャグループの最大数 | 20     | `()` の最大数                |
+| 文字クラスの最大サイズ     | 100    | `[...]` 内の文字の最大数     |
+
+#### 2. 危険なパターンの拒否
+
+以下のようなバックトラッキングを引き起こす可能性のあるパターンは事前検証で拒否されます:
+
+```
+# 拒否されるパターンの例
+(a+)+$         # ネストされた量指定子
+(a|aa)+        # 重複するオルタネーション
+.*.*.*.*       # 連続したワイルドカード
+(.+)+          # 任意文字のネスト
+```
+
+#### 3. マッチタイムアウト
+
+各ファイルに対して 5 秒の正規表現タイムアウトが設定されています。タイムアウトした場合、そのファイルのマッチングはスキップされ、検索は次のファイルに進みます。
+
+#### 400 Bad Request - 正規表現が複雑すぎる
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ValidationError",
+    "message": "Regex pattern is too complex",
+    "details": {
+      "field": "query",
+      "value": "(a+)+$",
+      "reason": "Nested quantifiers detected (max depth: 3)",
+      "suggestion": "Simplify the pattern or use non-capturing groups"
+    }
+  },
+  "executionTime": 1
+}
+```
 
 ---
 
 ## エラータイプ
 
-| エラータイプ        | HTTP ステータス | 説明                                     |
-| ------------------- | --------------- | ---------------------------------------- |
-| `ValidationError`   | 400             | 無効なリクエストパラメータ               |
-| `FileNotFoundError` | 404             | ファイルまたはディレクトリが見つからない |
-| `TimeoutError`      | 408             | 操作がタイムアウト                       |
-| `InternalError`     | 500             | サーバー内部エラー                       |
+| エラータイプ              | HTTP ステータス | 説明                                     |
+| ------------------------- | --------------- | ---------------------------------------- |
+| `ValidationError`         | 400             | 無効なリクエストパラメータ               |
+| `EncodingError`           | 400             | ファイルのエンコーディングエラー         |
+| `FileNotFoundError`       | 404             | ファイルまたはディレクトリが見つからない |
+| `TimeoutError`            | 408             | 操作がタイムアウト                       |
+| `RateLimitError`          | 429             | 同時リクエスト数の上限に達した           |
+| `InternalError`           | 500             | サーバー内部エラー                       |
+| `ServiceUnavailableError` | 503             | 機能が無効化されている                   |
 
 ---
 
@@ -499,6 +655,29 @@ ReDoS (Regular Expression Denial of Service) 攻撃を防ぐために:
 | `FILE_EXPLORER_MAX_FILE_SIZE`  | `10485760`   | 読み取りの最大ファイルサイズ(バイト)     |
 | `FILE_EXPLORER_MAX_RESULTS`    | `1000`       | 一覧/検索の最大結果数                    |
 | `FILE_EXPLORER_SEARCH_TIMEOUT` | `30000`      | 検索操作のタイムアウト(ミリ秒)           |
+
+### 機能無効化時の動作
+
+`FILE_EXPLORER_ENABLED=false` に設定した場合、すべての File Explorer API エンドポイント(`/files/*`)は以下のレスポンスを返します:
+
+#### 503 Service Unavailable - 機能が無効化されている
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "ServiceUnavailableError",
+    "message": "File Explorer API is disabled",
+    "details": {
+      "feature": "file-explorer",
+      "enableKey": "FILE_EXPLORER_ENABLED"
+    }
+  },
+  "executionTime": 1
+}
+```
+
+**注意**: この設定はセキュリティ要件や運用ポリシーに基づいて、File Explorer API を完全に無効化する必要がある場合に使用します。
 
 ---
 
