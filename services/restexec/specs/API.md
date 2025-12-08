@@ -11,6 +11,7 @@
 **Content-Type**: `application/json`
 
 **Request Body**:
+
 ```json
 {
   "codeId": "exec-20250109-123456",
@@ -24,13 +25,14 @@
 
 **パラメータ**:
 
-| フィールド | 型 | 必須 | デフォルト値 | 説明 |
-|-----------|-----|------|------------|------|
-| `codeId` | string | ✅ Yes | - | 実行するコードファイルの識別子（拡張子なし） |
-| `timeout` | number | ❌ No | 5000 | タイムアウト時間（ミリ秒単位） |
-| `env` | object | ❌ No | {} | 実行コードに渡す環境変数（キーと値のペア） |
+| フィールド | 型     | 必須   | デフォルト値 | 説明                                         |
+| ---------- | ------ | ------ | ------------ | -------------------------------------------- |
+| `codeId`   | string | ✅ Yes | -            | 実行するコードファイルの識別子（拡張子なし） |
+| `timeout`  | number | ❌ No  | 5000         | タイムアウト時間（ミリ秒単位）               |
+| `env`      | object | ❌ No  | {}           | 実行コードに渡す環境変数（キーと値のペア）   |
 
 **バリデーションルール**:
+
 - `codeId`: 必須、空文字列不可、パス区切り文字（`/`, `\`）を含まない
 - `timeout`: オプション、指定する場合は正の整数（1 ≤ timeout ≤ 300000）
 - `env`: オプション、環境変数のオブジェクト
@@ -57,11 +59,12 @@
 ```
 
 **フィールド**:
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `success` | boolean | 実行成功フラグ（常に `true`） |
-| `result` | any | 実行コードからの出力結果（JSONオブジェクト） |
-| `executionTime` | number | 実行時間（ミリ秒） |
+
+| フィールド      | 型      | 説明                                         |
+| --------------- | ------- | -------------------------------------------- |
+| `success`       | boolean | 実行成功フラグ（常に `true`）                |
+| `result`        | any     | 実行コードからの出力結果（JSONオブジェクト） |
+| `executionTime` | number  | 実行時間（ミリ秒）                           |
 
 #### エラーレスポンス (4xx, 5xx)
 
@@ -78,17 +81,19 @@
 ```
 
 **エラータイプ**:
-| エラータイプ | HTTPステータス | 説明 |
-|------------|--------------|------|
-| `ValidationError` | 400 | リクエストパラメータのバリデーションエラー |
-| `FileNotFoundError` | 404 | 指定されたコードファイルが存在しない |
-| `TimeoutError` | 408 | 実行がタイムアウトした |
-| `ExecutionError` | 500 | コード実行中のエラー |
-| `InternalError` | 500 | サーバー内部エラー |
+
+| エラータイプ        | HTTPステータス | 説明                                       |
+| ------------------- | -------------- | ------------------------------------------ |
+| `ValidationError`   | 400            | リクエストパラメータのバリデーションエラー |
+| `FileNotFoundError` | 404            | 指定されたコードファイルが存在しない       |
+| `TimeoutError`      | 408            | 実行がタイムアウトした                     |
+| `ExecutionError`    | 500            | コード実行中のエラー                       |
+| `InternalError`     | 500            | サーバー内部エラー                         |
 
 **エラーレスポンス例**:
 
 **禁止された環境変数キーを使用した場合**:
+
 ```json
 {
   "success": false,
@@ -105,6 +110,7 @@
 ```
 
 **環境変数のキー形式が不正な場合**:
+
 ```json
 {
   "success": false,
@@ -121,6 +127,7 @@
 ```
 
 **環境変数の値が最大長を超えた場合**:
+
 ```json
 {
   "success": false,
@@ -138,6 +145,7 @@
 ```
 
 **環境変数の個数が最大を超えた場合**:
+
 ```json
 {
   "success": false,
@@ -154,6 +162,7 @@
 ```
 
 **環境変数の全体サイズが最大を超えた場合**:
+
 ```json
 {
   "success": false,
@@ -180,6 +189,7 @@
 **Content-Type**: `application/json`
 
 **Request Body**:
+
 ```json
 {
   "codeId": "example-code",
@@ -189,12 +199,13 @@
 
 **パラメータ**:
 
-| フィールド | 型 | 必須 | デフォルト値 | 説明 |
-|-----------|-----|------|------------|------|
-| `codeId` | string | ✅ Yes | - | Lintを実行するコードファイルの識別子（拡張子なし） |
-| `timeout` | number | ❌ No | 5000 | タイムアウト時間（ミリ秒単位） |
+| フィールド | 型     | 必須   | デフォルト値 | 説明                                               |
+| ---------- | ------ | ------ | ------------ | -------------------------------------------------- |
+| `codeId`   | string | ✅ Yes | -            | Lintを実行するコードファイルの識別子（拡張子なし） |
+| `timeout`  | number | ❌ No  | 5000         | タイムアウト時間（ミリ秒単位）                     |
 
 **バリデーションルール**:
+
 - `codeId`: 必須、空文字列不可、パス区切り文字（`/`, `\`）を含まない
 - `timeout`: オプション、指定する場合は正の整数（1 ≤ timeout ≤ 300000）
 
@@ -229,24 +240,26 @@
 ```
 
 **フィールド**:
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `success` | boolean | 実行成功フラグ（常に `true`） |
-| `result.version` | number | Deno lintの出力フォーマットバージョン |
-| `result.diagnostics` | array | Lint診断結果の配列 |
-| `result.errors` | array | Lint実行中に発生したエラーの配列 |
-| `result.checkedFiles` | array | チェックされたファイルパスの配列 |
-| `executionTime` | number | 実行時間（ミリ秒） |
+
+| フィールド            | 型      | 説明                                  |
+| --------------------- | ------- | ------------------------------------- |
+| `success`             | boolean | 実行成功フラグ（常に `true`）         |
+| `result.version`      | number  | Deno lintの出力フォーマットバージョン |
+| `result.diagnostics`  | array   | Lint診断結果の配列                    |
+| `result.errors`       | array   | Lint実行中に発生したエラーの配列      |
+| `result.checkedFiles` | array   | チェックされたファイルパスの配列      |
+| `executionTime`       | number  | 実行時間（ミリ秒）                    |
 
 **Diagnostic オブジェクト**:
-| フィールド | 型 | 説明 |
-|-----------|-----|------|
-| `code` | string | Lintルールコード（例: "no-unused-vars"） |
-| `message` | string | Lint問題の説明 |
-| `range.start` | object | 問題の開始位置（行と列） |
-| `range.end` | object | 問題の終了位置（行と列） |
-| `filename` | string | 問題が見つかったファイルパス |
-| `hint` | string | 修正の提案（オプション） |
+
+| フィールド    | 型     | 説明                                     |
+| ------------- | ------ | ---------------------------------------- |
+| `code`        | string | Lintルールコード（例: "no-unused-vars"） |
+| `message`     | string | Lint問題の説明                           |
+| `range.start` | object | 問題の開始位置（行と列）                 |
+| `range.end`   | object | 問題の終了位置（行と列）                 |
+| `filename`    | string | 問題が見つかったファイルパス             |
+| `hint`        | string | 修正の提案（オプション）                 |
 
 #### エラーレスポンス (4xx, 5xx)
 
@@ -263,19 +276,21 @@
 ```
 
 **エラータイプ**:
-| エラータイプ | HTTPステータス | 説明 |
-|------------|--------------|------|
-| `ValidationError` | 400 | リクエストパラメータのバリデーションエラー |
-| `FileNotFoundError` | 404 | 指定されたコードファイルが存在しない |
-| `TimeoutError` | 408 | Lint実行がタイムアウトした |
-| `ExecutionError` | 500 | Lint実行中のエラー |
-| `InternalError` | 500 | サーバー内部エラー |
+
+| エラータイプ        | HTTPステータス | 説明                                       |
+| ------------------- | -------------- | ------------------------------------------ |
+| `ValidationError`   | 400            | リクエストパラメータのバリデーションエラー |
+| `FileNotFoundError` | 404            | 指定されたコードファイルが存在しない       |
+| `TimeoutError`      | 408            | Lint実行がタイムアウトした                 |
+| `ExecutionError`    | 500            | Lint実行中のエラー                         |
+| `InternalError`     | 500            | サーバー内部エラー                         |
 
 ### 使用例
 
 #### クリーンなファイルのLint
 
 **Request**:
+
 ```bash
 curl -X POST http://localhost:3000/lint \
   -H "Content-Type: application/json" \
@@ -283,6 +298,7 @@ curl -X POST http://localhost:3000/lint \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -299,6 +315,7 @@ curl -X POST http://localhost:3000/lint \
 #### 問題のあるファイルのLint
 
 **Request**:
+
 ```bash
 curl -X POST http://localhost:3000/lint \
   -H "Content-Type: application/json" \
@@ -306,6 +323,7 @@ curl -X POST http://localhost:3000/lint \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -355,3 +373,31 @@ curl -X POST http://localhost:3000/lint \
 }
 ```
 
+## File Explorer API
+
+File Explorer API は `/workspace` および `/tools` ディレクトリ内のファイルを探索・検索するためのエンドポイントを提供します。
+
+### エンドポイント一覧
+
+| Method | Endpoint        | 説明                                           |
+| ------ | --------------- | ---------------------------------------------- |
+| `GET`  | `/files/list`   | ディレクトリ内のファイル一覧を取得（glob対応） |
+| `GET`  | `/files/read`   | ファイルの内容を読み取り                       |
+| `POST` | `/files/search` | ファイル内容を検索（grep機能）                 |
+
+詳細な仕様は [FileExplorerAPI.md](./FileExplorerAPI.md) を参照してください。
+
+### 使用例
+
+```bash
+# ファイル一覧を取得
+curl "http://localhost:3000/files/list?path=/tools&pattern=**/*.ts"
+
+# ファイルを読み取り
+curl "http://localhost:3000/files/read?path=/tools/mcp/client.ts"
+
+# ファイル内容を検索
+curl -X POST http://localhost:3000/files/search \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/tools", "query": "export function", "pattern": "**/*.ts"}'
+```

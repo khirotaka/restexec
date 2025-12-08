@@ -26,30 +26,30 @@ import { add, multiply } from '/tools/utils/math';
 async function main() {
   const a = 10;
   const b = 20;
-  
+
   const sum = add(a, b);
   const product = multiply(a, b);
-  
+
   const message = formatMessage(`Sum: ${sum}, Product: ${product}`);
-  
+
   // 結果をJSON形式で標準出力に出力
   const result = {
     success: true,
     message,
     calculations: {
       sum,
-      product
+      product,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   console.log(JSON.stringify(result));
 }
 
 main().catch((error) => {
   console.error(JSON.stringify({
     success: false,
-    error: error.message
+    error: error.message,
   }));
   Deno.exit(1);
 });
@@ -75,3 +75,31 @@ export function formatMessage(text: string): string {
 }
 ```
 
+## File Explorer API によるアクセス
+
+File Explorer API を使用すると、外部サービス（別Podで動作するAI Agentなど）からHTTP経由でファイルシステムにアクセスできます。
+
+### ファイル一覧の取得
+
+```bash
+# /tools ディレクトリ内の TypeScript ファイルを一覧
+curl "http://localhost:3000/files/list?path=/tools&pattern=**/*.ts"
+```
+
+### ファイル内容の読み取り
+
+```bash
+# ファイルの内容を取得
+curl "http://localhost:3000/files/read?path=/tools/utils/math.ts"
+```
+
+### ファイル内容の検索
+
+```bash
+# 関数定義を検索
+curl -X POST http://localhost:3000/files/search \
+  -H "Content-Type: application/json" \
+  -d '{"path": "/tools", "query": "export function", "pattern": "**/*.ts"}'
+```
+
+詳細な仕様は [FileExplorerAPI.md](./FileExplorerAPI.md) を参照してください。
