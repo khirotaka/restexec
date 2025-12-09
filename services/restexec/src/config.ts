@@ -11,7 +11,7 @@ function parseArrayEnv(envVar: string | undefined, defaultValue: string[]): stri
 /**
  * Parse boolean environment variable
  */
-function parseBooleanEnv(envVar: string | undefined, defaultValue: boolean): boolean {
+function parseBooleanEnv(envVar: string | undefined, defaultValue: boolean | undefined): boolean | undefined {
   if (!envVar) {
     return defaultValue;
   }
@@ -47,4 +47,44 @@ export const config = {
       allowRun: parseBooleanEnv(Deno.env.get('DENO_ALLOW_RUN'), false),
     },
   },
+
+  // Authentication & Authorization
+  auth: {
+    enabled: parseBooleanEnv(Deno.env.get('AUTH_ENABLED'), undefined), // undefined means not set
+    apiKey: Deno.env.get('AUTH_API_KEY') || '',
+    trustedProxyIPs: parseArrayEnv(Deno.env.get('AUTH_TRUSTED_PROXY_IPS'), []),
+    rateLimit: {
+      enabled: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_ENABLED'), true),
+      maxAttempts: parseInt(Deno.env.get('AUTH_RATE_LIMIT_MAX_ATTEMPTS') || '5', 10),
+      windowMs: parseInt(Deno.env.get('AUTH_RATE_LIMIT_WINDOW_MS') || '60000', 10),
+      trustProxy: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_TRUST_PROXY'), false),
+    },
+  },
 } as const;
+
+// Startup validation
+export function validateAuthConfig() {
+  // Check if AUTH_ENABLED is explicitly set
+  // Note: parseBooleanEnv returns defaultValue if env is not set.
+  // We used 'undefined' as default value above (which is technically not boolean but handled by the any/unknown nature of env var parsing usually,
+  // but to be type safe let's adjust the logic slightly or check the raw env var here).
+  // Actually, let's check the raw env var here for the "explicitly set" requirement.
+  const rawAuthEnabled = Deno.env.get('AUTH_ENABLED');
+  if (rawAuthEnabled === undefined) {
+    console.error('[ERROR] AUTH_ENABLED must be explicitly set to "true" or "false"');
+    Deno.exit(1);
+  }
+
+  if (config.auth.enabled) {
+    if (!config.auth.apiKey) {
+      console.error('[ERROR] AUTH_ENABLED is true but AUTH_API_KEY is not set');
+      Deno.exit(1);
+    }
+    if (config.auth.apiKey.length < 32) {
+      console.error(
+        `[ERROR] AUTH_API_KEY must be at least 32 characters long (current: ${config.auth.apiKey.length})`,
+      );
+      Deno.exit(1);
+    }
+  }
+}

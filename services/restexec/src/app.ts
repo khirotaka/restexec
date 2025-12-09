@@ -7,6 +7,7 @@ import { logger } from './utils/logger.ts';
 import type { ApiResponse } from './types/index.ts';
 import { RestExecError } from './utils/errors.ts';
 import { processManager } from './utils/processManager.ts';
+import { authMiddleware } from './middleware/auth.ts';
 
 export function createApp(): Application {
   const app = new Application();
@@ -28,6 +29,9 @@ export function createApp(): Application {
       `${ctx.request.method} ${ctx.request.url.pathname} completed in ${duration}ms (active processes: ${finalActiveProcesses})`,
     );
   });
+
+  // Authentication Middleware
+  app.use(authMiddleware);
 
   // Error handler (must be before routes to catch route errors)
   app.use(async (ctx: Context, next) => {
