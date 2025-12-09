@@ -1,6 +1,7 @@
 import { Context, Next } from '@oak/oak';
 import { config } from '../config.ts';
 import { logger } from '../utils/logger.ts';
+import { isIPv4, isIPv6, matchSubnets } from '@std/net/unstable-ip';
 
 // 認証不要なパス
 const PUBLIC_PATHS = ['/health'];
@@ -30,6 +31,13 @@ setInterval(() => {
   }
 }, 60000); // Check every minute
 
+/**
+ * Validate IP address format (IPv4 or IPv6)
+ */
+function isValidIP(ip: string): boolean {
+  return isIPv4(ip) || isIPv6(ip);
+}
+
 function getClientIP(ctx: Context): string {
   const directIP = ctx.request.ip;
 
@@ -37,25 +45,11 @@ function getClientIP(ctx: Context): string {
     return directIP;
   }
 
-  // Check if direct IP is in trusted proxies
-  const isTrusted = config.auth.trustedProxyIPs.some((trustedRange) => {
-    // NOTE: Simple check for now, handling CIDR would require a library or more complex logic.
-    // For this implementation, we'll assume trustedProxyIPs lists exact IPs or rely on strict NetworkPolicy
-    // If we implement CIDR parsing we can improve this.
-    // Given the spec mentions CIDR, but also `10.0.0.0/8`, we'd need a CIDR parser.
-    // To avoid external dependencies for now, we will just match assuming exact IP match or
-    // if the user provides direct IP.
-    // If the spec strongly implies CIDR, I should probably implement valid CIDR checking or accept strict equality.
-    // Let's stick to exact match for simplicity unless we pull in a library/std method.
-    return trustedRange === directIP;
-  });
+  // Check if direct IP is in trusted proxies (CIDR supported)
+  const isTrusted = config.auth.trustedProxyIPs.length > 0 &&
+    matchSubnets(directIP, config.auth.trustedProxyIPs);
 
-  // Note: Implementing minimal CIDR check or relying on exact match for simplicity in this pass,
-  // knowing that in K8s internal IPs might vary.
-  // If `AUTH_TRUSTED_PROXY_IPS` is empty, trustProxy logic effectively fails open or closed pending logic.
-  // The spec says: "リクエスト直接の送信元IPがこの範囲内にある場合のみヘッダーを信頼"
-
-  if (config.auth.trustedProxyIPs.length > 0 && !isTrusted) {
+  if (!isTrusted) {
     return directIP;
   }
 
@@ -65,7 +59,13 @@ function getClientIP(ctx: Context): string {
   }
 
   const clientIP = forwardedFor.split(',')[0].trim();
-  // Basic IP validation could go here
+
+  // Validate IP address format
+  if (!isValidIP(clientIP)) {
+    logger.warn(`Invalid X-Forwarded-For IP: ${clientIP}, using direct IP: ${directIP}`);
+    return directIP;
+  }
+
   return clientIP;
 }
 
@@ -95,11 +95,38 @@ function isRateLimited(ip: string): boolean {
     return false;
   }
 
-  return false;
+  // Check if attempts exceed max attempts within the window
+  return info.attempts >= config.auth.rateLimit.maxAttempts;
+}
+
+/**
+ * Ensure rate limit store doesn't exceed maximum size
+ * Implements LRU-like eviction by removing oldest entries
+ */
+function ensureRateLimitStoreSize() {
+  const maxEntries = config.auth.rateLimit.maxEntries;
+
+  if (rateLimitStore.size >= maxEntries) {
+    logger.warn(`Rate limit store reached max size (${maxEntries}), evicting oldest entries`);
+
+    // Sort entries by firstAttempt (oldest first)
+    const sortedEntries = Array.from(rateLimitStore.entries())
+      .sort(([, a], [, b]) => a.firstAttempt - b.firstAttempt);
+
+    // Remove oldest 10%
+    const toDelete = Math.floor(maxEntries * 0.1);
+    for (let i = 0; i < toDelete; i++) {
+      rateLimitStore.delete(sortedEntries[i][0]);
+    }
+
+    logger.info(`Evicted ${toDelete} oldest rate limit entries`);
+  }
 }
 
 function recordAuthFailure(ip: string) {
   if (!config.auth.rateLimit.enabled) return;
+
+  ensureRateLimitStoreSize();
 
   const now = Date.now();
   const info = rateLimitStore.get(ip);

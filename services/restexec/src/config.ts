@@ -10,7 +10,10 @@ function parseArrayEnv(envVar: string | undefined, defaultValue: string[]): stri
 
 /**
  * Parse boolean environment variable
+ * Overloaded to provide type safety based on defaultValue
  */
+function parseBooleanEnv(envVar: string | undefined, defaultValue: boolean): boolean;
+function parseBooleanEnv(envVar: string | undefined, defaultValue: undefined): boolean | undefined;
 function parseBooleanEnv(envVar: string | undefined, defaultValue: boolean | undefined): boolean | undefined {
   if (!envVar) {
     return defaultValue;
@@ -58,6 +61,7 @@ export const config = {
       maxAttempts: parseInt(Deno.env.get('AUTH_RATE_LIMIT_MAX_ATTEMPTS') || '5', 10),
       windowMs: parseInt(Deno.env.get('AUTH_RATE_LIMIT_WINDOW_MS') || '60000', 10),
       trustProxy: parseBooleanEnv(Deno.env.get('AUTH_RATE_LIMIT_TRUST_PROXY'), false),
+      maxEntries: parseInt(Deno.env.get('AUTH_RATE_LIMIT_MAX_ENTRIES') || '10000', 10),
     },
   },
 } as const;
