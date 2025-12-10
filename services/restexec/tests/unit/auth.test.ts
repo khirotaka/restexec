@@ -403,3 +403,197 @@ Deno.test({
     assert(nextCalled);
   },
 });
+
+// ===== Rate Limiting - Block Expiry Tests =====
+
+Deno.test({
+  name: 'Rate Limiting - Resets attempts after block period expires',
+  fn: async () => {
+    // Setup
+    mockConfig.auth.enabled = true;
+    mockConfig.auth.apiKey = TEST_API_KEY;
+    mockConfig.auth.rateLimit.enabled = true;
+    mockConfig.auth.rateLimit.maxAttempts = 5;
+    mockConfig.auth.rateLimit.windowMs = 60000;
+
+    const testIP = '192.168.1.100';
+    const next = () => Promise.resolve();
+
+    // Step 1: Make 5 failed attempts to trigger rate limit
+    for (let i = 0; i < 5; i++) {
+      const ctx = testing.createMockContext({
+        path: '/execute',
+        method: 'POST',
+        headers: [['Authorization', 'Bearer wrong-key']],
+        ip: testIP,
+      });
+      await authMiddleware(ctx, next);
+      assertEquals(ctx.response.status, 401);
+    }
+
+    // Step 2: Verify rate limiting is active (6th attempt)
+    const ctxBlocked = testing.createMockContext({
+      path: '/execute',
+      method: 'POST',
+      headers: [['Authorization', 'Bearer wrong-key']],
+      ip: testIP,
+    });
+    await authMiddleware(ctxBlocked, next);
+    assertEquals(ctxBlocked.response.status, 429);
+
+    // Step 3: Simulate block period expiration by manipulating the store
+    const { rateLimitStore } = await import('../../src/middleware/auth.ts');
+    const info = rateLimitStore.get(testIP);
+    assert(info, 'Rate limit info should exist');
+    assert(info.blockedUntil, 'Should be blocked');
+
+    // Set blockedUntil to 1 second ago to simulate expiration
+    info.blockedUntil = Date.now() - 1000;
+
+    // Step 4: Next request should pass rate limit check (not 429)
+    const ctxAfterBlock = testing.createMockContext({
+      path: '/execute',
+      method: 'POST',
+      headers: [['Authorization', 'Bearer wrong-key']],
+      ip: testIP,
+    });
+    await authMiddleware(ctxAfterBlock, next);
+    // Should be 401 (auth failure), NOT 429 (rate limit)
+    assertEquals(ctxAfterBlock.response.status, 401);
+
+    // Step 5: Verify the entry still exists and attempts were reset
+    const infoAfter = rateLimitStore.get(testIP);
+    assert(infoAfter, 'Entry should still exist in store');
+    assertEquals(infoAfter.attempts, 1, 'Attempts should be 1 (new failure counted)');
+    assertEquals(infoAfter.blockedUntil, undefined, 'Should no longer be blocked');
+
+    // Cleanup
+    rateLimitStore.clear();
+  },
+});
+
+Deno.test({
+  name: 'Rate Limiting - Can be blocked again after reset',
+  fn: async () => {
+    // Setup
+    mockConfig.auth.enabled = true;
+    mockConfig.auth.apiKey = TEST_API_KEY;
+    mockConfig.auth.rateLimit.enabled = true;
+    mockConfig.auth.rateLimit.maxAttempts = 5;
+    mockConfig.auth.rateLimit.windowMs = 60000;
+
+    const testIP = '192.168.1.200';
+    const next = () => Promise.resolve();
+    const { rateLimitStore } = await import('../../src/middleware/auth.ts');
+
+    // Step 1: Trigger rate limit (5 failed attempts)
+    for (let i = 0; i < 5; i++) {
+      const ctx = testing.createMockContext({
+        path: '/execute',
+        method: 'POST',
+        headers: [['Authorization', 'Bearer wrong-key']],
+        ip: testIP,
+      });
+      await authMiddleware(ctx, next);
+    }
+
+    // Step 2: Verify blocked
+    let ctx = testing.createMockContext({
+      path: '/execute',
+      method: 'POST',
+      headers: [['Authorization', 'Bearer wrong-key']],
+      ip: testIP,
+    });
+    await authMiddleware(ctx, next);
+    assertEquals(ctx.response.status, 429);
+
+    // Step 3: Simulate block expiry
+    const info = rateLimitStore.get(testIP);
+    assert(info);
+    info.blockedUntil = Date.now() - 1000;
+
+    // Step 4: Make 5 more failed attempts after block expired
+    for (let i = 0; i < 5; i++) {
+      ctx = testing.createMockContext({
+        path: '/execute',
+        method: 'POST',
+        headers: [['Authorization', 'Bearer wrong-key']],
+        ip: testIP,
+      });
+      await authMiddleware(ctx, next);
+      // First 4 should be 401, 5th should be 429 (blocked again)
+      if (i < 4) {
+        assertEquals(ctx.response.status, 401, `Attempt ${i + 1} should be 401`);
+      }
+    }
+
+    // Step 5: Verify rate limit is triggered again
+    ctx = testing.createMockContext({
+      path: '/execute',
+      method: 'POST',
+      headers: [['Authorization', 'Bearer wrong-key']],
+      ip: testIP,
+    });
+    await authMiddleware(ctx, next);
+    assertEquals(ctx.response.status, 429, 'Should be blocked again');
+
+    // Cleanup
+    rateLimitStore.clear();
+  },
+});
+
+Deno.test({
+  name: 'Rate Limiting - Deletes entries after window expires (not blocked)',
+  fn: async () => {
+    // Setup
+    mockConfig.auth.enabled = true;
+    mockConfig.auth.apiKey = TEST_API_KEY;
+    mockConfig.auth.rateLimit.enabled = true;
+    mockConfig.auth.rateLimit.maxAttempts = 5;
+    mockConfig.auth.rateLimit.windowMs = 60000;
+
+    const testIP = '192.168.1.300';
+    const next = () => Promise.resolve();
+    const { rateLimitStore } = await import('../../src/middleware/auth.ts');
+
+    // Step 1: Make 3 failed attempts (below threshold)
+    for (let i = 0; i < 3; i++) {
+      const ctx = testing.createMockContext({
+        path: '/execute',
+        method: 'POST',
+        headers: [['Authorization', 'Bearer wrong-key']],
+        ip: testIP,
+      });
+      await authMiddleware(ctx, next);
+      assertEquals(ctx.response.status, 401);
+    }
+
+    // Step 2: Verify entry exists
+    let info = rateLimitStore.get(testIP);
+    assert(info, 'Entry should exist');
+    assertEquals(info.attempts, 3);
+    assertEquals(info.blockedUntil, undefined, 'Should not be blocked');
+
+    // Step 3: Simulate window expiration
+    info.firstAttempt = Date.now() - (mockConfig.auth.rateLimit.windowMs + 1000);
+
+    // Step 4: Trigger periodic cleanup by calling isRateLimited
+    const ctx = testing.createMockContext({
+      path: '/execute',
+      method: 'POST',
+      headers: [['Authorization', 'Bearer wrong-key']],
+      ip: testIP,
+    });
+    await authMiddleware(ctx, next);
+
+    // Step 5: Verify entry was deleted (window expired, not blocked)
+    // After the request, if window expired, the entry should be deleted
+    // and a new entry created with attempts=1
+    info = rateLimitStore.get(testIP);
+    assert(info, 'A new entry should be created');
+    assertEquals(info.attempts, 1, 'Should be a fresh entry with attempts=1');
+
+    // Cleanup
+    rateLimitStore.clear();
+  },
+});

@@ -13,7 +13,7 @@ interface RateLimitInfo {
   blockedUntil?: number;
 }
 
-const rateLimitStore = new Map<string, RateLimitInfo>();
+export const rateLimitStore = new Map<string, RateLimitInfo>();
 
 /**
  * Clean up expired rate limit entries periodically
@@ -21,11 +21,13 @@ const rateLimitStore = new Map<string, RateLimitInfo>();
 setInterval(() => {
   const now = Date.now();
   for (const [key, info] of rateLimitStore.entries()) {
-    // If blocked and block period is over, or if not blocked but window expired
-    if (
-      (info.blockedUntil && info.blockedUntil < now) ||
-      (!info.blockedUntil && now - info.firstAttempt > config.auth.rateLimit.windowMs)
-    ) {
+    // Reset if block expired
+    if (info.blockedUntil && info.blockedUntil < now) {
+      info.attempts = 0;
+      info.firstAttempt = now;
+      delete info.blockedUntil;
+    } // Delete only if window expired and not blocked
+    else if (!info.blockedUntil && now - info.firstAttempt > config.auth.rateLimit.windowMs) {
       rateLimitStore.delete(key);
     }
   }
@@ -84,8 +86,10 @@ function isRateLimited(ip: string): boolean {
     if (now < info.blockedUntil) {
       return true;
     }
-    // Block expired
-    rateLimitStore.delete(ip);
+    // Block expired - reset attempts but keep the entry
+    info.attempts = 0;
+    info.firstAttempt = now;
+    delete info.blockedUntil;
     return false;
   }
 
@@ -253,6 +257,7 @@ export async function authMiddleware(ctx: Context, next: Next) {
   // Reset rate limit on success?
   // Usually we don't reset immediately to prevent probing, but legitimate users might typo.
   // For strict security, we don't reset.
+  // NOTE: Block expiry does reset the counter to allow recovery while maintaining tracking.
 
   await next();
 }
