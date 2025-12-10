@@ -1,6 +1,9 @@
 import { createApp } from './app.ts';
-import { config } from './config.ts';
+import { config, validateAuthConfig } from './config.ts';
 import { logger } from './utils/logger.ts';
+
+// Validate auth config on startup
+validateAuthConfig();
 
 const app = createApp();
 

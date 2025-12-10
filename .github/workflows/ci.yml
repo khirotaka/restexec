@@ -5,21 +5,21 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'services/restexec/specs/**'
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
+      - "services/restexec/specs/**"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
   push:
     branches:
       - main
     paths-ignore:
-      - 'services/restexec/specs/**'
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
+      - "services/restexec/specs/**"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
 
 env:
-  GO_VERSION: '1.25'
+  GO_VERSION: "1.25"
 
 jobs:
   lint-and-typecheck:
@@ -80,6 +80,7 @@ jobs:
           DENO_PATH: deno
           WORKSPACE_DIR: /tmp/restexec-test-workspace
           TOOLS_DIR: /tmp/restexec-test-tools
+          AUTH_ENABLED: "false"
 
       - name: Upload coverage
         if: always()
