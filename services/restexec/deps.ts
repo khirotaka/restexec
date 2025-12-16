@@ -12,7 +12,7 @@
 
 // ===== Utility Libraries =====
 // Modern utility library with optimized performance
-export * from 'https://esm.sh/es-toolkit@1.42.0';
+export * from 'https://esm.sh/es-toolkit@1.43.0';
 
 // ===== Date/Time Libraries =====
 // Comprehensive date manipulation library
@@ -20,7 +20,7 @@ export * from 'https://esm.sh/date-fns@4.1.0';
 
 // ===== Validation Libraries =====
 // TypeScript-first schema validation
-export * from 'https://esm.sh/zod@4.1.13';
+export * from 'https://esm.sh/zod@4.2.1';
 
 // ===== Data Processing =====
 // CSV parser and writer
