@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-playground/validator/v10 v10.29.0
-	github.com/goccy/go-yaml v1.19.0
+	github.com/goccy/go-yaml v1.19.1
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/stretchr/testify v1.11.1
 )
