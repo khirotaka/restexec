@@ -7,7 +7,7 @@
     "es-toolkit/": "https://esm.sh/es-toolkit@1.43.0/",
     "date-fns": "https://esm.sh/date-fns@4.1.0",
     "date-fns/": "https://esm.sh/date-fns@4.1.0/",
-    "zod": "https://esm.sh/zod@4.1.13",
+    "zod": "https://esm.sh/zod@4.3.5",
     "papaparse": "https://esm.sh/papaparse@5.5.3",
     "nanoid": "https://esm.sh/nanoid@5.1.6",
     "decimal.js": "https://esm.sh/decimal.js@10.6.0"
