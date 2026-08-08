@@ -28,7 +28,7 @@ export * from 'https://esm.sh/papaparse@5.5.3';
 
 // ===== String/ID Generation =====
 // Secure, URL-friendly unique ID generator
-export * from 'https://esm.sh/nanoid@5.1.6';
+export * from 'https://esm.sh/nanoid@5.1.16';
 
 // ===== Math Libraries =====
 // High-precision decimal arithmetic
