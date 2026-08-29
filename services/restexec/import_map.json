@@ -3,12 +3,12 @@
     "@/": "/tools/",
     "utils/": "/tools/utils/",
     "types": "/tools/types.ts",
-    "es-toolkit": "https://esm.sh/es-toolkit@1.43.0",
-    "es-toolkit/": "https://esm.sh/es-toolkit@1.43.0/",
-    "date-fns": "https://esm.sh/date-fns@4.1.0",
-    "date-fns/": "https://esm.sh/date-fns@4.1.0/",
-    "zod": "https://esm.sh/zod@4.2.1",
-    "papaparse": "https://esm.sh/papaparse@5.5.3",
+    "es-toolkit": "https://esm.sh/es-toolkit@1.52.0",
+    "es-toolkit/": "https://esm.sh/es-toolkit@1.52.0/",
+    "date-fns": "https://esm.sh/date-fns@4.4.0",
+    "date-fns/": "https://esm.sh/date-fns@4.4.0/",
+    "zod": "https://esm.sh/zod@4.5.4",
+    "papaparse": "https://esm.sh/papaparse@5.7.0",
     "nanoid": "https://esm.sh/nanoid@5.1.6",
     "decimal.js": "https://esm.sh/decimal.js@10.6.0"
   }
