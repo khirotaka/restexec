@@ -12,19 +12,19 @@
 
 // ===== Utility Libraries =====
 // Modern utility library with optimized performance
-export * from 'https://esm.sh/es-toolkit@1.43.0';
+export * from 'https://esm.sh/es-toolkit@1.52.0';
 
 // ===== Date/Time Libraries =====
 // Comprehensive date manipulation library
-export * from 'https://esm.sh/date-fns@4.1.0';
+export * from 'https://esm.sh/date-fns@4.4.0';
 
 // ===== Validation Libraries =====
 // TypeScript-first schema validation
-export * from 'https://esm.sh/zod@4.2.1';
+export * from 'https://esm.sh/zod@4.5.4';
 
 // ===== Data Processing =====
 // CSV parser and writer
-export * from 'https://esm.sh/papaparse@5.5.3';
+export * from 'https://esm.sh/papaparse@5.7.0';
 
 // ===== String/ID Generation =====
 // Secure, URL-friendly unique ID generator
